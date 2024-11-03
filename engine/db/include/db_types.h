@@ -9,47 +9,38 @@
 #include <cstdint>
 #include <utility>
 #include "shrwlock.h"
-
-template <typename T>
-class TreeMap {
-    T& get(const char* key);
-    void set(const char* key, T value);
-
-private:
-    std::pair<const char*, T>* data;
-    size_t used_size;
-    size_t alloc_size;
-    shrwlock lock;
-};
+#include "custom_map.h"
+#include "offset_ptr.h"
 
 enum class ValueType {
+    BOOLEAN,
     INT,
-    FLOAT,
     STRING,
+    DOUBLE,
+    SEMAPHORE,
+    REFERENCE,
     ARRAY,
-    MAP
+    PAIR,
+    MAP // This is for hierarchical data structures
 };
 
 struct Value;
 struct ArrayType {
-    Value* array_value;
+    ValueType type;
+    offset_ptr<Value> array_value;
     size_t size;
 };
 
 struct Value {
     ValueType type;
     union {
+        bool bool_value;
         int int_value;
-        float float_value;
-        char* string_value;
+        offset_ptr<char> string_value; // For now this will also be used for storing references
+        double double_value;
+        // TODO semaphore sem_value;
         ArrayType array_value;
-        TreeMap<Value> map_value;
+        std::pair<offset_ptr<Value>, offset_ptr<Value>> pair_value;
+        db_map<Value> map_value;
     };
-};
-
-struct DB {
-    int db_ver;
-    char* metadata;
-    TreeMap<Value> entrypoint;
-
 };

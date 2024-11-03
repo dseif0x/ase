@@ -21,10 +21,12 @@ public:
     template <typename U>
     offset_ptr(const offset_ptr<U>& other): offset{other.offset} {}
     offset_ptr(offset_t offset) : offset{offset} {};
+    offset_ptr() : offset{-1} {};
 
     template <typename Lambda>
     void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
 
     template <typename U>
     friend class offset_ptr;
+    friend class shmem;
 };

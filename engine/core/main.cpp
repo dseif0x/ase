@@ -32,7 +32,6 @@ int main() {
     }
     shmem test;
     std::cout << "Attached" << std::endl;
-    std::vector<offset_ptr<value>> values;
     for (int i : std::views::iota(0, 1024 * 1024)) {
         auto ptr = test.construct<value>();
         ptr.atomic_access(test, [i](value* ptr) {
@@ -41,14 +40,8 @@ int main() {
         });
 
         //std::cout << ptr->a << " " << ptr->b << std::endl;
-        values.push_back(ptr);
     }
 
-    for (auto& ptr : values) {
-        ptr.atomic_access(test, [](const value* ptr) {
-            //std::cout << ptr->a << " " << ptr->b << std::endl;
-        });
-    }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()) << std::endl;
 
     if (pid == 0) {

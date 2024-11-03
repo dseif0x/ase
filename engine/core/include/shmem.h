@@ -24,7 +24,7 @@ class shmem {
     shmem_meta* metadata{nullptr}; // This is one shared memory segment that is fixed in size and contains the metadata
     void* base{nullptr}; // This is the second shared memory segment that is variable in size and contains the actual data
 
-    void attach();
+    void attach(std::function<void(shmem&)> on_create);
     void close();
 
     void resize(offset_t min_size); // This function is used to resize the base segment if the required size is larger than the current size
@@ -33,17 +33,49 @@ class shmem {
     void deallocate(offset_t ptr); // This function is used to allocate a new block of memory in the base segment
 public:
     shmem();
+    shmem(std::function<void(shmem&)> on_create);
     ~shmem();
     void destroy();
 
-    template <typename T>
-    offset_ptr<T> construct() {
+    offset_t get_management_offset() const;
+
+    template <typename T, typename... Args>
+    offset_ptr<T> construct(Args&&... args) {
         auto storage = allocate(sizeof(T));
         offset_ptr<T> ptr{storage};
-        atomic_access(storage, [](void *ptr) {
-            new (ptr) T();
+        atomic_access(storage, [&args...](void *ptr) {
+            new (ptr) T(std::forward<Args>(args)...);
         });
         return ptr;
+    }
+
+    template <typename T>
+    offset_ptr<T> construct_array(size_t count) {
+        auto storage = allocate(sizeof(T) * count);
+        offset_ptr<T> ptr{storage};
+        atomic_access(storage, [count](void *ptr) {
+            for (size_t i = 0; i < count; i++) {
+                new (reinterpret_cast<uint8_t*>(ptr) + i * sizeof(T)) T();
+            }
+        });
+        return ptr;
+    }
+
+    template<typename T>
+    void destroy(offset_ptr<T> ptr) {
+        atomic_access(ptr.offset, [](void *ptr) {
+            reinterpret_cast<T*>(ptr)->~T();
+        });
+        deallocate(ptr.offset);
+    }
+
+    template<typename T>
+    void destroy_array(offset_ptr<T> ptr) {
+        // TODO get count and call destructors
+        atomic_access(ptr.offset, [](void *ptr) {
+            reinterpret_cast<T*>(ptr)->~T();
+        });
+        deallocate(ptr.offset);
     }
 
     template <typename T>

@@ -7,20 +7,23 @@
 
 #include "shmem.h"
 #include <sys/mman.h>
-#include <iostream>
 #include <unistd.h>
-#include <mutex>
 #include <shared_mutex>
+#include <utility>
 
 shmem::shmem() {
-    attach();
+    attach([](shmem&){});
+}
+
+shmem::shmem(std::function<void(shmem&)> on_create) {
+    attach(std::move(on_create));
 }
 
 shmem::~shmem() {
     close();
 }
 
-void shmem::attach() {
+void shmem::attach(std::function<void(shmem&)> on_create) {
     // Metadata shared memory segment
     {
         int meta_fd = shm_open("shmem_meta", O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
@@ -81,6 +84,9 @@ void shmem::attach() {
             throw std::runtime_error("Failed to mmap shared memory segment for data");
         }
         ::close(data_fd);
+        if (created) {
+            on_create(*this);
+        }
     }
 }
 
@@ -188,4 +194,8 @@ void shmem::atomic_access(offset_t offset, std::function<void(void *)>&& lambda,
     } else {
         do_access();
     }
+}
+
+offset_t shmem::get_management_offset() const {
+    return 0;
 }
