@@ -14,6 +14,10 @@ class shrwlock {
 public:
     shrwlock();
     ~shrwlock();
+    shrwlock(const shrwlock&) = delete;
+    shrwlock& operator=(const shrwlock&) = delete;
+    shrwlock(shrwlock&&) = delete;
+    shrwlock& operator=(shrwlock&&) = delete;
 
     void lock();
     void unlock();

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <ranges>
 #include <mutex>
+#include <thread>
 #include <unistd.h>
 
 #include "shmem.h"
@@ -26,6 +27,9 @@ int main() {
     }
     pid_t pid = fork();
     stopwatch s;
+    if (pid == 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     shmem test;
     std::cout << "Attached" << std::endl;
     std::vector<offset_ptr<value>> values;

@@ -104,12 +104,13 @@ void shmem::destroy() {
 }
 
 void shmem::resize(offset_t min_size) {
-    std::cerr << "Resizing to min " << min_size << " bytes" << std::endl;
-
     int flags = O_RDWR;
 #ifdef __APPLE__ // Unfortunately on darwin you can only call ftruncate once per shared memory segment. So we recerate a new one and move the data over
-    offset_t prev_size = metadata->alloc_size;
-    void* tmp = malloc(prev_size);
+    offset_t prev_size = metadata->used_size;
+    auto* tmp = static_cast<uint8_t*>(mmap(nullptr, prev_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)); // Use mmap to allocate a temporary buffer
+    if (tmp == MAP_FAILED) {
+        throw std::runtime_error("Failed to allocate temporary buffer for resize");
+    }
     memcpy(tmp, base, prev_size);
 
     // Unmap & delete existing data segment
@@ -138,13 +139,10 @@ void shmem::resize(offset_t min_size) {
 
 #ifdef __APPLE__
     memcpy(base, tmp, prev_size);
-    free(tmp);
+    munmap(tmp, prev_size); // Unmap the temporary buffer
 #endif
 
     ++metadata->version;
-
-    std::cerr << "Finished Resizing to min " << min_size << " bytes" << std::endl;
-
 }
 
 offset_t shmem::allocate(std::size_t size) {
@@ -170,7 +168,7 @@ void shmem::atomic_access(offset_t offset, std::function<void(void *)>&& lambda,
         {
             if (metadata->version > local_version) { // If the version has changed, remap the data segment
                 munmap(base, metadata->alloc_size);
-                int data_fd = shm_open("shmem_data", O_RDWR, 0);
+                int data_fd = shm_open("shmem_data", O_RDWR, S_IRUSR | S_IWUSR);
                 base = mmap(nullptr, metadata->alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
                 ::close(data_fd);
                 local_version = metadata->version;
