@@ -6,6 +6,7 @@
  */
 
 #include "shrwlock.h"
+#include <iostream>
 
 shrwlock::shrwlock() {
     pthread_rwlockattr_t attr;

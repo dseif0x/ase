@@ -7,6 +7,8 @@
 
 #include <iostream>
 #include <ranges>
+#include <mutex>
+#include <unistd.h>
 
 #include "shmem.h"
 #include "stopwatch.h"
@@ -14,6 +16,7 @@
 struct value {
     int a;
     int b;
+    uint8_t test[256];
 };
 
 int main() {
@@ -21,12 +24,14 @@ int main() {
         shmem test;
         test.destroy();
     }
+    pid_t pid = fork();
     stopwatch s;
     shmem test;
+    std::cout << "Attached" << std::endl;
     std::vector<offset_ptr<value>> values;
     for (int i : std::views::iota(0, 1024 * 1024)) {
         auto ptr = test.construct<value>();
-        ptr.atomic_write(test, [i](value* ptr) {
+        ptr.atomic_access(test, [i](value* ptr) {
             ptr->a = i;
             ptr->b = i * 2;
         });
@@ -36,12 +41,16 @@ int main() {
     }
 
     for (auto& ptr : values) {
-        ptr.atomic_read(test, [](const value* ptr) {
+        ptr.atomic_access(test, [](const value* ptr) {
             //std::cout << ptr->a << " " << ptr->b << std::endl;
         });
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()) << std::endl;
 
-    test.destroy();
+    if (pid == 0) {
+    } else {
+        waitpid(pid, nullptr, 0);
+        test.destroy();
+    }
     return 0;
 }

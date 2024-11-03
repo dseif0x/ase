@@ -7,6 +7,7 @@
 
 #include "shmem.h"
 #include <sys/mman.h>
+#include <iostream>
 #include <unistd.h>
 #include <mutex>
 #include <shared_mutex>
@@ -103,10 +104,7 @@ void shmem::destroy() {
 }
 
 void shmem::resize(offset_t min_size) {
-    // Atomically lock both semaphores
-    std::lock(metadata->data_mutex, metadata->meta_mutex);
-    std::lock_guard<shrwlock> lk1(metadata->data_mutex, std::adopt_lock);
-    std::lock_guard<shrwlock> lk2(metadata->meta_mutex, std::adopt_lock);
+    std::cerr << "Resizing to min " << min_size << " bytes" << std::endl;
 
     int flags = O_RDWR;
 #ifdef __APPLE__ // Unfortunately on darwin you can only call ftruncate once per shared memory segment. So we recerate a new one and move the data over
@@ -144,28 +142,13 @@ void shmem::resize(offset_t min_size) {
 #endif
 
     ++metadata->version;
-}
 
-void* shmem::access(offset_t offset) {
-    {
-        // TODO This semaphore is very slow and should be replaced with a more efficient solution
-        std::shared_lock<shrwlock> lk2(metadata->meta_mutex);
-        if (metadata->version > local_version) { // If the version has changed, remap the data segment
-            munmap(base, metadata->alloc_size);
-            int data_fd = shm_open("shmem_data", O_RDWR, 0);
-            base = mmap(nullptr, metadata->alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
-            ::close(data_fd);
-            local_version = metadata->version;
-        } else if (metadata->version < local_version) {
-            throw std::runtime_error("Version mismatch");
-        }
-    }
+    std::cerr << "Finished Resizing to min " << min_size << " bytes" << std::endl;
 
-    // TODO This is not good, we should lock the data semaphore while accessing the data segment but since we return a pointer for now we ignore possible race conditions on the pointers value
-    return reinterpret_cast<uint8_t *>(base) + offset;
 }
 
 offset_t shmem::allocate(std::size_t size) {
+    std::unique_lock<shrwlock> lk2(metadata->meta_mutex);
     // Ensure we have enough space, resize if needed
     if (metadata->used_size + size > metadata->alloc_size) {
         resize(metadata->used_size + size);
@@ -174,14 +157,15 @@ offset_t shmem::allocate(std::size_t size) {
     // Compute the offset, allocate space, and return pointer
     std::size_t offset = metadata->used_size;
     metadata->used_size += size;
+
     return offset;
 }
 
-void shmem::deallocate(offset_ptr<void> ptr) {
+void shmem::deallocate(offset_t ptr) {
     // This is currently left free for this simple bump allocator
 }
 
-void shmem::atomic_write(offset_t offset, std::function<void(void *)>&& lambda, bool locks_held) {
+void shmem::atomic_access(offset_t offset, std::function<void(void *)>&& lambda, bool locks_held) {
     auto do_access = [this, lambda, offset]() {
         {
             if (metadata->version > local_version) { // If the version has changed, remap the data segment
@@ -201,38 +185,7 @@ void shmem::atomic_write(offset_t offset, std::function<void(void *)>&& lambda, 
 
     // Atomically lock both semaphores
     if (!locks_held) {
-        std::lock(metadata->meta_mutex, metadata->data_mutex);
-        std::lock_guard<shrwlock> lk1(metadata->meta_mutex, std::adopt_lock);
-        std::lock_guard<shrwlock> lk2(metadata->data_mutex, std::adopt_lock);
-        do_access();
-    } else {
-        do_access();
-    }
-}
-
-void shmem::atomic_read(offset_t offset, std::function<void(const void *)>&& lambda, bool locks_held) {
-    auto do_access = [this, lambda, offset]() {
-        {
-            if (metadata->version > local_version) { // If the version has changed, remap the data segment
-                munmap(base, metadata->alloc_size);
-                int data_fd = shm_open("shmem_data", O_RDWR, 0);
-                base = mmap(nullptr, metadata->alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
-                ::close(data_fd);
-                local_version = metadata->version;
-            } else if (metadata->version < local_version) {
-                throw std::runtime_error("Version mismatch");
-            }
-        }
-
-        auto *ptr = reinterpret_cast<void *>(reinterpret_cast<uint8_t *>(base) + offset);
-        lambda(ptr);
-    };
-
-    // Atomically lock both semaphores
-    if (!locks_held) {
-        // TODO These should be locked simultaneously
         std::shared_lock<shrwlock> lk1(metadata->meta_mutex);
-        std::shared_lock<shrwlock> lk2(metadata->data_mutex);
         do_access();
     } else {
         do_access();

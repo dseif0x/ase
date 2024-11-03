@@ -22,12 +22,8 @@ public:
     offset_ptr(const offset_ptr<U>& other): offset{other.offset} {}
     offset_ptr(offset_t offset) : offset{offset} {};
 
-    T* get(shmem& mem) const; // Gives you the actual pointer to the object and remounts the shared memory if it has been resized
-
     template <typename Lambda>
-    void atomic_write(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent accesses to the data)
-    template <typename Lambda>
-    void atomic_read(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent accesses to the data)
+    void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
 
     template <typename U>
     friend class offset_ptr;
