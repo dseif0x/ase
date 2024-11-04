@@ -40,3 +40,11 @@ std::optional<CopiedValue> DB::get(const char *key) {
 
     return res;
 }
+
+void DB::set(const char *key, CopiedValue value) {
+    auto entrypoint_p = get_entrypoint();
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        offset_ptr<Value> new_value = mem.construct_unsafe<Value>(mem, value);
+        entrypoint->set(key, new_value.get_relative(mem)); // This implicitly creates a Value from the CopiedValue and puts it into the map
+    });
+}

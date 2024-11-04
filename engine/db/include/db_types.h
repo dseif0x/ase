@@ -12,6 +12,9 @@
 #include "custom_map.h"
 #include "relative_offset_ptr.h"
 
+struct Value;
+struct CopiedValue;
+
 enum class ValueType {
     BOOLEAN,
     INT,
@@ -24,7 +27,6 @@ enum class ValueType {
     MAP // This is for hierarchical data structures
 };
 
-struct Value;
 struct ArrayType {
     ValueType type;
     relative_offset_ptr<Value> array_value;
@@ -32,23 +34,25 @@ struct ArrayType {
 };
 
 struct Value {
+    Value() = delete;
+    Value(shmem& mem, const CopiedValue& value);
+
     ValueType type;
     union {
         bool bool_value;
         int int_value;
-        relative_offset_ptr<char> string_value; // For now this will also be used for storing references
+        relative_offset_ptr<char> string_value{}; // For now this will also be used for storing references
         double double_value;
         // TODO semaphore sem_value;
         ArrayType array_value;
         std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>> pair_value;
-        db_map<Value> map_value;
+        db_map<Value>* map_value;
     };
 };
 
 
 // These types are for returning values from the database as we cannot return a view we need to copy data
 
-struct CopiedValue;
 struct CopiedArrayType {
     ValueType type;
     CopiedValue* array_value;
@@ -56,6 +60,7 @@ struct CopiedArrayType {
 };
 
 struct CopiedValue {
+    CopiedValue() = default;
     CopiedValue(const Value& value);
     ValueType type;
     union {

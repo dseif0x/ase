@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <functional>
 #include "types.h"
+#include "relative_offset_ptr.h"
 
 class shmem;
 template <typename T>
@@ -24,6 +25,7 @@ public:
     offset_ptr() : offset{-1} {};
 
     T* get(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    relative_offset_ptr<T> get_relative(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     template <typename Lambda>
     void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
 
@@ -31,3 +33,8 @@ public:
     friend class offset_ptr;
     friend class shmem;
 };
+
+template<typename T>
+relative_offset_ptr<T> offset_ptr<T>::get_relative(shmem& mem) const {
+    return relative_offset_ptr<T>{get(mem)};
+}

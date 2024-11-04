@@ -16,11 +16,26 @@
 #include "db.h"
 
 int main() {
+    {
+        DB db;
+        db.destroy();
+    }
     DB db;
     if (db.get("test").has_value()) {
         std::cout << "Value found" << std::endl;
     } else {
         std::cout << "Value not found" << std::endl;
     }
+
+    /*CopiedValue newval{};
+    newval.type = ValueType::INT;
+    newval.int_value = 42;
+    db.set("test", newval);
+
+    if (db.get("test").has_value()) {
+        std::cout << "Value found" << std::endl;
+    } else {
+        std::cout << "Value not found" << std::endl;
+    }*/
     return 0;
 }

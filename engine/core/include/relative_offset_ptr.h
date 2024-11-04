@@ -27,6 +27,16 @@ public:
     relative_offset_ptr(T* other) { set(other); };
     relative_offset_ptr() : offset{0} {};
 
+    relative_offset_ptr& operator=(const relative_offset_ptr<T>& other) {
+        set(other.get());
+        return *this;
+    }
+
+    relative_offset_ptr& operator=(relative_offset_ptr<T>&& other) {
+        set(other.get());
+        return *this;
+    }
+
     T& operator*() const { return *get(); } // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     T* operator->() const { return get(); } // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
 

@@ -43,9 +43,21 @@ public:
     // This will not guarantee that the allocation happens atomically. So this should only ever be used inside an atomic_access block
     template <typename T, typename... Args>
     offset_ptr<T> construct_unsafe(Args&&... args) {
-        auto storage = allocate(sizeof(T));
+        auto storage = allocate(sizeof(T)); // TODO Since this requires a unique lock this will lead to a deadlock if used inside an atomic_access block
         offset_ptr<T> ptr{storage};
         new (ptr.get(*this)) T(std::forward<Args>(args)...);
+        return ptr;
+    }
+
+    // Only use this if you know what you are doing
+    // This will not guarantee that the allocation happens atomically. So this should only ever be used inside an atomic_access block
+    template <typename T>
+    offset_ptr<T> construct_array_unsafe(size_t count) {
+        auto storage = allocate(sizeof(T) * count); // Since this requires a unique lock this will lead to a deadlock if used inside an atomic_access block
+        offset_ptr<T> ptr{storage};
+        for (size_t i = 0; i < count; i++) {
+            new (ptr.get(*this) + i) T();
+        }
         return ptr;
     }
 
