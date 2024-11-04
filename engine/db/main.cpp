@@ -13,7 +13,9 @@
 
 #include "shmem.h"
 #include "stopwatch.h"
+#include "db.h"
 
 int main() {
+    DB db;
     return 0;
 }

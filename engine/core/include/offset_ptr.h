@@ -23,6 +23,7 @@ public:
     offset_ptr(offset_t offset) : offset{offset} {};
     offset_ptr() : offset{-1} {};
 
+    T* get(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     template <typename Lambda>
     void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
 

@@ -44,3 +44,28 @@ struct Value {
         db_map<Value> map_value;
     };
 };
+
+
+// These types are for returning values from the database as we cannot return a view we need to copy data
+
+struct CopiedValue;
+struct CopiedArray {
+    ValueType type;
+    CopiedValue* array_value;
+    size_t size;
+};
+
+struct CopiedValue {
+    CopiedValue(const Value& value);
+    ValueType type;
+    union {
+        bool bool_value;
+        int int_value;
+        const char* string_value; // For now this will also be used for storing references
+        double double_value;
+        // TODO semaphore sem_value;
+        ArrayType array_value;
+        // TODO std::pair<CopiedValue, CopiedValue> pair_value;
+        // TODO db_map<Value> map_value;
+    };
+};

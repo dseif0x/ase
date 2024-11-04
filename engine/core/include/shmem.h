@@ -90,3 +90,8 @@ void offset_ptr<T>::atomic_access(shmem& mem, Lambda&& value, bool locks_held) {
         value(reinterpret_cast<T *>(ptr));
     }, locks_held);
 }
+
+template<typename T>
+T *offset_ptr<T>::get(shmem &mem) const {
+    return reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(mem.base) + offset);
+}
