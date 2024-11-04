@@ -39,6 +39,16 @@ public:
 
     offset_t get_management_offset() const;
 
+    // Only use this if you know what you are doing
+    // This will not guarantee that the allocation happens atomically. So this should only ever be used inside an atomic_access block
+    template <typename T, typename... Args>
+    offset_ptr<T> construct_unsafe(Args&&... args) {
+        auto storage = allocate(sizeof(T));
+        offset_ptr<T> ptr{storage};
+        new (ptr.get(*this)) T(std::forward<Args>(args)...);
+        return ptr;
+    }
+
     template <typename T, typename... Args>
     offset_ptr<T> construct(Args&&... args) {
         auto storage = allocate(sizeof(T));

@@ -10,7 +10,7 @@
 #include <utility>
 #include "shrwlock.h"
 #include "custom_map.h"
-#include "offset_ptr.h"
+#include "relative_offset_ptr.h"
 
 enum class ValueType {
     BOOLEAN,
@@ -27,7 +27,7 @@ enum class ValueType {
 struct Value;
 struct ArrayType {
     ValueType type;
-    offset_ptr<Value> array_value;
+    relative_offset_ptr<Value> array_value;
     size_t size;
 };
 
@@ -36,11 +36,11 @@ struct Value {
     union {
         bool bool_value;
         int int_value;
-        offset_ptr<char> string_value; // For now this will also be used for storing references
+        relative_offset_ptr<char> string_value; // For now this will also be used for storing references
         double double_value;
         // TODO semaphore sem_value;
         ArrayType array_value;
-        std::pair<offset_ptr<Value>, offset_ptr<Value>> pair_value;
+        std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>> pair_value;
         db_map<Value> map_value;
     };
 };
@@ -49,7 +49,7 @@ struct Value {
 // These types are for returning values from the database as we cannot return a view we need to copy data
 
 struct CopiedValue;
-struct CopiedArray {
+struct CopiedArrayType {
     ValueType type;
     CopiedValue* array_value;
     size_t size;
@@ -64,7 +64,7 @@ struct CopiedValue {
         const char* string_value; // For now this will also be used for storing references
         double double_value;
         // TODO semaphore sem_value;
-        ArrayType array_value;
+        CopiedArrayType array_value;
         // TODO std::pair<CopiedValue, CopiedValue> pair_value;
         // TODO db_map<Value> map_value;
     };

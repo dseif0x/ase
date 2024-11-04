@@ -23,14 +23,24 @@ public:
     ~db_map() {
         mem.destroy_array(data);
     }
-    T* get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    bool has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                return &data[i].second;
+                return true;
             }
         }
-        return nullptr;
+        return false;
+    }
+
+    T& get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        for (size_t i = 0; i < used_size; i++) {
+            if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                return data[i].second;
+            }
+        }
+        throw std::runtime_error("Key not found");
     }
     void set(const char* key, T value) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         for (size_t i = 0; i < used_size; i++) {

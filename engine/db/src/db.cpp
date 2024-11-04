@@ -8,7 +8,7 @@
 #include "db.h"
 
 auto init_db = [](shmem& mem) {
-    mem.construct<DB_Meta>(mem);
+    mem.construct_unsafe<DB_Meta>(mem);
 };
 
 DB::DB() : mem{init_db} {
@@ -19,6 +19,10 @@ DB::~DB() {
 
 }
 
+void DB::destroy() {
+    mem.destroy();
+}
+
 offset_ptr<db_key_map> DB::get_entrypoint() {
     return {mem.get_management_offset()};
 }
@@ -27,10 +31,10 @@ std::optional<CopiedValue> DB::get(const char *key) {
     auto entrypoint_p = get_entrypoint();
     std::optional<CopiedValue> res{};
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        auto* tmp = entrypoint->get(key);
-        if (tmp) {
+        if (entrypoint->has(key)) {
+            auto tmp = entrypoint->get(key);
             // TODO Traverse the hierarchy until no dots in the key remain and all values on the way are type map except for the last one
-            res.emplace(*tmp->get(mem)); // Copy the value into the optional
+            res.emplace(*tmp); // Copy the value into the optional
         }
     });
 

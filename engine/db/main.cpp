@@ -17,5 +17,10 @@
 
 int main() {
     DB db;
+    if (db.get("test").has_value()) {
+        std::cout << "Value found" << std::endl;
+    } else {
+        std::cout << "Value not found" << std::endl;
+    }
     return 0;
 }
