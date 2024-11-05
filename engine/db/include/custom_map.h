@@ -50,7 +50,7 @@ public:
         size_t used_size;
         size_t alloc_size;
         map.atomic_access(mem, [&](db_map* map) {
-            map->lock.lock();
+            map->lock.lock(); // We should think of a way to atomically lock this and the shared lock used in atomic_access as this could cause a deadlock
             std::pair<offset_ptr<char>, T>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
                 if (std::strcmp(data[i].first.get(mem), key) == 0) {
@@ -79,7 +79,7 @@ public:
             ptr[str_len] = '\0';
             data_p[used_size++] = std::make_pair(new_key, value);
             map_p->used_size = used_size;
-            map.get(mem)->lock.unlock();
+            map_p->lock.unlock();
         });
     }
 
