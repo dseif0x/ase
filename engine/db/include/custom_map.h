@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <utility>
+#include <shared_mutex>
 #include "shrwlock.h"
 #include "shmem.h"
 
@@ -24,6 +25,7 @@ public:
         mem.destroy_array(data);
     }
     bool has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+        std::shared_lock<shrwlock> lock_guard(lock);
         std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             if (std::strcmp(data[i].first.get(mem), key) == 0) {
@@ -34,6 +36,7 @@ public:
     }
 
     T& get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+        std::shared_lock<shrwlock> lock_guard(lock);
         std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             if (std::strcmp(data[i].first.get(mem), key) == 0) {
