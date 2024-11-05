@@ -17,9 +17,8 @@ class db_map {
 public:
     using map_entry_type = std::pair<offset_ptr<char>, T>;
     db_map(shmem& mem) : mem{mem} {
-        data = mem.construct_array_unsafe<map_entry_type>(16);
         used_size = 0;
-        alloc_size = 16;
+        alloc_size = 0;
     }
     ~db_map() {
         mem.destroy_array(data);
@@ -43,32 +42,65 @@ public:
         }
         throw std::runtime_error("Key not found");
     }
-    void set(const char* key, T value) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
-        for (size_t i = 0; i < used_size; i++) {
-            if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                data[i].second = value;
-                return;
+    static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, T value) { // NEVER CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK (it will deadlock)
+        bool found = false;
+        size_t used_size;
+        size_t alloc_size;
+        map.atomic_access(mem, [&](db_map* map) {
+            map->lock.lock();
+            std::pair<offset_ptr<char>, T>* data = map->data.get(mem);
+            for (size_t i = 0; i < map->used_size; i++) {
+                if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                    data[i].second = value;
+                    found = true;
+                    map->lock.unlock();
+                    return;
+                }
             }
-        }
+            used_size = map->used_size;
+            alloc_size = map->alloc_size;
+        });
+
+        if (found) return;
+
         // Not found, add new
         if (used_size == alloc_size) {
-            resize();
+            resize(map, mem);
         }
         size_t str_len = std::strlen(key);
-        offset_ptr<char> new_key = mem.construct_array_unsafe<char>(str_len);
-        strncpy(new_key.get(mem), key, str_len);
-        data[used_size++] = std::make_pair(new_key, value);
+        offset_ptr<char> new_key = mem.construct_array<char>(str_len + 1);
+        new_key.atomic_access(mem, [&](char* ptr) {
+            auto* map_p = map.get(mem);
+            auto* data_p = map_p->data.get(mem);
+            strncpy(ptr, key, str_len);
+            ptr[str_len] = '\0';
+            data_p[used_size++] = std::make_pair(new_key, value);
+            map_p->used_size = used_size;
+            map.get(mem)->lock.unlock();
+        });
     }
 
 private:
     shmem& mem;
-    void resize() {
-        auto new_data = mem.construct_array_unsafe<map_entry_type>(alloc_size * 2);
-        memcpy(new_data.get(mem), data.get(mem), used_size * sizeof(map_entry_type));
-        mem.destroy_array(data);
-        data = new_data;
-        alloc_size *= 2;
+    static void resize(offset_ptr<db_map>& map, shmem& mem) {
+        size_t alloc_size;
+        offset_ptr<map_entry_type> old_data;
+        map.atomic_access(mem, [&](db_map* map) {
+            alloc_size = map->alloc_size;
+            old_data = map->data;
+        });
+        size_t new_size = std::max(16ul, alloc_size) * 2;
+        auto new_data = mem.construct_array<map_entry_type>(new_size);
+        if (alloc_size > 0) {
+            map.atomic_access(mem, [&](db_map *map) {
+                memcpy(new_data.get(mem), old_data.get(mem), alloc_size * sizeof(map_entry_type));
+            });
+            mem.destroy_array(old_data);
+        }
+        map.atomic_access(mem, [&](db_map* map) {
+            map->data = new_data;
+            map->alloc_size = new_size;
+        });
     }
 
     offset_ptr<map_entry_type> data{-1};

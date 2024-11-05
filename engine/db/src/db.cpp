@@ -8,7 +8,7 @@
 #include "db.h"
 
 auto init_db = [](shmem& mem) {
-    mem.construct_unsafe<DB_Meta>(mem);
+    mem.construct<DB_Meta>(mem);
 };
 
 DB::DB() : mem{init_db} {
@@ -43,8 +43,6 @@ std::optional<CopiedValue> DB::get(const char *key) {
 
 void DB::set(const char *key, CopiedValue value) {
     auto entrypoint_p = get_entrypoint();
-    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        offset_ptr<Value> new_value = mem.construct_unsafe<Value>(mem, value);
-        entrypoint->set(key, new_value.get_relative(mem)); // This implicitly creates a Value from the CopiedValue and puts it into the map
-    });
+    offset_ptr<Value> new_value = mem.construct<Value>(mem, value);
+    db_key_map::set(entrypoint_p, mem, key, new_value.get_relative(mem));
 }

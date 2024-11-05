@@ -39,30 +39,8 @@ public:
 
     offset_t get_management_offset() const;
 
-    // Only use this if you know what you are doing
-    // This will not guarantee that the allocation happens atomically. So this should only ever be used inside an atomic_access block
     template <typename T, typename... Args>
-    offset_ptr<T> construct_unsafe(Args&&... args) {
-        auto storage = allocate(sizeof(T)); // TODO Since this requires a unique lock this will lead to a deadlock if used inside an atomic_access block
-        offset_ptr<T> ptr{storage};
-        new (ptr.get(*this)) T(std::forward<Args>(args)...);
-        return ptr;
-    }
-
-    // Only use this if you know what you are doing
-    // This will not guarantee that the allocation happens atomically. So this should only ever be used inside an atomic_access block
-    template <typename T>
-    offset_ptr<T> construct_array_unsafe(size_t count) {
-        auto storage = allocate(sizeof(T) * count); // Since this requires a unique lock this will lead to a deadlock if used inside an atomic_access block
-        offset_ptr<T> ptr{storage};
-        for (size_t i = 0; i < count; i++) {
-            new (ptr.get(*this) + i) T();
-        }
-        return ptr;
-    }
-
-    template <typename T, typename... Args>
-    offset_ptr<T> construct(Args&&... args) {
+    offset_ptr<T> construct(Args&&... args) { // Using this inside an atomic_access lambda will cause a deadlock
         auto storage = allocate(sizeof(T));
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [&args...](void *ptr) {
@@ -72,7 +50,7 @@ public:
     }
 
     template <typename T>
-    offset_ptr<T> construct_array(size_t count) {
+    offset_ptr<T> construct_array(size_t count) { // Using this inside an atomic_access lambda will cause a deadlock
         auto storage = allocate(sizeof(T) * count);
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [count](void *ptr) {
@@ -84,7 +62,7 @@ public:
     }
 
     template<typename T>
-    void destroy(offset_ptr<T> ptr) {
+    void destroy(offset_ptr<T> ptr) { // Using this inside an atomic_access lambda will cause a deadlock
         atomic_access(ptr.offset, [](void *ptr) {
             reinterpret_cast<T*>(ptr)->~T();
         });
@@ -92,7 +70,7 @@ public:
     }
 
     template<typename T>
-    void destroy_array(offset_ptr<T> ptr) {
+    void destroy_array(offset_ptr<T> ptr) { // Using this inside an atomic_access lambda will cause a deadlock
         // TODO get count and call destructors
         atomic_access(ptr.offset, [](void *ptr) {
             reinterpret_cast<T*>(ptr)->~T();
