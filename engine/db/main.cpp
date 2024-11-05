@@ -29,6 +29,7 @@ int main() {
         DB db;
         db.destroy();
     }
+    fork(); // FOOOOORRRRRKKKKK ALSO WORKS
     DB db;
     if (db.get("test").has_value()) {
         std::cout << "Value found" << std::endl;
