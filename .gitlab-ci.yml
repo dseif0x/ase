@@ -1,0 +1,31 @@
+stages:
+  - build
+  - deploy
+
+# Job to generate the Doxygen documentation
+generate_docs:
+  stage: build
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache doxygen graphviz # Install Doxygen and Graphviz
+  script:
+    - cd engine
+    - doxygen Doxyfile
+    - cd ..
+  artifacts:
+    paths:
+      - engine/docs/html/   # Path where Doxygen output is generated
+    expire_in: 1 week
+
+# Job to deploy the documentation to GitLab Pages
+pages:
+  stage: deploy
+  dependencies:
+    - generate_docs
+  script:
+    - mv engine/docs/html/ public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master  # Limit deployment to master branch
