@@ -199,3 +199,7 @@ void shmem::atomic_access(offset_t offset, std::function<void(void *)>&& lambda,
 offset_t shmem::get_management_offset() const {
     return 0;
 }
+
+shrwlock &shmem::get_meta_mutex() {
+    return metadata->meta_mutex;
+}

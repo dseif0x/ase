@@ -37,6 +37,8 @@ public:
     ~shmem();
     void destroy();
 
+    shrwlock& get_meta_mutex();
+
     offset_t get_management_offset() const;
 
     template <typename T, typename... Args>

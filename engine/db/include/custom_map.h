@@ -12,6 +12,7 @@
 #include <shared_mutex>
 #include "shrwlock.h"
 #include "shmem.h"
+#include "lock_utils.h"
 
 template <typename T>
 class db_map {
@@ -49,8 +50,13 @@ public:
         bool found = false;
         size_t used_size;
         size_t alloc_size;
+        shrwlock& memlock = mem.get_meta_mutex();
+        shrwlock maplock;
         map.atomic_access(mem, [&](db_map* map) {
-            map->lock.lock(); // We should think of a way to atomically lock this and the shared lock used in atomic_access as this could cause a deadlock
+            maplock = map->lock;
+        });
+        custom_lock(std::tuple<shrwlock&, shared_lock_type>{memlock, {}}, std::tuple<shrwlock&, unique_lock_type>{maplock, {}});
+        map.atomic_access(mem, [&](db_map* map) {
             std::pair<offset_ptr<char>, T>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
                 if (std::strcmp(data[i].first.get(mem), key) == 0) {
@@ -62,7 +68,8 @@ public:
             }
             used_size = map->used_size;
             alloc_size = map->alloc_size;
-        });
+        }, true);
+        memlock.unlock_shared();
 
         if (found) return;
 

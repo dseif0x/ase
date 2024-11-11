@@ -37,15 +37,18 @@ int main() {
         std::cout << "Value not found" << std::endl;
     }
 
-    CopiedValue newval{};
-    newval.type = ValueType::INT;
-    newval.int_value = 42;
-    db.set("test", newval);
-    newval.int_value = 43;
-    db.set("test2", newval);
+    for (int i : std::views::iota(0, 1024 * 1024)) {
+
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.int_value = 42;
+        db.set("test", newval);
+        newval.int_value = 43;
+        db.set("test2", newval);
 
 
-    get_and_print(db, "test");
-    get_and_print(db, "test2");
+        get_and_print(db, "test");
+        get_and_print(db, "test2");
+    }
     return 0;
 }
