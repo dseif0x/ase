@@ -14,9 +14,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "tcp_server.h"
+#include "acl.h"
 
 
 int main() {
     std::cout << getpid() << std::endl;
-    start_tcp_server(42069);
+    ACL acl{};
+    start_tcp_server(42069, acl);
 }

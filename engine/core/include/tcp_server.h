@@ -7,11 +7,12 @@
 
 #ifndef TCP_SERVER_H
 #define TCP_SERVER_H
+#include <acl.h>
 
 
 constexpr int BUFFER_SIZE = 1024;
 
 
-int start_tcp_server(int port);
+int start_tcp_server(int port, ACL acl);
 
 #endif //TCP_SERVER_H

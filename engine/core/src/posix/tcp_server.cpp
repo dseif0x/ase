@@ -15,8 +15,10 @@
 #include <netinet/in.h>
 #include "tcp_server.h"
 
+#include <acl.h>
 
-void connect_client(int clientSocket) {
+
+void connect_client(int clientSocket, ACL &acl) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesReceived;
 
@@ -33,7 +35,7 @@ void connect_client(int clientSocket) {
     close(clientSocket);
 }
 
-int start_tcp_server(int port) {
+int start_tcp_server(int port, ACL acl) {
     // Create server socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
@@ -84,7 +86,7 @@ int start_tcp_server(int port) {
                   << ":" << ntohs(clientAddress.sin_port) << "\n";
 
         // start thread for the connection
-        clientThreads.emplace_back(std::thread(connect_client, clientSocket));
+        clientThreads.emplace_back(std::thread(connect_client, clientSocket, std::ref(acl)));
     }
 
     // Close the server socket
