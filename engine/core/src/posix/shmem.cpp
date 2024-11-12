@@ -10,6 +10,10 @@
 #include <unistd.h>
 #include <shared_mutex>
 #include <utility>
+#include <mutex>
+#include <cstdio>
+#include <stdexcept>
+#include <string.h>
 
 shmem::shmem() {
     attach([](shmem&){});

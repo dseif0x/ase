@@ -14,6 +14,8 @@
 #include "shmem.h"
 #include "lock_utils.h"
 
+#include <cstring>
+
 template <typename T>
 class db_map {
 public:
