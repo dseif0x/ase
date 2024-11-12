@@ -1,0 +1,40 @@
+/*
+ * Copyright 2024 Project Contributors
+ *
+ * This source code is licensed under the MIT License found in the LICENSE file in the root directory
+ * of this source tree or at https://opensource.org/licenses/MIT.
+ */
+
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include "types.h"
+#include "relative_offset_ptr.h"
+
+class shmem;
+template <typename T>
+class offset_ptr {
+private:
+    offset_t offset;
+public:
+    template <typename U>
+    offset_ptr(const offset_ptr<U>& other): offset{other.offset} {}
+    offset_ptr(offset_t offset) : offset{offset} {};
+    offset_ptr() : offset{-1} {};
+
+    T* get(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    relative_offset_ptr<T> get_relative(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    template <typename Lambda>
+    void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
+
+    template <typename U>
+    friend class offset_ptr;
+    friend class shmem;
+};
+
+template<typename T>
+relative_offset_ptr<T> offset_ptr<T>::get_relative(shmem& mem) const {
+    return relative_offset_ptr<T>{get(mem)};
+}
