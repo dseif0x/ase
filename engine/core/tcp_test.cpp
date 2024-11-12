@@ -6,7 +6,17 @@
  */
 
 #include <iostream>
+#include <thread>
+#include <vector>
+#include <cstring>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include "tcp_server.h"
 
-int main(int argc, char **argv) {
-  std::cout << "test" << std::endl;
+
+int main() {
+    std::cout << getpid() << std::endl;
+    start_tcp_server(42069);
 }
