@@ -30,6 +30,7 @@ int main() {
         db.destroy();
     }
     int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    stopwatch s;
     if (pid == 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     DB db;
@@ -52,5 +53,6 @@ int main() {
         get_and_print(db, "test");
         get_and_print(db, "test2");
     }
+    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
     return 0;
 }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="Brute (ada90274-eefd-4244-8483-49cd27c139ac)" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="Brute (ada90274-eefd-4244-8483-49cd27c139ac)" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+    <option name="confirmBeforeUploading" value="false" />
     <serverData>
       <paths name="Brute (ada90274-eefd-4244-8483-49cd27c139ac)">
         <serverdata>
