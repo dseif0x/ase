@@ -13,19 +13,54 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <chrono>
 #include "tcp_server.h"
 
 #include <acl.h>
+#include <deque>
+
+using namespace std::chrono_literals;
+
+
+
+void justAtest(int a, int b, int c, std::mutex* z) {
+    std::cout << "this is a test" << std::endl;
+}
+
+void client_state_machine(int clientSocket, ACL &acl, std::deque<std::vector<char>> buffer, std::mutex queue_lock, std::mutex pipe_lock) {
+    std::string temp;
+    while (true) {
+        {
+            std::lock_guard<std::mutex> lock(queue_lock);
+            if (!buffer.empty()) {
+                for (auto x : buffer.front()) {
+                    if (x == 'X') {
+                        std::cout << "full line:" << temp << std::endl;
+                        {
+                            std::lock_guard<std::mutex> lock2(pipe_lock);
+                            send(clientSocket, temp.c_str(), temp.length(), 0);
+                        }
+                    }
+                    else temp += x;
+                }
+            }
+        }
+        std::this_thread::sleep_for(50ms);
+    }
+}
 
 
 void connect_client(int clientSocket, ACL &acl) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesReceived;
 
-    /*while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0) {
-        send(clientSocket, buffer, bytesReceived, 0);
-        acl.print_full_info();
-    }*/
+    std::deque<std::vector<char>> buffer_queue;
+    std::mutex queue_lock;
+    std::mutex pipe_lock;
+
+    //std::thread state{client_state_machine, clientSocket, acl, buffer_queue, queue_lock, pipe_lock};
+    std::thread state(justAtest, 1, 2, 3, &queue_lock);
+
     fd_set readfds;
     struct timeval timeout{};
     timeout.tv_sec = 1;
@@ -34,8 +69,11 @@ void connect_client(int clientSocket, ACL &acl) {
     while (!done) {
         FD_ZERO(&readfds);
         FD_SET(clientSocket, &readfds);
-
-        int sel = select(clientSocket + 1, &readfds, nullptr, nullptr, &timeout);
+        int sel;
+        {
+            std::lock_guard<std::mutex> lock(pipe_lock);
+            sel = select(clientSocket + 1, &readfds, nullptr, nullptr, &timeout);
+        }
         if (sel > 0) {
             bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0);
             if (bytesReceived == 0) {
@@ -46,6 +84,11 @@ void connect_client(int clientSocket, ACL &acl) {
                 done = true;
             } else {
                 std::cout << "Bytes: " << buffer << std::endl;
+                std::vector<char> unsigned_buffer(buffer, buffer + bytesReceived);
+                {
+                    std::lock_guard<std::mutex> lock(queue_lock);
+                    buffer_queue.emplace_back(std::move(unsigned_buffer));
+                }
             }
         } else if (sel == 0) {
             // no data
@@ -54,6 +97,7 @@ void connect_client(int clientSocket, ACL &acl) {
             done = true;
         }
     }
+    state.join();
 
     close(clientSocket);
 }

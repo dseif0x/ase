@@ -8,8 +8,10 @@
 #ifndef ACL_H
 #define ACL_H
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 struct ACLNode {
     // permissions:
@@ -18,24 +20,32 @@ struct ACLNode {
     // 0x1: read
     unsigned char permissions;
     std::unordered_map<std::string, ACLNode> subs;
+
+    constexpr bool has_perms(unsigned char perms) const;
 };
 
 
-
-struct ACLUser {
+class ACLUser {
     std::string pwd;
     bool is_admin;
 
     ACLNode scope;
 
+public:
     ACLUser(const std::string& password, bool isAdmin);
     ACLUser();
+
+    bool has_permission(std::vector<std::string> key, unsigned char permissions);
+    bool check_pwd(const std::string& pwd);
+
+    std::string print_user_data();
 };
 
 
 
 class ACL {
     std::unordered_map<std::string, ACLUser> users;
+    std::set<std::string> open_connections;
 
     std::mutex general_lock; // todo think about locking individual users
     // todo or transfer the ability to search for permissions into the ACLUser and just transfer the struct back if changes were made to the scope
@@ -44,8 +54,8 @@ public:
     ACL(); // create default with one admin
     explicit ACL(std::string path); // load acl from disk
 
-    bool has_permission(const std::string &user, std::vector<std::string> key, unsigned char permissions);
-    bool successful_login(const std::string &user, const std::string &pwd);
+    int try_login(const std::string &user, const std::string &pwd);
+    ACLUser *get_user(const std::string &user);
 
     void print_full_info();
 };
