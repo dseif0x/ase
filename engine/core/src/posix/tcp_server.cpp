@@ -15,38 +15,21 @@
 #include <netinet/in.h>
 #include <chrono>
 #include "tcp_server.h"
+#include "tcp_coding.h"
 
 #include <acl.h>
 #include <deque>
 
-using namespace std::chrono_literals;
 
 
+void client_worker(int clientSocket, ACL &acl, ByteDecoder &decoder) {
+    // Expecting client information
+    auto client_version = decoder.decode_unsigned(2);
+    auto client_perms = decoder.decode_unsigned(1);
+    std::cout << "client is running version: " << client_version << std::endl;
+    std::cout << "client opens connection with intention to: " <<((client_perms & 0x01) > 0 ? "read, " : "") <<
+            ((client_perms & 0x02) > 0 ? "write, " : "") << ((client_perms & 0x04) > 0 ? "delete, " : "") << "[" << client_perms << "]" << std::endl;
 
-void justAtest(int a, int b, int c, std::mutex* z) {
-    std::cout << "this is a test" << std::endl;
-}
-
-void client_state_machine(int clientSocket, ACL &acl, std::deque<std::vector<char>> buffer, std::mutex queue_lock, std::mutex pipe_lock) {
-    std::string temp;
-    while (true) {
-        {
-            std::lock_guard<std::mutex> lock(queue_lock);
-            if (!buffer.empty()) {
-                for (auto x : buffer.front()) {
-                    if (x == 'X') {
-                        std::cout << "full line:" << temp << std::endl;
-                        {
-                            std::lock_guard<std::mutex> lock2(pipe_lock);
-                            send(clientSocket, temp.c_str(), temp.length(), 0);
-                        }
-                    }
-                    else temp += x;
-                }
-            }
-        }
-        std::this_thread::sleep_for(50ms);
-    }
 }
 
 
@@ -54,12 +37,11 @@ void connect_client(int clientSocket, ACL &acl) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesReceived;
 
-    std::deque<std::vector<char>> buffer_queue;
-    std::mutex queue_lock;
+    ByteDecoder decoder{};
     std::mutex pipe_lock;
 
-    //std::thread state{client_state_machine, clientSocket, acl, buffer_queue, queue_lock, pipe_lock};
-    std::thread state(justAtest, 1, 2, 3, &queue_lock);
+    std::thread state(client_worker, clientSocket, std::ref(acl), std::ref(decoder));
+    //std::thread state(justAtest, 1, 2, 3, &queue_lock);
 
     fd_set readfds;
     struct timeval timeout{};
@@ -83,12 +65,11 @@ void connect_client(int clientSocket, ACL &acl) {
                 std::cerr << "recv error: " << strerror(errno) << std::endl;
                 done = true;
             } else {
-                std::cout << "Bytes: " << buffer << std::endl;
-                std::vector<char> unsigned_buffer(buffer, buffer + bytesReceived);
-                {
-                    std::lock_guard<std::mutex> lock(queue_lock);
-                    buffer_queue.emplace_back(std::move(unsigned_buffer));
-                }
+                std::cout << "Bytes: ";
+                for (int x = 0; x < BUFFER_SIZE; x++) std::cout << "[" << (int)(unsigned char)buffer[x] << "]";
+                std::cout << std::endl;
+                std::vector<unsigned char> unsigned_buffer(buffer, buffer + bytesReceived);
+                decoder.add_to_buffer(unsigned_buffer);
             }
         } else if (sel == 0) {
             // no data
