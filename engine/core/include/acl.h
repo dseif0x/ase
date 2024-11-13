@@ -7,6 +7,7 @@
 
 #ifndef ACL_H
 #define ACL_H
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -28,7 +29,7 @@ struct ACLUser {
     ACLNode scope;
 
     ACLUser(const std::string& password, bool isAdmin);
-    ACLUser() = default;
+    ACLUser();
 };
 
 
@@ -36,12 +37,17 @@ struct ACLUser {
 class ACL {
     std::unordered_map<std::string, ACLUser> users;
 
+    std::mutex general_lock; // todo think about locking individual users
+    // todo or transfer the ability to search for permissions into the ACLUser and just transfer the struct back if changes were made to the scope
+
 public:
     ACL(); // create default with one admin
     explicit ACL(std::string path); // load acl from disk
 
     bool has_permission(const std::string &user, std::vector<std::string> key, unsigned char permissions);
     bool successful_login(const std::string &user, const std::string &pwd);
+
+    void print_full_info();
 };
 
 

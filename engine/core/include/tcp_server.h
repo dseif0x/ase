@@ -10,9 +10,9 @@
 #include <acl.h>
 
 
-constexpr int BUFFER_SIZE = 1024;
+constexpr int BUFFER_SIZE = 8;
 
 
-int start_tcp_server(int port, ACL acl);
+int start_tcp_server(int port, ACL &acl);
 
 #endif //TCP_SERVER_H

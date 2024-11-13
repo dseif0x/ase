@@ -22,20 +22,43 @@ void connect_client(int clientSocket, ACL &acl) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesReceived;
 
-    while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0) {
+    /*while ((bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0)) > 0) {
         send(clientSocket, buffer, bytesReceived, 0);
-    }
+        acl.print_full_info();
+    }*/
+    fd_set readfds;
+    struct timeval timeout{};
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    bool done = false;
+    while (!done) {
+        FD_ZERO(&readfds);
+        FD_SET(clientSocket, &readfds);
 
-    if (bytesReceived == 0) {
-        std::cout << "Client disconnected.\n";
-    } else if (bytesReceived < 0) {
-        std::cerr << "recv() failed.\n";
+        int sel = select(clientSocket + 1, &readfds, nullptr, nullptr, &timeout);
+        if (sel > 0) {
+            bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0);
+            if (bytesReceived == 0) {
+                std::cout << "Client disconnected.\n";
+                done = true;
+            } else if (bytesReceived < 0) {
+                std::cerr << "recv error: " << strerror(errno) << std::endl;
+                done = true;
+            } else {
+                std::cout << "Bytes: " << buffer << std::endl;
+            }
+        } else if (sel == 0) {
+            // no data
+        } else {
+            std::cerr << "select error: " << strerror(errno) << std::endl;
+            done = true;
+        }
     }
 
     close(clientSocket);
 }
 
-int start_tcp_server(int port, ACL acl) {
+int start_tcp_server(int port, ACL &acl) {
     // Create server socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
