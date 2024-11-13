@@ -129,7 +129,6 @@ void shmem::destroy() {
 
 void shmem::resize(offset_t min_size) {
     int flags = O_RDWR;
-#if 1 // We do this now on every platform as linux also had some issues with truncating an existing shmem // Unfortunately on darwin you can only call ftruncate once per shared memory segment. So we recerate a new one and move the data over
     offset_t prev_size = metadata->used_size;
     auto* tmp = static_cast<uint8_t*>(mmap(nullptr, prev_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)); // Use mmap to allocate a temporary buffer
     if (tmp == MAP_FAILED) {
@@ -141,9 +140,6 @@ void shmem::resize(offset_t min_size) {
     munmap(base, local_size);
     shm_unlink("shmem_data");
     flags |= O_CREAT;
-#else
-    munmap(base, local_size);
-#endif
     // Increase `alloc_size` (double it, for example) and truncate to new size
     metadata->alloc_size = (min_size * 2 + page_size - 1) & ~(page_size - 1);;
     int data_fd = shm_open("shmem_data", flags, S_IRUSR | S_IWUSR);
@@ -167,10 +163,8 @@ void shmem::resize(offset_t min_size) {
         ((volatile uint8_t *)base)[i] = 0;
     }
 
-#if 1
     memcpy(base, tmp, prev_size);
     munmap(tmp, prev_size); // Unmap the temporary buffer
-#endif
 
     ++metadata->version;
     local_size = metadata->alloc_size;
