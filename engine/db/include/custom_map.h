@@ -55,7 +55,8 @@ public:
         map.atomic_access(mem, [&](db_map* map) {
             maplock = map->lock;
         });
-        custom_lock(std::tuple<shrwlock&, shared_lock_type>{memlock, {}}, std::tuple<shrwlock&, unique_lock_type>{maplock, {}});
+        shared_wrapped_mutex m(memlock);
+        std::lock(m, maplock);
         map.atomic_access(mem, [&](db_map* map) {
             std::pair<offset_ptr<char>, T>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
@@ -69,7 +70,7 @@ public:
             used_size = map->used_size;
             alloc_size = map->alloc_size;
         }, true);
-        memlock.unlock_shared();
+        m.unlock();
 
         if (found) return;
 
