@@ -102,9 +102,16 @@ void shmem::close() {
 }
 
 void shmem::destroy() {
-    metadata->~shmem_meta();
+    if (base) {
+        munmap(base, metadata->alloc_size);
+        base = nullptr;
+    }
 
-    close();
+    if (metadata) {
+        metadata->~shmem_meta();
+        munmap(metadata, sizeof(shmem_meta));
+        metadata = nullptr;
+    }
     shm_unlink("shmem_meta");
     shm_unlink("shmem_data");
 }
