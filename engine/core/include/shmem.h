@@ -20,6 +20,7 @@ struct shmem_meta {
 
 class shmem {
     std::size_t local_version{1}; // This is the version this process is currently working with on access we check if the version in the metadata segment has changed
+    std::size_t local_size{0};
 
     shmem_meta* metadata{nullptr}; // This is one shared memory segment that is fixed in size and contains the metadata
     void* base{nullptr}; // This is the second shared memory segment that is variable in size and contains the actual data
