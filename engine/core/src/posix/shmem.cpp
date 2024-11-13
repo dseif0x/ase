@@ -6,9 +6,13 @@
  */
 
 #include "shmem.h"
+
+#include <cstring>
+#include <mutex>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <shared_mutex>
+#include <stdexcept>
 #include <utility>
 
 shmem::shmem() {

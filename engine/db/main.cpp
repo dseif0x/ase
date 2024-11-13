@@ -29,7 +29,9 @@ int main() {
         DB db;
         db.destroy();
     }
-    fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    if (pid == 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     DB db;
     if (db.get("test").has_value()) {
         std::cout << "Value found" << std::endl;
