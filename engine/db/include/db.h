@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <optional>
 #include "custom_map.h"
 #include "db_types.h"
 #include "shmem.h"

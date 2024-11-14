@@ -10,6 +10,7 @@
 #include <mutex>
 #include <thread>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #include "shmem.h"
 #include "stopwatch.h"
@@ -42,7 +43,7 @@ int main() {
         //std::cout << ptr->a << " " << ptr->b << std::endl;
     }
 
-    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()) << std::endl;
+    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
 
     if (pid == 0) {
     } else {
