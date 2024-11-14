@@ -8,6 +8,7 @@
 #ifndef TCP_CODING_H
 #define TCP_CODING_H
 
+#include <atomic>
 #include <iostream>
 #include <deque>
 #include <vector>
@@ -16,11 +17,12 @@ class ByteDecoder {
     std::deque<std::vector<unsigned char>> buffer;
     std::mutex buffer_lock;
     size_t start = 0;
+    std::atomic<bool> *kys;
 
     std::vector<unsigned char> get_bytes(size_t bytes);
 
 public:
-    ByteDecoder() = default;
+    ByteDecoder(std::atomic<bool> *kys);
 
     void add_to_buffer(std::vector<unsigned char> &block);
     bool empty();

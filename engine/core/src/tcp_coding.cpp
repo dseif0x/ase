@@ -15,7 +15,7 @@ std::vector<unsigned char> ByteDecoder::get_bytes(size_t bytes) {
     std::vector<unsigned char> res;
     res.reserve(bytes);
     this->buffer_lock.lock();
-    while (true) {
+    while (!(*this->kys)) {
         if (this->buffer.empty()) {
             this->buffer_lock.unlock();
             // free lock to allow new data to be written into the buffer
@@ -37,6 +37,9 @@ std::vector<unsigned char> ByteDecoder::get_bytes(size_t bytes) {
     }
     this->buffer_lock.unlock();
     return res;
+}
+
+ByteDecoder::ByteDecoder(std::atomic<bool> *kys): kys(kys) {
 }
 
 void ByteDecoder::add_to_buffer(std::vector<unsigned char> &block) {

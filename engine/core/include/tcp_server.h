@@ -13,15 +13,15 @@ class TCPServer {
     int max_clients;
     ACL acl{};
     std::atomic<bool> kill_acceptor{false};
+    std::atomic<int> socket_error{0};
 
-    int server_socket;
     std::thread client_acceptor;
-    static void accept_clients(std::atomic<bool> &kys, ACL &acl, int serverSocket);
+    static void accept_clients(std::atomic<bool> &kys, ACL &acl, int port, int max_clients);
 
 public:
     TCPServer(int port, int max_clients);
     bool load_acl_from_disk(std::string path);
-    bool start();
+    void start();
     void stop();
 
 };

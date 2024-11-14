@@ -14,6 +14,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <chrono>
+#include <stopwatch.h>
+
 #include "tcp_server.h"
 #include "acl.h"
 
@@ -21,7 +23,10 @@
 int main() {
     std::cout << getpid() << std::endl;
     TCPServer server{42069, 10};
+    stopwatch s{};
     server.start();
     std::this_thread::sleep_for(std::chrono::seconds(10));
     server.stop();
+    auto dur = s.stop();
+    std::cout << dur << std::endl;
 }

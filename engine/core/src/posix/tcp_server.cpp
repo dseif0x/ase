@@ -68,11 +68,12 @@ void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lo
 void connect_client(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesReceived;
+    std::atomic<bool> kys_worker{false};
 
-    ByteDecoder decoder{};
+    ByteDecoder decoder{&kys_worker};
     std::mutex pipe_lock;
 
-    std::atomic<bool> kys_worker{false};
+
     std::thread state(client_worker, std::ref(kys_worker), clientSocket, std::ref(pipe_lock), std::ref(acl), std::ref(decoder));
 
     fd_set readfds;
@@ -122,47 +123,13 @@ void connect_client(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
     close(clientSocket);
 }
 
-void TCPServer::accept_clients(std::atomic<bool> &kys, ACL &acl, int serverSocket) {
-    // Vector to hold client threads
-    std::vector<std::thread> clientThreads;
-    std::atomic<bool> kill_all{false};
-
-    // Accept connections in a loop
-    while (true) {
-        struct sockaddr_in clientAddress{};
-        socklen_t clientAddressLength = sizeof(clientAddress);
-
-        // Accept an incoming connection
-        int clientSocket = accept(serverSocket, reinterpret_cast<struct sockaddr *>(&clientAddress), &clientAddressLength);
-        if (clientSocket < 0) {
-            std::cerr << "Failed to accept client connection: " << strerror(errno) << std::endl;
-            continue;
-        }
-
-        // temp output todo remove
-        std::cout << "Connected to client: " << inet_ntoa(clientAddress.sin_addr)
-                  << ":" << ntohs(clientAddress.sin_port) << "\n";
-
-        // start thread for the connection
-        clientThreads.emplace_back(std::thread(connect_client, std::ref(kill_all), clientSocket, std::ref(acl)));
-        break;
-    }
-
-    kill_all = true;
-    for (auto &x : clientThreads) x.join();
-}
-
-TCPServer::TCPServer(int port, int max_clients): port(port), max_clients(max_clients) {
-}
-
-
-
-bool TCPServer::start() {
+void TCPServer::accept_clients(std::atomic<bool> &kys, ACL &acl, int port, int max_clients) {
     // Create server socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
         std::cerr << "Failed to create socket.\n";
-        return false;
+        return;
+        //return false;
     }
 
     // Configure server
@@ -175,27 +142,75 @@ bool TCPServer::start() {
     if (bind(serverSocket, reinterpret_cast<struct sockaddr *>(&serverAddress), sizeof(serverAddress)) < 0) {
         std::cerr << "Failed to bind to port " << port << ".\n";
         close(serverSocket);
-        return false;
+        //return false;
+        return;
     }
 
     // Start listening for incoming connections
-    if (listen(serverSocket, std::min(SOMAXCONN, this->max_clients)) < 0) {
+    if (listen(serverSocket, std::min(SOMAXCONN, max_clients)) < 0) {
         std::cerr << "Failed to listen on socket.\n";
         close(serverSocket);
-        return false;
+        //return false;
+        return;
     }
 
     // temp output todo remove
     std::cout << "Server listening on port " << port << "...\n";
-    this->server_socket = server_socket;
-    this->client_acceptor = std::thread(TCPServer::accept_clients, std::ref(this->kill_acceptor), std::ref(this->acl), this->server_socket);
 
-    return true;
+    // Vector to hold client threads
+    std::vector<std::thread> clientThreads;
+    std::atomic<bool> kill_all{false};
+
+    struct timeval timeout{};
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100000;
+    fd_set read_fds;
+    // Accept connections in a loop
+    while (!kys) {
+        FD_ZERO(&read_fds);
+        FD_SET(serverSocket, &read_fds);
+
+        int activity = select(serverSocket + 1, &read_fds, nullptr, nullptr, &timeout);
+
+        if (activity < 0 && errno != EINTR) {
+            std::cerr << "Select error: " << strerror(errno) << std::endl;
+            break;
+        }
+
+        if (FD_ISSET(serverSocket, &read_fds)) {
+            struct sockaddr_in clientAddress{};
+            socklen_t clientAddressLength = sizeof(clientAddress);
+
+            // Accept an incoming connection
+            int clientSocket = accept(serverSocket, reinterpret_cast<struct sockaddr *>(&clientAddress), &clientAddressLength);
+            if (clientSocket < 0) {
+                std::cerr << "Failed to accept client connection: " << strerror(errno) << std::endl;
+            } else {
+                // temp output todo remove
+                std::cout << "Connected to client: " << inet_ntoa(clientAddress.sin_addr)
+                          << ":" << ntohs(clientAddress.sin_port) << "\n";
+
+                // start thread for the connection
+                clientThreads.emplace_back(std::thread(connect_client, std::ref(kill_all), clientSocket, std::ref(acl)));
+            }
+        }
+    }
+    kill_all = true;
+    for (auto &x : clientThreads) x.join();
+
+    close(serverSocket);
+}
+
+TCPServer::TCPServer(int port, int max_clients): port(port), max_clients(max_clients) {
+}
+
+
+
+void TCPServer::start() {
+    this->client_acceptor = std::thread(TCPServer::accept_clients, std::ref(this->kill_acceptor), std::ref(this->acl), this->port, this->max_clients);
 }
 
 void TCPServer::stop() {
     this->kill_acceptor = true;
     this->client_acceptor.join();
-    // Close the server socket
-    close(this->server_socket);
 }
