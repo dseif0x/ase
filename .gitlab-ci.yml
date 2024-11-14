@@ -11,10 +11,16 @@ generate_docs:
   script:
     - cd engine
     - doxygen Doxyfile
-    - cd ..
+    - cd ../web/backend
+    - doxygen Doxyfile
+    - cd ../java-driver
+    - doxygen Doxyfile
+    - cd ../..
   artifacts:
     paths:
       - engine/docs/html/   # Path where Doxygen output is generated
+      - web/backend/docs/html/
+      - web/java-driver/docs/html/
     expire_in: 1 week
 
 # Job to deploy the documentation to GitLab Pages
