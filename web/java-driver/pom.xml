@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.ase</groupId>
+        <artifactId>ase</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>java-driver</artifactId>
+    <version>1.0.0</version>
+    <name>Associative Storage Engine Java TCP Driver</name>
+    <description>TCP driver for Associative Storage Engine</description>
+
+    <dependencies>
+    </dependencies>
+</project>

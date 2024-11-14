@@ -6,14 +6,20 @@
  */
 
 #include "shmem.h"
+
+#include <cstring>
+#include <mutex>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <shared_mutex>
-#include <utility>
-#include <mutex>
-#include <cstdio>
 #include <stdexcept>
-#include <string.h>
+#include <utility>
+#include <cmath>
+
+#include <unistd.h>
+namespace {
+    size_t page_size = sysconf(_SC_PAGESIZE);
+}
 
 shmem::shmem() {
     attach([](shmem&){});
@@ -49,11 +55,10 @@ void shmem::attach(std::function<void(shmem&)> on_create) {
 
         metadata = static_cast<shmem_meta *>(mmap(nullptr, sizeof(shmem_meta), PROT_READ | PROT_WRITE, MAP_SHARED,
                                                   meta_fd, 0));
-
         if (metadata == MAP_FAILED) {
             throw std::runtime_error("Failed to mmap shared memory segment for metadata");
         }
-
+        mlock(metadata, sizeof(shmem_meta));
         ::close(meta_fd);
 
         // If this was a new segment, initialize metadata fields
@@ -87,6 +92,8 @@ void shmem::attach(std::function<void(shmem&)> on_create) {
             printf("%s", strerror(errno));
             throw std::runtime_error("Failed to mmap shared memory segment for data");
         }
+        mlock(base, metadata->alloc_size);
+        local_size = metadata->alloc_size;
         ::close(data_fd);
         if (created) {
             on_create(*this);
@@ -106,16 +113,22 @@ void shmem::close() {
 }
 
 void shmem::destroy() {
-    metadata->~shmem_meta();
+    if (base) {
+        munmap(base, metadata->alloc_size);
+        base = nullptr;
+    }
 
-    close();
+    if (metadata) {
+        metadata->~shmem_meta();
+        munmap(metadata, sizeof(shmem_meta));
+        metadata = nullptr;
+    }
     shm_unlink("shmem_meta");
     shm_unlink("shmem_data");
 }
 
 void shmem::resize(offset_t min_size) {
     int flags = O_RDWR;
-#ifdef __APPLE__ // Unfortunately on darwin you can only call ftruncate once per shared memory segment. So we recerate a new one and move the data over
     offset_t prev_size = metadata->used_size;
     auto* tmp = static_cast<uint8_t*>(mmap(nullptr, prev_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)); // Use mmap to allocate a temporary buffer
     if (tmp == MAP_FAILED) {
@@ -124,14 +137,11 @@ void shmem::resize(offset_t min_size) {
     memcpy(tmp, base, prev_size);
 
     // Unmap & delete existing data segment
-    munmap(base, metadata->alloc_size);
+    munmap(base, local_size);
     shm_unlink("shmem_data");
     flags |= O_CREAT;
-#else
-    munmap(base, metadata->alloc_size);
-#endif
     // Increase `alloc_size` (double it, for example) and truncate to new size
-    metadata->alloc_size = min_size * 2;
+    metadata->alloc_size = (min_size * 2 + page_size - 1) & ~(page_size - 1);;
     int data_fd = shm_open("shmem_data", flags, S_IRUSR | S_IWUSR);
     if (data_fd == -1) {
         throw std::runtime_error("Failed to open shared memory segment for data after resize");
@@ -145,14 +155,19 @@ void shmem::resize(offset_t min_size) {
     if (base == MAP_FAILED) {
         throw std::runtime_error("Failed to mmap shared memory segment for data after resize");
     }
+    mlock(base, metadata->alloc_size);
     ::close(data_fd);
 
-#ifdef __APPLE__
+    // Try touching every page to ensure they are backed by physical memory
+    for (size_t i = 0; i < metadata->alloc_size; i += page_size) {
+        ((volatile uint8_t *)base)[i] = 0;
+    }
+
     memcpy(base, tmp, prev_size);
     munmap(tmp, prev_size); // Unmap the temporary buffer
-#endif
 
     ++metadata->version;
+    local_size = metadata->alloc_size;
 }
 
 offset_t shmem::allocate(std::size_t size) {
@@ -174,14 +189,19 @@ void shmem::deallocate(offset_t ptr) {
 }
 
 void shmem::atomic_access(offset_t offset, std::function<void(void *)>&& lambda, bool locks_held) {
-    auto do_access = [this, lambda, offset]() {
+    auto do_access = [this, &lambda, &offset]() {
         {
             if (metadata->version > local_version) { // If the version has changed, remap the data segment
-                munmap(base, metadata->alloc_size);
+                munmap(base, local_size);
                 int data_fd = shm_open("shmem_data", O_RDWR, S_IRUSR | S_IWUSR);
                 base = mmap(nullptr, metadata->alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
+                if (base == MAP_FAILED) {
+                    throw std::runtime_error("Failed to mmap shared memory segment for data after version change");
+                }
+                mlock(base, metadata->alloc_size);
                 ::close(data_fd);
                 local_version = metadata->version;
+                local_size = metadata->alloc_size;
             } else if (metadata->version < local_version) {
                 throw std::runtime_error("Version mismatch");
             }
