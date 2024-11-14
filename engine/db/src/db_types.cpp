@@ -18,9 +18,9 @@ CopiedValue::CopiedValue(const Value &value) {
         array_value = {value.array_value.type, value.array_value.array_value.get()};
     } else if (type == ValueType::PAIR) {
         pair_value = {value.pair_value.first.get(), value.pair_value.second.get()};
-    } else if (type == ValueType::MAP) {
-        map_value = value.map_value->copy();
-    } else if (type == ValueType::STRING) {
+    }*/ else if (type == ValueType::MAP) {
+        map_value = value.map_value; // TODO possibly deep copy
+    }/* else if (type == ValueType::STRING) {
         string_value = value.string_value.get();
     }*/
 }

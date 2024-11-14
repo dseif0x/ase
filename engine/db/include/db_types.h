@@ -71,6 +71,7 @@ struct CopiedValue {
         // TODO semaphore sem_value;
         CopiedArrayType array_value;
         // TODO std::pair<CopiedValue, CopiedValue> pair_value;
-        // TODO db_map<Value> map_value;
+        // TODO
+        db_map<Value>* map_value;
     };
 };

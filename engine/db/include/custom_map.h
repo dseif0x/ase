@@ -18,17 +18,42 @@
 #include <cstring>
 
 template <typename T>
+class db_map;
+
+template <typename T>
+class locked_db_map {
+    std::shared_lock<shrwlock> lock;
+    db_map<T>* map;
+
+public:
+    locked_db_map(db_map<T>* map) : lock(std::shared_lock<shrwlock>{map->lock}) {
+        this->map = map;
+    }
+
+    T& get(const char* key) {
+        return map->get(key);
+    }
+
+    bool has(const char* key) {
+        return map->has(key);
+    }
+};
+
+template <typename T>
 class db_map {
 public:
     using map_entry_type = std::pair<offset_ptr<char>, T>;
+
     db_map(shmem& mem) : mem{mem} {
         used_size = 0;
         alloc_size = 0;
     }
+
     ~db_map() {
         mem.destroy_array(data);
     }
-    bool has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+
+    bool atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         std::shared_lock<shrwlock> lock_guard(lock);
         std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
@@ -39,7 +64,7 @@ public:
         return false;
     }
 
-    T& get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    T& atomic_get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         std::shared_lock<shrwlock> lock_guard(lock);
         std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
@@ -49,6 +74,14 @@ public:
         }
         throw std::runtime_error("Key not found");
     }
+
+    template<typename Lambda>
+    void transaction(Lambda &&cb) {
+        static_assert(std::is_invocable_v<Lambda, locked_db_map<T>*>, "Lambda must be invocable with db_map");
+        auto locked_map = locked_db_map<T>{this};
+        cb(&locked_map);
+    }
+
     static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, T value) { // NEVER CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK (it will deadlock)
         bool found = false;
         size_t used_size;
@@ -91,6 +124,27 @@ public:
     }
 
 private:
+    friend class locked_db_map<T>;
+    bool has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        for (size_t i = 0; i < used_size; i++) {
+            if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    T& get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        for (size_t i = 0; i < used_size; i++) {
+            if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                return data[i].second;
+            }
+        }
+        throw std::runtime_error("Key not found");
+    }
+
     shmem& mem;
     static void resize(offset_ptr<db_map>& map, shmem& mem) {
         size_t alloc_size;
