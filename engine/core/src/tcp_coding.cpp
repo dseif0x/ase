@@ -29,7 +29,10 @@ std::vector<unsigned char> ByteDecoder::get_bytes(size_t bytes) {
             this->buffer.front().begin() + this->start + bytes_to_copy);
         bytes -= bytes_to_copy;
         this->start += bytes_to_copy;
-        if (this->buffer.front().size() <= this->start) this->buffer.pop_front();
+        if (this->buffer.front().size() <= this->start) {
+            this->buffer.pop_front();
+            this->start = 0;
+        }
         if (bytes == 0) break;
     }
     this->buffer_lock.unlock();
@@ -61,6 +64,59 @@ unsigned long long ByteDecoder::decode_unsigned(int bytes) {
         val |= x;
     }
     return val;
+}
+
+std::pair<std::unique_ptr<unsigned char[]>, int> ByteEncoder::get_bytes(size_t bytes) {
+    size_t cur_size{};
+    std::unique_ptr<unsigned char[]> res(new unsigned char[bytes]);
+    this->buffer_lock.lock();
+    while (true) {
+        std::cout << "front:";
+        for (int x = 0; x < this->buffer.front().size(); x++) std::cout << "[" << (int)(unsigned char)this->buffer.front()[x] << "]";
+        std::cout << std::endl;
+        if (this->buffer.empty()) break;
+        auto bytes_to_copy = std::min(bytes, this->buffer.front().size() - this->start);
+        std::copy(this->buffer.front().begin() + this->start,
+            this->buffer.front().begin() + this->start + bytes_to_copy, res.get()+cur_size);
+        bytes -= bytes_to_copy;
+        cur_size += bytes_to_copy;
+        this->start += bytes_to_copy;
+        if (this->buffer.front().size() <= this->start) {
+            this->buffer.pop_front();
+            this->start = 0;
+        }
+        std::cout << "ret:";
+        for (int x = 0; x < cur_size; x++) std::cout << "[" << (int)res.get()[x] << "]";
+        std::cout << std::endl;
+        if (bytes == 0) break;
+    }
+    this->buffer_lock.unlock();
+    return std::make_pair(std::move(res), cur_size);
+}
+
+void ByteEncoder::add_to_buffer(std::vector<unsigned char> &block) {
+    std::lock_guard<std::mutex> lock(this->buffer_lock);
+    this->buffer.emplace_back(std::move(block));
+}
+
+bool ByteEncoder::empty() {
+    std::lock_guard<std::mutex> lock(this->buffer_lock);
+    return this->buffer.empty();
+}
+
+void ByteEncoder::encode_acknak(bool val) {
+    std::vector<unsigned char> ret{};
+    ret.push_back(val ? 0xFF : 0x00);
+    this->add_to_buffer(ret);
+}
+
+void ByteEncoder::encode_unsigned(int bytes, unsigned long long val) {
+    std::vector<unsigned char> res{};
+    for (int x = 0; x < bytes; x++) {
+        res.push_back(static_cast<unsigned char>(0xFF & val));
+        val >>= 8;
+    }
+    this->add_to_buffer(res);
 }
 
 

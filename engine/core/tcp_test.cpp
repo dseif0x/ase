@@ -13,12 +13,15 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <chrono>
 #include "tcp_server.h"
 #include "acl.h"
 
 
 int main() {
     std::cout << getpid() << std::endl;
-    ACL acl{};
-    start_tcp_server(42069, acl);
+    TCPServer server{42069, 10};
+    server.start();
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    server.stop();
 }

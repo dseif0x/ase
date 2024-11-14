@@ -39,11 +39,14 @@ public:
 class ByteEncoder {
     std::deque<std::vector<unsigned char>> buffer;
     std::mutex buffer_lock;
+    size_t start = 0;
 
 public:
     ByteEncoder() = default;
 
-    void get_buffer(int bytes);
+    std::pair<std::unique_ptr<unsigned char[]>, int> get_bytes(size_t bytes);
+    void add_to_buffer(std::vector<unsigned char> &block);
+    bool empty();
 
     void encode_string(std::string val);
     void encode_int(int val);
