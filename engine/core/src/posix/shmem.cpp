@@ -127,12 +127,15 @@ void shmem::destroy() {
     shm_unlink("shmem_data");
 }
 
-void shmem::resize(offset_t min_size) {
+void shmem::ensure_enough_space(std::size_t required_memory) {
+    if (can_fit(required_memory)) {
+        return;
+    }
     int flags = O_RDWR;
-    offset_t prev_size = metadata->used_size;
+    std::size_t prev_size = metadata->used_size;
     auto* tmp = static_cast<uint8_t*>(mmap(nullptr, prev_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)); // Use mmap to allocate a temporary buffer
     if (tmp == MAP_FAILED) {
-        throw std::runtime_error("Failed to allocate temporary buffer for resize");
+        throw std::runtime_error("Failed to allocate temporary buffer for ensure_enough_space");
     }
     memcpy(tmp, base, prev_size);
 
@@ -141,19 +144,23 @@ void shmem::resize(offset_t min_size) {
     shm_unlink("shmem_data");
     flags |= O_CREAT;
     // Increase `alloc_size` (double it, for example) and truncate to new size
-    metadata->alloc_size = (min_size * 2 + page_size - 1) & ~(page_size - 1);;
+    std::size_t new_size = metadata->alloc_size;
+    while (new_size < metadata->alloc_size + required_memory) {
+        new_size *= 2;
+    }
+    metadata->alloc_size = new_size;
     int data_fd = shm_open("shmem_data", flags, S_IRUSR | S_IWUSR);
     if (data_fd == -1) {
-        throw std::runtime_error("Failed to open shared memory segment for data after resize");
+        throw std::runtime_error("Failed to open shared memory segment for data after ensure_enough_space");
     }
     if (ftruncate(data_fd, metadata->alloc_size) == -1) {
-        throw std::runtime_error("Failed to truncate shared memory segment for data after resize");
+        throw std::runtime_error("Failed to truncate shared memory segment for data after ensure_enough_space");
     }
 
     // We dont use mremap because its not supported on macos
     base = mmap(nullptr, metadata->alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
     if (base == MAP_FAILED) {
-        throw std::runtime_error("Failed to mmap shared memory segment for data after resize");
+        throw std::runtime_error("Failed to mmap shared memory segment for data after ensure_enough_space");
     }
     mlock(base, metadata->alloc_size);
     ::close(data_fd);
@@ -173,9 +180,7 @@ void shmem::resize(offset_t min_size) {
 offset_t shmem::allocate(std::size_t size) {
     std::unique_lock<shrwlock> lk2(metadata->meta_mutex);
     // Ensure we have enough space, resize if needed
-    if (metadata->used_size + size > metadata->alloc_size) {
-        resize(metadata->used_size + size);
-    }
+    ensure_enough_space(size);
 
     // Compute the offset, allocate space, and return pointer
     std::size_t offset = metadata->used_size;
@@ -226,4 +231,8 @@ offset_t shmem::get_management_offset() const {
 
 shrwlock &shmem::get_meta_mutex() {
     return metadata->meta_mutex;
+}
+
+bool shmem::can_fit(std::size_t required_memory) {
+    return metadata->used_size + required_memory < metadata->alloc_size;
 }
