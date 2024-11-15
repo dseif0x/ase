@@ -25,7 +25,8 @@ int main() {
     TCPServer server{42069, 10};
     stopwatch s{};
     server.start();
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::string temp;
+    std::cin >> temp;
     server.stop();
     auto dur = s.stop();
     std::cout << dur << std::endl;

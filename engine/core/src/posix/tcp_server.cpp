@@ -25,9 +25,12 @@
 
 void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lock, ACL &acl, ByteDecoder &decoder) {
     ByteEncoder encoder{};
-    int state = 0;
+    int state = 1;
     while (!kys) {
-        if (state == 0) {
+        std::cout << "state:" << state << std::endl;
+        if (state < 0) {
+            if (encoder.empty()) break;
+        } else if (state == 0) {
             // Expecting client information
             auto client_version = decoder.decode_unsigned(2);
             auto client_perms = decoder.decode_unsigned(1);
@@ -35,7 +38,8 @@ void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lo
             std::cout << "client opens connection with intention to: " <<((client_perms & 0x01) > 0 ? "read, " : "") <<
                     ((client_perms & 0x02) > 0 ? "write, " : "") << ((client_perms & 0x04) > 0 ? "delete, " : "") << "[" << client_perms << "]" << std::endl;
             if (client_version != 0) {
-
+                state = -1;
+                // todo add error message
             }
             encoder.encode_acknak(true);
             encoder.encode_unsigned(1, 1); // size of bool
@@ -44,8 +48,10 @@ void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lo
             encoder.encode_unsigned(1, sizeof(double)); // size of double
             encoder.encode_unsigned(1, sizeof(int)); // size of semaphore // todo send actual size
             state = 1;
-        } else if (state == -1) {
-            if (encoder.empty()) break;
+        } else if (state == 1) {
+            unsigned long long temp = decoder.decode_expanding_unsigned();
+            std::cout << "val:" << temp << std::endl;
+            encoder.encode_expanding_unsigned(temp);
         }
         // send buffer
         while (!encoder.empty()) {
@@ -88,7 +94,6 @@ void connect_client(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
         {
             std::lock_guard<std::mutex> lock(pipe_lock);
             sel = select(clientSocket + 1, &readfds, nullptr, nullptr, &timeout);
-            std::cout << "timeout or read" << std::endl;
         }
         if (sel > 0) {
             bytesReceived = recv(clientSocket, buffer, BUFFER_SIZE, 0);

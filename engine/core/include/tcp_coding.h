@@ -56,7 +56,7 @@ public:
     void encode_acknak(bool val);
 
     void encode_unsigned(int bytes, unsigned long long val);
-    void decode_expanding_unsigned(unsigned long long val);
+    void encode_expanding_unsigned(unsigned long long val);
     void encode_general(); // todo will later return the some kind of db compatible type
 };
 
