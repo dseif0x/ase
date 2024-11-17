@@ -75,6 +75,19 @@ void free_block_remove(shmem_meta& metadata, void* base, size_t prev_node, FreeB
     }
 }
 
+void free_coalescence(shmem_meta& metadata, void* base, size_t prev_node_off, FreeBlock *free_node) {
+    auto* next_free_node = get_free_block(base, free_node->next_offset);
+    if (free_node->next_offset != -1 && (void *)((char *)free_node + free_node->size) == next_free_node) {
+        free_node->size += next_free_node->size;
+        free_block_remove(metadata, base, get_offset_from_ptr(base, free_node), next_free_node);
+    }
+    auto* prev_node = get_free_block(base, prev_node_off);
+    if (prev_node->next_offset != -1 && (void *)((char *)prev_node + prev_node->size) == free_node) {
+        prev_node->size += next_free_node->size;
+        free_block_remove(metadata, base, prev_node_off, free_node);
+    }
+}
+
 size_t find_tail_block(shmem_meta& metadata, void* base) {
     size_t current = metadata.first_free;
     while (current != -1) {
@@ -279,12 +292,17 @@ void shmem::ensure_enough_space(std::size_t required_memory) {
 #endif
         newblock->next_offset = -1;
         newblock->size = metadata->alloc_size - prev_size;
-        tailblock->next_offset = new_block_offset;
+        if (tail != -1) {
+            tailblock->next_offset = new_block_offset;
+        } else {
+            metadata->first_free = new_block_offset;
+        }
     }
 }
 
 offset_t shmem::allocate(std::size_t size) {
     size += sizeof(AllocationHeader); // We also need an allocation header to store the size of the block
+    size = std::max(size, sizeof (FreeBlock)); // We need to ensure that the block is at least the size of a FreeBlock
     std::unique_lock<shrwlock> lk2(metadata->meta_mutex);
     ensure_mounted();
     // Ensure we have enough space, resize if needed
@@ -318,7 +336,31 @@ offset_t shmem::allocate(std::size_t size) {
 }
 
 void shmem::deallocate(offset_t ptr) {
-    // This is currently left free for this simple bump allocator
+    std::unique_lock<shrwlock> lk2(metadata->meta_mutex);
+    ensure_mounted();
+
+    auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr - sizeof(AllocationHeader));
+    size_t size = header_ptr->size;
+
+    auto* newblock = reinterpret_cast<FreeBlock*>(header_ptr);
+#ifdef MEM_DEBUG
+    new (newblock) FreeBlock();
+#endif
+    newblock->size = size;
+
+    size_t prev = -1;
+    size_t curr = metadata->first_free;
+    while (curr != -1) {
+        if (curr > ptr) { // Find the block that is greater than the new block
+            free_block_insert(*metadata, base, prev, newblock);
+            break;
+        }
+        auto* currblock = get_free_block(base, curr);
+        prev = curr;
+        curr = currblock->next_offset;
+    }
+
+    free_coalescence(*metadata, base, prev, newblock);
 }
 
 void shmem::atomic_access(offset_t offset, std::function<void(void *)>&& lambda, bool locks_held) {
