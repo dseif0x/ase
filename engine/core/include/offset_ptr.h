@@ -14,6 +14,17 @@
 #include "relative_offset_ptr.h"
 
 class shmem;
+/**
+ * @brief A pointer-like wrapper that manages offsets to memory locations within a shared memory segment.
+ *
+ * This template class represents a pointer to a memory location within a shared memory segment.
+ * It stores an offset relative to the start of the memory region and provides methods to access
+ * and manipulate data at that offset. The `offset_ptr` is designed to be used safely within
+ * an atomic context to ensure that concurrent access or resizing of the shared memory does not
+ * cause data corruption.
+ *
+ * @tparam T The type of the object pointed to by the `offset_ptr`.
+ */
 template <typename T>
 class offset_ptr {
 private:

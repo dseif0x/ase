@@ -10,10 +10,21 @@
 #include <cstdint>
 #include <utility>
 #include <shared_mutex>
+#include <cstring>
 #include "shrwlock.h"
 #include "shmem.h"
 #include "lock_utils.h"
 
+/**
+ * @brief A database-like key-value store backed by shared memory.
+ *
+ * This template class provides a simple in-memory key-value store with
+ * support for atomic access to stored values. It allows checking for keys,
+ * retrieving values, and inserting new key-value pairs into the map. The map
+ * operates in shared memory and supports concurrent access through a read-write lock.
+ *
+ * @tparam T The type of the value stored in the map.
+ */
 template <typename T>
 class db_map {
 public:
@@ -50,12 +61,9 @@ public:
         bool found = false;
         size_t used_size;
         size_t alloc_size;
-        shrwlock& memlock = mem.get_meta_mutex();
-        shrwlock maplock;
-        map.atomic_access(mem, [&](db_map* map) {
-            maplock = map->lock;
-        });
-        custom_lock(std::tuple<shrwlock&, shared_lock_type>{memlock, {}}, std::tuple<shrwlock&, unique_lock_type>{maplock, {}});
+        mem.get_meta_mutex().lock_shared();
+        map.get(mem)->lock.lock();
+
         map.atomic_access(mem, [&](db_map* map) {
             std::pair<offset_ptr<char>, T>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
@@ -69,7 +77,7 @@ public:
             used_size = map->used_size;
             alloc_size = map->alloc_size;
         }, true);
-        memlock.unlock_shared();
+        mem.get_meta_mutex().unlock_shared();
 
         if (found) return;
 
