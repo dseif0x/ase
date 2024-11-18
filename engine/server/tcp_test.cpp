@@ -16,7 +16,7 @@
 #include <chrono>
 #include <stopwatch.h>
 
-#include "tcp_server.h"
+#include "tcp2_server.h"
 #include "acl.h"
 
 
@@ -24,7 +24,7 @@ int main() {
     std::cout << getpid() << std::endl;
 
 
-    TCPServer server{42069, 10};
+    TCP2Server server{42069, 10};
 
     stopwatch s{};
     server.start();

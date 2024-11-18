@@ -5,26 +5,18 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
+#include "tcp2_utils.h"
 #include <iostream>
+#include <tcp2_server.h>
 #include <thread>
-#include <vector>
-#include <cstring>
-#include <arpa/inet.h>
 #include <unistd.h>
-#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
-#include <chrono>
-#include "tcp_server.h"
-#include "tcp_coding.h"
-
-#include "acl.h"
-#include <atomic>
-#include <deque>
-
-// into db: client_worker,
+#include <sys/socket.h>
+#include <sys/_select.h>
 
 
-void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lock, ACL &acl, ByteDecoder &decoder) {
+void tcp2_utils::client_state_thread(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lock, ACL &acl, ByteDecoder &decoder) {
     ByteEncoder encoder{};
     std::string username;
 
@@ -97,7 +89,7 @@ void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lo
 }
 
 
-void connect_client(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
+void tcp2_utils::client_main_thread(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesReceived;
     std::atomic<bool> kys_worker{false};
@@ -106,7 +98,7 @@ void connect_client(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
     std::mutex pipe_lock;
 
 
-    std::thread state(client_worker, std::ref(kys_worker), clientSocket, std::ref(pipe_lock), std::ref(acl), std::ref(decoder));
+    std::thread state(tcp2_utils::client_state_thread, std::ref(kys_worker), clientSocket, std::ref(pipe_lock), std::ref(acl), std::ref(decoder));
 
     fd_set readfds;
     struct timeval timeout{};
@@ -154,94 +146,3 @@ void connect_client(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
     close(clientSocket);
 }
 
-void TCPServer::accept_clients(std::atomic<bool> &kys, ACL &acl, int port, int max_clients) {
-    // Create server socket
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0) {
-        std::cerr << "Failed to create socket.\n";
-        return;
-        //return false;
-    }
-
-    // Configure server
-    struct sockaddr_in serverAddress{};
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(port);
-
-    // Bind the socket
-    if (bind(serverSocket, reinterpret_cast<struct sockaddr *>(&serverAddress), sizeof(serverAddress)) < 0) {
-        std::cerr << "Failed to bind to port " << port << ".\n";
-        close(serverSocket);
-        //return false;
-        return;
-    }
-
-    // Start listening for incoming connections
-    if (listen(serverSocket, std::min(SOMAXCONN, max_clients)) < 0) {
-        std::cerr << "Failed to listen on socket.\n";
-        close(serverSocket);
-        //return false;
-        return;
-    }
-
-    // temp output todo remove
-    std::cout << "Server listening on port " << port << "...\n";
-
-    // Vector to hold client threads
-    std::vector<std::thread> clientThreads;
-    std::atomic<bool> kill_all{false};
-
-    struct timeval timeout{};
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 100000;
-    fd_set read_fds;
-    // Accept connections in a loop
-    while (!kys) {
-        FD_ZERO(&read_fds);
-        FD_SET(serverSocket, &read_fds);
-
-        int activity = select(serverSocket + 1, &read_fds, nullptr, nullptr, &timeout);
-
-        if (activity < 0 && errno != EINTR) {
-            std::cerr << "Select error: " << strerror(errno) << std::endl;
-            break;
-        }
-
-        if (FD_ISSET(serverSocket, &read_fds)) {
-            struct sockaddr_in clientAddress{};
-            socklen_t clientAddressLength = sizeof(clientAddress);
-
-            // Accept an incoming connection
-            int clientSocket = accept(serverSocket, reinterpret_cast<struct sockaddr *>(&clientAddress), &clientAddressLength);
-            if (clientSocket < 0) {
-                std::cerr << "Failed to accept client connection: " << strerror(errno) << std::endl;
-            } else {
-                // temp output todo remove
-                std::cout << "Connected to client: " << inet_ntoa(clientAddress.sin_addr)
-                          << ":" << ntohs(clientAddress.sin_port) << "\n";
-
-                // start thread for the connection
-                clientThreads.emplace_back(std::thread(connect_client, std::ref(kill_all), clientSocket, std::ref(acl)));
-            }
-        }
-    }
-    kill_all = true;
-    for (auto &x : clientThreads) x.join();
-
-    close(serverSocket);
-}
-
-TCPServer::TCPServer(int port, int max_clients): port(port), max_clients(max_clients) {
-}
-
-
-
-void TCPServer::start() {
-    this->client_acceptor = std::thread(TCPServer::accept_clients, std::ref(this->kill_acceptor), std::ref(this->acl), this->port, this->max_clients);
-}
-
-void TCPServer::stop() {
-    this->kill_acceptor = true;
-    this->client_acceptor.join();
-}

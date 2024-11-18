@@ -9,11 +9,15 @@
 #define TCP_SERVER_H
 #include "acl.h"
 #include <atomic>
+#include <thread>
+#include "tcp_coding.h"
 
 
 constexpr int BUFFER_SIZE = 8;
 
-class TCPServer {
+
+
+class TCP2Server {
     int port;
     int max_clients;
     ACL acl{};
@@ -21,10 +25,9 @@ class TCPServer {
     std::atomic<int> socket_error{0};
 
     std::thread client_acceptor;
-    static void accept_clients(std::atomic<bool> &kys, ACL &acl, int port, int max_clients);
 
 public:
-    TCPServer(int port, int max_clients);
+    TCP2Server(int port, int max_clients);
     bool load_acl_from_disk(std::string path);
     void start();
     void stop();
