@@ -1,9 +1,9 @@
 /*
 * Copyright 2024 Project Contributors
-*
-* This source code is licensed under the MIT License found in the LICENSE file in the root directory
-* of this source tree or at https://opensource.org/licenses/MIT.
-*/
+ *
+ * This source code is licensed under the MIT License found in the LICENSE file in the root directory
+ * of this source tree or at https://opensource.org/licenses/MIT.
+ */
 
 #ifndef ACL_H
 #define ACL_H
@@ -56,6 +56,7 @@ public:
 
     int try_login(const std::string &user, const std::string &pwd);
     ACLUser *get_user(const std::string &user);
+    void disconnect(const std::string &user);
 
     void print_full_info();
 };

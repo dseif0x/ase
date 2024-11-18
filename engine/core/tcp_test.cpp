@@ -22,12 +22,17 @@
 
 int main() {
     std::cout << getpid() << std::endl;
+
+
     TCPServer server{42069, 10};
+
     stopwatch s{};
     server.start();
+
     std::string temp;
     std::cin >> temp;
     server.stop();
+
     auto dur = s.stop();
     std::cout << dur << std::endl;
 }

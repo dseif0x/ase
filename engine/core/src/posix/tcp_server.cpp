@@ -17,15 +17,18 @@
 #include "tcp_server.h"
 #include "tcp_coding.h"
 
-#include <acl.h>
+#include "acl.h"
 #include <atomic>
 #include <deque>
 
+// into db: client_worker,
 
 
 void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lock, ACL &acl, ByteDecoder &decoder) {
     ByteEncoder encoder{};
-    int state = 1;
+    std::string username;
+
+    int state = 0;
     while (!kys) {
         std::cout << "state:" << state << std::endl;
         if (state < 0) {
@@ -37,11 +40,19 @@ void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lo
             std::cout << "client is running version: " << client_version << std::endl;
             std::cout << "client opens connection with intention to: " <<((client_perms & 0x01) > 0 ? "read, " : "") <<
                     ((client_perms & 0x02) > 0 ? "write, " : "") << ((client_perms & 0x04) > 0 ? "delete, " : "") << "[" << client_perms << "]" << std::endl;
+            if (!decoder.empty()) {
+                state = -1;
+                encoder.encode_nak();
+                encoder.encode_error(0xFFFF);
+                continue;
+            }
             if (client_version != 0) {
                 state = -1;
-                // todo add error message
+                encoder.encode_nak();
+                encoder.encode_error(0x8000);
+                continue;
             }
-            encoder.encode_acknak(true);
+            encoder.encode_ack();
             encoder.encode_unsigned(1, 1); // size of bool
             encoder.encode_unsigned(1, sizeof(int)); // size of int
             encoder.encode_unsigned(1, sizeof(char)); // size of char
@@ -49,9 +60,23 @@ void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lo
             encoder.encode_unsigned(1, sizeof(int)); // size of semaphore // todo send actual size
             state = 1;
         } else if (state == 1) {
-            unsigned long long temp = decoder.decode_expanding_unsigned();
-            std::cout << "val:" << temp << std::endl;
-            encoder.encode_expanding_unsigned(temp);
+            if (decoder.decode_acknak() != 1) {
+                state = -1;
+                encoder.encode_error(0xFFFF);
+                continue;
+            }
+            username = decoder.decode_string();
+            std::string pwd = decoder.decode_string();
+            int login_res = acl.try_login(username, pwd);
+            if (login_res != 0) {
+                state = -1;
+                encoder.encode_nak();
+                if (login_res == 1) encoder.encode_error(0x8001);
+                else if (login_res == 2) encoder.encode_error(0x8003);
+                else if (login_res == 3) encoder.encode_error(0x8002);
+                continue;
+            }
+            encoder.encode_ack();
         }
         // send buffer
         while (!encoder.empty()) {
@@ -68,6 +93,7 @@ void client_worker(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lo
             // todo add checks if a stop command has come in
         }
     }
+    acl.disconnect(username);
 }
 
 
@@ -114,7 +140,7 @@ void connect_client(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
         } else if (sel == 0) {
             // in case of timeout sleep for a bit to give others time to access pipe mutex
             // this way large data pack would not be slowed down, as we only sleep in case of nothing arriving
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)); // todo replace with yield
         } else {
             std::cerr << "select error: " << strerror(errno) << std::endl;
             done = true;

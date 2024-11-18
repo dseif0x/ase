@@ -1,6 +1,9 @@
-//
-// Created by Tobias Panek on 12.11.24.
-//
+/*
+* Copyright 2024 Project Contributors
+ *
+ * This source code is licensed under the MIT License found in the LICENSE file in the root directory
+ * of this source tree or at https://opensource.org/licenses/MIT.
+ */
 
 
 #include "acl.h"
@@ -56,6 +59,11 @@ ACLUser* ACL::get_user(const std::string &user) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (!open_connections.contains(user)) return nullptr;
     return &users[user];
+}
+
+void ACL::disconnect(const std::string &user) {
+    std::lock_guard<std::mutex> lock(this->general_lock);
+    if (open_connections.contains(user)) open_connections.erase(user);
 }
 
 void ACL::print_full_info() {

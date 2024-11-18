@@ -9,6 +9,7 @@
 
 #include <thread>
 #include <vector>
+#include <iostream>
 
 //todo here may be performance improvements made
 std::vector<unsigned char> ByteDecoder::get_bytes(size_t bytes) {
@@ -55,7 +56,7 @@ bool ByteDecoder::empty() {
 std::string ByteDecoder::decode_string() {
     unsigned long long length = this->decode_expanding_unsigned();
     auto data = this->get_bytes(length);
-    return "not done";
+    return {data.begin(), data.end()};
 }
 
 int ByteDecoder::decode_int() {
@@ -68,11 +69,11 @@ double ByteDecoder::decode_double() {
     return static_cast<double>(res);
 }
 
-bool ByteDecoder::decode_acknak() {
+int ByteDecoder::decode_acknak() {
     auto data = this->get_bytes(1);
-    if (data[0] == 0xFF) return true;
-    else if (data[1] == 0x00) return false;
-    else throw 1; //todo throw something useful
+    if (data[0] == 0xFF) return 1;
+    if (data[1] == 0x00) return 0;
+    return -1;
 }
 
 unsigned long long ByteDecoder::decode_unsigned(int bytes) {
@@ -139,11 +140,37 @@ bool ByteEncoder::empty() {
     return this->buffer.empty();
 }
 
+void ByteEncoder::encode_string(std::string val) {
+    std::vector<unsigned char> data(val.begin(), val.end());
+    this->encode_expanding_unsigned(data.size());
+    this->add_to_buffer(data);
+}
+
 void ByteEncoder::encode_acknak(bool val) {
     std::vector<unsigned char> ret{};
     ret.push_back(val ? 0xFF : 0x00);
     this->add_to_buffer(ret);
 }
+
+void ByteEncoder::encode_ack() {
+    this->encode_acknak(true);
+}
+
+void ByteEncoder::encode_nak() {
+    this->encode_acknak(false);
+}
+
+void ByteEncoder::encode_error(unsigned long long error_id) {
+    this->encode_unsigned(2, error_id);
+    if (errors::messages.contains(error_id)) this->encode_string(errors::messages[error_id]);
+    else this->encode_string("Unknown Error!");
+}
+
+void ByteEncoder::encode_nak_error(unsigned long long error_id) {
+    this->encode_acknak(false);
+    this->encode_error(error_id);
+}
+
 
 void ByteEncoder::encode_unsigned(int bytes, unsigned long long val) {
     std::vector<unsigned char> res{};
