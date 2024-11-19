@@ -37,7 +37,7 @@ class shmem {
 
     void ensure_mounted(); //!< Ensures that the newest version of the shared memory is mounted
     bool can_fit(std::size_t required_memory); //!< This function is used to check if the required size can fit in the base segment
-    void ensure_enough_space(offset_t required_memory); //!< This function is used to resize the base segment if the required size is larger than the current size
+    void ensure_enough_space(std::size_t required_memory); //!< This function is used to resize the base segment if the required size is larger than the current size
     void atomic_access(offset_t offset, std::function<void(void*)>&& lambda, bool locks_held = false); //!< This function is used to access the data segment in an atomic way
     offset_t allocate(std::size_t size); //!< This function is used to allocate a new block of memory in the base segment
     void deallocate(offset_t ptr); //!< This function is used to allocate a new block of memory in the base segment
