@@ -16,6 +16,7 @@ using db_key_map = db_map<relative_offset_ptr<Value>>;
 
 struct DB_Meta {
     db_key_map entrypoint;
+    DB_Meta(shmem& mem) : entrypoint{mem} {}
 };
 
 /**
