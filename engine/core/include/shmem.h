@@ -18,22 +18,29 @@ struct shmem_meta {
     shrwlock meta_mutex;
 };
 
+/**
+ * @brief Manages shared memory segments with metadata and data handling.
+ *
+ * The `shmem` class provides an interface for creating, accessing, and managing
+ * shared memory segments. It handles metadata and data segments, allowing for
+ * atomic access, resizing, and allocation within shared memory.
+ */
 class shmem {
-    std::size_t local_version{1}; // This is the version this process is currently working with on access we check if the version in the metadata segment has changed
+    std::size_t local_version{1}; //!< This is the version this process is currently working with on access we check if the version in the metadata segment has changed
     std::size_t local_size{0};
 
-    shmem_meta* metadata{nullptr}; // This is one shared memory segment that is fixed in size and contains the metadata
-    void* base{nullptr}; // This is the second shared memory segment that is variable in size and contains the actual data
+    shmem_meta* metadata{nullptr}; //!< This is one shared memory segment that is fixed in size and contains the metadata
+    void* base{nullptr}; //!< This is the second shared memory segment that is variable in size and contains the actual data
 
     void attach(std::function<void(shmem&)> on_create);
     void close();
 
-    void ensure_mounted();
-    bool can_fit(std::size_t required_memory); // This function is used to check if the required size can fit in the base segment
-    void ensure_enough_space(std::size_t required_memory); // This function is used to resize the base segment if the required size is larger than the current size
-    void atomic_access(offset_t offset, std::function<void(void*)>&& lambda, bool locks_held = false); // This function is used to access the data segment in an atomic way
-    offset_t allocate(std::size_t size); // This function is used to allocate a new block of memory in the base segment
-    void deallocate(offset_t ptr); // This function is used to allocate a new block of memory in the base segment
+    void ensure_mounted(); //!< Ensures that the newest version of the shared memory is mounted
+    bool can_fit(std::size_t required_memory); //!< This function is used to check if the required size can fit in the base segment
+    void ensure_enough_space(offset_t required_memory); //!< This function is used to resize the base segment if the required size is larger than the current size
+    void atomic_access(offset_t offset, std::function<void(void*)>&& lambda, bool locks_held = false); //!< This function is used to access the data segment in an atomic way
+    offset_t allocate(std::size_t size); //!< This function is used to allocate a new block of memory in the base segment
+    void deallocate(offset_t ptr); //!< This function is used to allocate a new block of memory in the base segment
 public:
     shmem();
     shmem(std::function<void(shmem&)> on_create);
@@ -44,6 +51,7 @@ public:
 
     offset_t get_management_offset() const;
 
+    //! @neverInAtomicAccess
     template <typename T, typename... Args>
     offset_ptr<T> construct(Args&&... args) { // Using this inside an atomic_access lambda will cause a deadlock
         auto storage = allocate(sizeof(T));
@@ -54,6 +62,7 @@ public:
         return ptr;
     }
 
+    //! @neverInAtomicAccess
     template <typename T>
     offset_ptr<T> construct_array(size_t count) { // Using this inside an atomic_access lambda will cause a deadlock
         auto storage = allocate(sizeof(T) * count);
@@ -66,6 +75,7 @@ public:
         return ptr;
     }
 
+    //! @neverInAtomicAccess
     template<typename T>
     void destroy(offset_ptr<T> ptr) { // Using this inside an atomic_access lambda will cause a deadlock
         atomic_access(ptr.offset, [](void *ptr) {
@@ -74,6 +84,7 @@ public:
         deallocate(ptr.offset);
     }
 
+    //! @neverInAtomicAccess
     template<typename T>
     void destroy_array(offset_ptr<T> ptr) { // Using this inside an atomic_access lambda will cause a deadlock
         // TODO get count and call destructors

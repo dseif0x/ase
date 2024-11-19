@@ -10,6 +10,14 @@
 #include <sys/mman.h>
 #include <pthread.h>
 
+/**
+ * @brief A wrapper for a shared read-write lock.
+ *
+ * This class provides read-write locking functionality, allowing multiple threads
+ * to acquire a shared lock for reading or an exclusive lock for writing. It is
+ * designed for thread synchronization, providing methods to lock, unlock, and
+ * try-lock in both shared and exclusive modes.
+ */
 class shrwlock {
 public:
     shrwlock();
