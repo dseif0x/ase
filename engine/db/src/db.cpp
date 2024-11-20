@@ -52,21 +52,18 @@ std::queue<std::string> split(const char* input) {
     return result;
 }
 
-std::optional<CopiedValue> get_key_rec(db_map<Value>* map, std::queue<std::string>& keys) {
+std::optional<CopiedValue> get_key_rec(CopiedValue::copied_map_t& map, std::queue<std::string>& keys) {
     auto key = keys.front();
-    std::optional<CopiedValue> res{};
-    map->transaction([&](locked_db_map<Value>* map) {
-        if (map->has(key.c_str()))
-            res.emplace(map->get(key.c_str()));
-    });
-    if (!res.has_value() || keys.size() == 1)
-        return res;
+    auto element = map.find(key);
+    if (element == map.end())
+        return std::make_optional<CopiedValue>();
     keys.pop();
-    auto newMap = *res;
-    if (newMap.type != ValueType::MAP)
+    auto& newMap = element->second;
+    if (newMap->type != ValueType::MAP)
         throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
-    return get_key_rec(res->map_value, keys);
+    return get_key_rec(get<CopiedValue::copied_map_t>(newMap->data), keys);
 }
+
 
 std::optional<CopiedValue> get_key(db_key_map* map, std::queue<std::string>& keys) {
     if (keys.empty())
@@ -80,18 +77,20 @@ std::optional<CopiedValue> get_key(db_key_map* map, std::queue<std::string>& key
     if (!res.has_value() || keys.size() == 1)
         return res;
     keys.pop();
-    auto newMap = *res;
+    auto& newMap = *res;
     if (newMap.type != ValueType::MAP)
         throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
-    return get_key_rec(res->map_value, keys);
+    return get_key_rec(get<CopiedValue::copied_map_t>(res->data), keys);
 }
 
 std::optional<CopiedValue> DB::get(const char *key) {
     auto entrypoint_p = get_entrypoint();
     auto key_split = split(key);
-    std::optional<CopiedValue> res;
+    std::optional<CopiedValue> res {};
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        res = get_key(entrypoint, key_split);
+        auto val = get_key(entrypoint, key_split);
+        if (val.has_value())
+            res.emplace(*get_key(entrypoint, key_split));
     });
     return res;
 }

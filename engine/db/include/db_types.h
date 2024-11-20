@@ -104,6 +104,7 @@ struct CopiedValue {
     //! @onlyInAtomicAccess
     CopiedValue(const Value& value);
 
+    // TODO i don't think an simple unordered map is sufficient
     using copied_map_t = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>;
     using copied_pair_t = std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>>;
 

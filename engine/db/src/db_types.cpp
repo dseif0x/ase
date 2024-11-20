@@ -30,7 +30,7 @@ CopiedValue::CopiedValue(const Value &value) {
         auto& map = get<Value::shmem_map_t>(value.data);
         auto& local_map = data.emplace<CopiedValue::copied_map_t>();
         for (auto& key : map->keys()) {
-            auto& val = *map->get(key.c_str());
+            auto& val = *map->atomic_get(key.c_str());
             local_map.emplace(key, std::make_unique<CopiedValue>(val));
         }
     } else if (type == ValueType::STRING || type == ValueType::REFERENCE) {
