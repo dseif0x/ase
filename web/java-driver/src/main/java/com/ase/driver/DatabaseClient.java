@@ -8,16 +8,35 @@ import com.ase.utility.Utility;
 import java.io.*;
 import java.net.Socket;
 
+/**
+ * Manages the TCP connection and communication with a database server.
+ */
 public class DatabaseClient {
+    /** The TCP socket used for server communication. */
     private final Socket socket;
+
+    /** Input stream for reading data from the server. */
     private final DataInputStream reader;
+
+    /** Output stream for sending data to the server. */
     private final DataOutputStream writer;
 
+    /** Stores information about the server's configuration. */
     private ServerInformation serverInformation;
 
+    /** Indicates whether a connection to the server has been established. */
     private boolean isConnected = false;
+
+    /** Indicates whether a user is logged in to the server. */
     private boolean isLoggedIn = false;
 
+    /**
+     * Constructs a new DatabaseClient and establishes a socket connection.
+     *
+     * @param host The hostname or IP address of the database server
+     * @param port The port number to connect to
+     * @throws IOException If there is an error creating the socket or streams
+     */
     public DatabaseClient(String host, int port) throws IOException {
         this.socket = new Socket(host, port);
         try {
@@ -28,6 +47,13 @@ public class DatabaseClient {
         }
     }
 
+    /**
+     * Initiates connection with the server through a handshake process.
+     *
+     * @param version The client version to be sent during handshake
+     * @param flags Byte representing client access permissions and capabilities
+     * @throws TCPClientException If there are issues during the connection process
+     */
     public void connect(int version, byte flags) throws TCPClientException {
         byte[] clientInfo = Utility.createClientInfoPacket(version, flags);
         try {
@@ -58,6 +84,13 @@ public class DatabaseClient {
         }
     }
 
+    /**
+     * Authenticates a user with the server using provided credentials.
+     *
+     * @param username The username for authentication
+     * @param password The password for authentication
+     * @throws TCPClientException If authentication fails or connection is not established
+     */
     public void login(String username, String password) throws TCPClientException {
         if (!this.isConnected) throw new HandshakeException("Client is not connected to the server.");
         byte[] userInfo = Utility.createUserInfoPacket(username, password);
@@ -69,7 +102,6 @@ public class DatabaseClient {
             if (response == Utility.NAK) {
                 int receivedErrorCode = reader.readUnsignedShort();
                 TcpErrorCode errorCode = TcpErrorCode.fromCode(receivedErrorCode);
-
                 throw new TCPClientException(errorCode.toString());
             } else if (response == Utility.AK) {
                 this.isLoggedIn = true;
@@ -79,6 +111,9 @@ public class DatabaseClient {
         }
     }
 
+    /**
+     * Closes the socket connection to the server.
+     */
     public void disconnect() {
         try {
             this.socket.close();
