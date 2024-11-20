@@ -37,8 +37,8 @@ public class DatabaseClient {
             byte response = reader.readByte();
             if (response == Utility.NAK) {
                 int errorCode = reader.readUnsignedShort();
-                if (errorCode == 0x8000) throw new HandshakeException("Invalid Client Version.");
-                else throw new HandshakeException("Server responded with NAK. Error code: " + errorCode);
+                TcpErrorCode error = TcpErrorCode.fromCode(errorCode);
+                throw new TCPClientException(error.toString());
             } else if (response == Utility.AK) {
                 int boolSize = reader.readUnsignedByte();
                 int intSize = reader.readUnsignedByte();
