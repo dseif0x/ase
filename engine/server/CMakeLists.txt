@@ -13,7 +13,8 @@ else ()
 endif()
 
 
-add_library(server_static ${SOURCES} ${SOURCES_PLATFORM})
+add_library(server_static ${SOURCES} ${SOURCES_PLATFORM}
+        include/decoder.h)
 target_link_libraries(server_static PUBLIC core_static)
 # todo, add db_static to library
 #target_link_libraries(server_static PUBLIC db_static)

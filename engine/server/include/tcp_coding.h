@@ -15,11 +15,33 @@
 
 
 namespace errors {
-    static std::unordered_map<unsigned long long, std::string> messages{
-        {0xFFFF, "General Protocol Error."},
-        {0x8000, "Invalid client version."},
-        {0x8001, "There is no user with that username."},
-        {0x8002, "The provided password is invalid."},
+    constexpr uint16_t general_protocol_error       = 0xFFFF;
+
+    constexpr uint16_t permission_denied_self       = 0xFFF0;
+    constexpr uint16_t permission_denied            = 0xFF00;
+
+    constexpr uint16_t invalid_version              = 0xFF01;
+    constexpr uint16_t user_not_found               = 0xFF02;
+    constexpr uint16_t wrong_password               = 0xFF03;
+    constexpr uint16_t already_connected            = 0xFF04;
+    constexpr uint16_t username_already_exists      = 0xFF05;
+
+    constexpr uint16_t invalid_key                  = 0x0100;
+    constexpr uint16_t key_not_found                = 0x0101;
+    constexpr uint16_t key_already_exists           = 0x0200;
+
+    static std::unordered_map<uint16_t, std::string> messages{
+        {general_protocol_error, "General Protocol Error."},
+        {permission_denied_self, "Connection denies permission."},
+        {invalid_version, "Invalid client version."},
+        {permission_denied, "Permission denied."},
+        {user_not_found, "There is no user with that username."},
+        {wrong_password, "The provided password is invalid."},
+        {already_connected, "The provided user is already connected to the DB."},
+        {invalid_key, "Invalid Key."},
+        {key_not_found, "Key not found."},
+        {key_already_exists, "Key already exists."},
+        {username_already_exists, "The provided username already exists."},
     };
 }
 

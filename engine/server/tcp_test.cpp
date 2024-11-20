@@ -7,12 +7,7 @@
 
 #include <iostream>
 #include <thread>
-#include <vector>
-#include <cstring>
-#include <arpa/inet.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <chrono>
 #include <stopwatch.h>
 
@@ -21,18 +16,13 @@
 
 
 int main() {
-    std::cout << getpid() << std::endl;
-
-
     TCP2Server server{42069, 10};
 
-    stopwatch s{};
     server.start();
 
     std::string temp;
     std::cin >> temp;
-    server.stop();
 
-    auto dur = s.stop();
-    std::cout << dur << std::endl;
+    server.stop();
+    return 0;
 }
