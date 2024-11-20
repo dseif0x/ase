@@ -14,6 +14,15 @@
 #include <algorithm>
 #include <shared_mutex>
 
+/**
+ * @brief A wrapper around a mutex that provides shared lock functionality.
+ *
+ * This template class wraps a mutex and exposes the shared lock functionality
+ * by providing the `lock_shared()`, `unlock_shared()`, and `try_lock_shared()` methods.
+ * It ensures that the underlying mutex is locked and unlocked in a shared manner.
+ *
+ * @tparam Mutex The type of the mutex to wrap (e.g., `std::shared_mutex`).
+ */
 template <typename Mutex>
 class shared_wrapped_mutex {
     Mutex& mtx;

@@ -39,6 +39,16 @@ public:
     }
 };
 
+/**
+ * @brief A database-like key-value store backed by shared memory.
+ *
+ * This template class provides a simple in-memory key-value store with
+ * support for atomic access to stored values. It allows checking for keys,
+ * retrieving values, and inserting new key-value pairs into the map. The map
+ * operates in shared memory and supports concurrent access through a read-write lock.
+ *
+ * @tparam T The type of the value stored in the map.
+ */
 template <typename T>
 class db_map {
 public:

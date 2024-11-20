@@ -12,6 +12,13 @@
 typedef std::chrono::high_resolution_clock::time_point time_point;
 typedef std::chrono::high_resolution_clock::duration duration;
 
+/**
+ * @brief A simple stopwatch utility for measuring elapsed time.
+ *
+ * This class provides functionality to measure the time between a start and stop event.
+ * It allows starting, stopping, resetting, and peeking the current elapsed time.
+ */
+
 class stopwatch {
 private:
     time_point startPoint;
