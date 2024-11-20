@@ -37,6 +37,8 @@ CopiedValue::CopiedValue(const Value &value) {
         data.emplace<std::string>(get<Value::shmem_string_t>(value.data).get());
     } else if (type == ValueType::SEMAPHORE) {
         // TODO
+    } else {
+        throw std::runtime_error("Unknown ValueType");
     }
 }
 
@@ -48,13 +50,38 @@ Value::Value(shmem& mem, const CopiedValue &value) {
         data.emplace<bool>(get<bool>(value.data));
     }  else if (type == ValueType::DOUBLE) {
         data.emplace<double>(get<double>(value.data));
-    } /* TODO else if (type == ValueType::ARRAY) {
-        array_value = {value.array_value.type, mem.construct_unsafe<Value>(value.array_value.array_value), value.array_value.size};
+    } else if (type == ValueType::ARRAY) {
+        auto& local_array = get<CopiedArrayType>(value.data);
+        auto& array = data.emplace<ArrayType>();
+        array.type = local_array.type;
+        array.size = local_array.size;
+        auto shmem_array_data = offset_ptr<Value>(mem.allocate_memory_unsafe(array.size * sizeof(Value)));
+        Value* shmem_array_data_ptr = shmem_array_data.get(mem);
+        for (size_t i = 0; i < array.size; i++) {
+            new(shmem_array_data_ptr + i) Value(mem, local_array.array_value[i]);
+        }
+        array.array_value = shmem_array_data.get_relative(mem);
     } else if (type == ValueType::PAIR) {
-        pair_value = {mem.construct_unsafe<Value>(value.pair_value.first), mem.construct_unsafe<Value>(value.pair_value.second)};
+        auto& local_pair = get<CopiedValue::copied_pair_t>(value.data);
+        auto pair_v1 = mem.construct_unsafe<Value>(mem, *local_pair.first);
+        auto pair_v2 = mem.construct_unsafe<Value>(mem, *local_pair.second);
+        data.emplace<Value::shmem_pair_t>(pair_v1.get_relative(mem), pair_v2.get_relative(mem));
     } else if (type == ValueType::MAP) {
-        map_value = mem.construct_unsafe<db_map<Value>>(mem);
-    } else if (type == ValueType::STRING) {
-        string_value = mem.construct_unsafe<char>(value.string_value);
-    }*/
+        auto shmem_map = mem.construct_unsafe<Value::shmem_map>(mem);
+        auto& local_map = get<CopiedValue::copied_map_t>(value.data);
+        for (auto& [key, val] : local_map) {
+            auto shmem_value = mem.construct_unsafe<Value>(mem, *val);
+            Value::shmem_map::set(shmem_map, mem, key.c_str(), shmem_value.get_relative(mem));
+        }
+        data.emplace<Value::shmem_map_t>(shmem_map.get_relative(mem));
+    } else if (type == ValueType::STRING || type == ValueType::REFERENCE) {
+        auto& local_string = get<std::string>(value.data);
+        auto shmem_string = mem.construct_array_unsafe<char>(local_string.size());
+        std::strcpy(shmem_string.get(mem), local_string.c_str());
+        data.emplace<Value::shmem_string_t>(shmem_string.get_relative(mem));
+    } else if (type == ValueType::SEMAPHORE) {
+        // TODO
+    } else {
+        throw std::runtime_error("Unknown ValueType");
+    }
 }

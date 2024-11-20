@@ -33,7 +33,8 @@ enum class ValueType {
     REFERENCE,
     ARRAY,
     PAIR,
-    MAP //!< This is for hierarchical data structures
+    MAP, //!< This is for hierarchical data structures
+    UNKNOWN
 };
 
 /**
@@ -56,13 +57,21 @@ struct ArrayType {
  */
 struct Value {
     Value() = delete;
+    /**
+     * @brief Construct a new Value object
+     * @param mem The shared memory
+     * @param value A CopiedValue& from which to get the data
+     * Only allocate this object using construct_unsafe, as it recursively allocates other objects!
+     * This also requires you to have a unique lock on the meta mutex before calling construct_unsafe
+     */
     Value(shmem& mem, const CopiedValue& value);
 
     using shmem_pair_t = std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>>;
-    using shmem_map_t = relative_offset_ptr<db_map<relative_offset_ptr<Value>>>;
+    using shmem_map = db_map<relative_offset_ptr<Value>>;
+    using shmem_map_t = relative_offset_ptr<shmem_map>;
     using shmem_string_t = relative_offset_ptr<char>;
 
-    ValueType type;
+    ValueType type = ValueType::UNKNOWN;
     // For now string will also be used for storing references
     // TODO semaphore sem_value
     std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
@@ -98,7 +107,7 @@ struct CopiedValue {
     using copied_map_t = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>;
     using copied_pair_t = std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>>;
 
-    ValueType type;
+    ValueType type = ValueType::UNKNOWN;
     // For now string will also be used for storing references
     // TODO possibly semaphore sem_value but since we cannot copy this we will need to handle it differently
     std::variant<bool, int, std::string, double, CopiedArrayType, copied_map_t, copied_pair_t> data;
