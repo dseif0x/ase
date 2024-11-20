@@ -14,14 +14,15 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/_select.h>
+#include "decoder.h"
 
 
-void tcp2_utils::client_command_switch(ACLUser *user, ByteDecoder &decoder, ByteEncoder &encoder, unsigned char self_perms) {
-    void (*func)(ACLUser*, ByteDecoder&, ByteEncoder&);
+void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, ByteEncoder &encoder, unsigned char self_perms) {
+    void (*func)(ACLUser*, TCP2Decoder&, ByteEncoder&);
     unsigned char perms{};
     bool error = false;
 
-    switch (decoder.decode_unsigned(1)) {
+    switch (decoder.to_unsigned(1)) {
         case 0xFE: //STOP
             func = command::stop;
             perms = permissions::none;
@@ -44,12 +45,92 @@ void tcp2_utils::client_command_switch(ACLUser *user, ByteDecoder &decoder, Byte
     //  the command -> run the command, but block the encoder
 }
 
-void tcp2_utils::command::stop(ACLUser *user, ByteDecoder &decoder, ByteEncoder &encoder) {
+void tcp2_utils::command::stop(ACLUser *user, TCP2Decoder &decoder, ByteEncoder &encoder) {
     return;
 }
 
+void tcp2_utils::client_state_thread(int clientSocket, std::mutex &pipe_lock, ACL &acl, TCP2Decoder &decoder) {
+    ByteEncoder encoder{};
+    std::string username;
+    ACLUser *user{nullptr};
+    unsigned char self_perms{};
 
-void tcp2_utils::client_state_thread(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lock, ACL &acl, ByteDecoder &decoder) {
+    int state = 0;
+    while (decoder.is_healthy()) {
+        std::cout << "state:" << state << std::endl;
+        if (state < 0) {
+            if (encoder.empty()) break;
+        } else if (state == 0) {
+            // Expecting client information
+            auto client_version = decoder.to_unsigned(2);
+            self_perms = decoder.to_unsigned(1);
+            std::cout << "client is running version: " << client_version << std::endl;
+            std::cout << "client opens connection with intention to: " <<((self_perms & 0x01) > 0 ? "read, " : "") <<
+                    ((self_perms & 0x02) > 0 ? "write, " : "") << ((self_perms & 0x04) > 0 ? "delete, " : "") <<
+                    ((self_perms & 0x08) > 0 ? "admin " : "") << "[" << self_perms << "]" << std::endl;
+            if (!decoder.is_empty()) {
+                state = -1;
+                encoder.encode_nak();
+                encoder.encode_error(errors::general_protocol_error);
+                continue;
+            }
+            if (client_version != 0) {
+                state = -1;
+                encoder.encode_nak();
+                encoder.encode_error(errors::invalid_version);
+                continue;
+            }
+            encoder.encode_ack();
+            encoder.encode_unsigned(1, 1); // size of bool
+            encoder.encode_unsigned(1, sizeof(int)); // size of int
+            encoder.encode_unsigned(1, sizeof(char)); // size of char
+            encoder.encode_unsigned(1, sizeof(double)); // size of double
+            encoder.encode_unsigned(1, sizeof(int)); // size of semaphore // todo send actual size
+            state = 1;
+        } else if (state == 1) {
+            if (decoder.to_acknak() != 1) {
+                state = -1;
+                encoder.encode_nak();
+                encoder.encode_error(errors::general_protocol_error);
+                continue;
+            }
+            username = decoder.to_string();
+            std::string pwd = decoder.to_string();
+            int login_res = acl.try_login(username, pwd);
+            if (login_res != 0) {
+                state = -1;
+                encoder.encode_nak();
+                if (login_res == 1) encoder.encode_error(errors::user_not_found);
+                else if (login_res == 2) encoder.encode_error(errors::already_connected);
+                else if (login_res == 3) encoder.encode_error(errors::wrong_password);
+                continue;
+            }
+            user = acl.get_user(username);
+            encoder.encode_ack();
+            state = 2;
+        } else if (state == 2) {
+            // logged in and ready for commands
+            client_command_switch(user, decoder, encoder, self_perms);
+        }
+        // send buffer
+        while (!encoder.empty()) {
+            auto data = encoder.get_bytes(BUFFER_SIZE);
+            std::cout << "sending data:";
+            for (int x = 0; x < data.second; x++) std::cout << "[" << (int)(unsigned char)data.first.get()[x] << "]";
+            std::cout << std::endl;
+            {
+                std::cout << "requesting lock" << std::endl;
+                std::lock_guard<std::mutex> lock(pipe_lock);
+                send(clientSocket, data.first.get(), data.second, 0);
+            }
+            std::cout << "data sent" << std::endl;
+            // todo add checks if a stop command has come in
+        }
+    }
+    acl.disconnect(username);
+}
+
+void old_client_state_thread(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lock, ACL &acl, ByteDecoder &decoder) {
     ByteEncoder encoder{};
     std::string username;
     ACLUser *user{nullptr};
@@ -110,7 +191,7 @@ void tcp2_utils::client_state_thread(std::atomic<bool>& kys, int clientSocket, s
             state = 2;
         } else if (state == 2) {
             // logged in and ready for commands
-            tcp2_utils::client_command_switch(user, decoder, encoder, self_perms);
+            //tcp2_utils::client_command_switch(user, decoder, encoder, self_perms);
         }
         // send buffer
         while (!encoder.empty()) {
@@ -131,9 +212,22 @@ void tcp2_utils::client_state_thread(std::atomic<bool>& kys, int clientSocket, s
 }
 
 
+void tcp2_utils::client_main_thread(std::atomic<bool>& kys, int client_socket, ACL &acl) {
+    std::mutex pipe_lock;
+    TCP2Decoder decoder{client_socket, &pipe_lock};
 
+    std::thread state(tcp2_utils::client_state_thread, client_socket, std::ref(pipe_lock), std::ref(acl), std::ref(decoder));
 
-void tcp2_utils::client_main_thread(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
+    while (!kys && decoder.is_healthy()) {
+        decoder.read_data();
+    }
+
+    decoder.set_kys();
+    state.join();
+    close(client_socket);
+}
+
+void old_client_main_thread(std::atomic<bool>& kys, int clientSocket, ACL &acl) {
     char buffer[BUFFER_SIZE];
     ssize_t bytesReceived;
     std::atomic<bool> kys_worker{false};
@@ -142,7 +236,7 @@ void tcp2_utils::client_main_thread(std::atomic<bool>& kys, int clientSocket, AC
     std::mutex pipe_lock;
 
 
-    std::thread state(tcp2_utils::client_state_thread, std::ref(kys_worker), clientSocket, std::ref(pipe_lock), std::ref(acl), std::ref(decoder));
+    //std::thread state(tcp2_utils::client_state_thread, std::ref(kys_worker), clientSocket, std::ref(pipe_lock), std::ref(acl), std::ref(decoder));
 
     fd_set readfds;
     struct timeval timeout{};
@@ -185,7 +279,7 @@ void tcp2_utils::client_main_thread(std::atomic<bool>& kys, int clientSocket, AC
 
     // tell worker to kill itself and join thread
     kys_worker = true;
-    state.join();
+    //state.join();
 
     close(clientSocket);
 }

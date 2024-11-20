@@ -7,6 +7,7 @@
 #include "acl.h"
 #include <atomic>
 #include "tcp2_coding.h"
+#include "decoder.h"
 
 namespace tcp2_utils {
     // following functions are system dependent
@@ -14,11 +15,11 @@ namespace tcp2_utils {
 
     // following functions are system independent
     void client_main_thread(std::atomic<bool>& kys, int clientSocket, ACL &acl);
-    void client_state_thread(std::atomic<bool>& kys, int clientSocket, std::mutex &pipe_lock, ACL &acl, ByteDecoder &decoder);
-    void client_command_switch(ACLUser *user, ByteDecoder &decoder, ByteEncoder &encoder, unsigned char self_perms);
+    void client_state_thread(int clientSocket, std::mutex &pipe_lock, ACL &acl, TCP2Decoder &decoder);
+    void client_command_switch(ACLUser *user, TCP2Decoder &decoder, ByteEncoder &encoder, unsigned char self_perms);
 
     namespace command {
-        void stop(ACLUser *user, ByteDecoder &decoder, ByteEncoder &encoder);
+        void stop(ACLUser *user, TCP2Decoder &decoder, ByteEncoder &encoder);
     }
 
     namespace permissions {

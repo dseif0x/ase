@@ -13,6 +13,7 @@
 
 #include "tcp2_server.h"
 #include "acl.h"
+#include "decoder.h"
 
 
 int main() {
