@@ -63,6 +63,18 @@ public:
         mem.destroy_array(data);
     }
 
+    //! @onlyInAtomicAccess
+    std::vector<std::string> keys() {
+        std::shared_lock<shrwlock> lock_guard(lock);
+        std::vector<std::string> keys;
+        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        for (size_t i = 0; i < used_size; i++) {
+            keys.push_back(data[i].first.get(mem));
+        }
+        return keys;
+    }
+
+    //! @onlyInAtomicAccess
     bool atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         std::shared_lock<shrwlock> lock_guard(lock);
         std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
