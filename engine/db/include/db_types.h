@@ -7,6 +7,9 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
+#include <memory>
+#include <unordered_map>
 #include <utility>
 #include "shrwlock.h"
 #include "custom_map.h"
@@ -55,17 +58,15 @@ struct Value {
     Value() = delete;
     Value(shmem& mem, const CopiedValue& value);
 
+    using shmem_pair_t = std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>>;
+    using shmem_map_t = relative_offset_ptr<db_map<relative_offset_ptr<Value>>>;
+    using shmem_string_t = relative_offset_ptr<char>;
+
     ValueType type;
-    union {
-        bool bool_value;
-        int int_value;
-        relative_offset_ptr<char> string_value{}; // For now this will also be used for storing references
-        double double_value;
-        // TODO semaphore sem_value;
-        ArrayType array_value;
-        std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>> pair_value;
-        db_map<Value>* map_value;
-    };
+    // For now string will also be used for storing references
+    // TODO possibly semaphore sem_value but since we cannot copy this we will need to handle it differently
+    // TODO std::pair<CopiedValue, CopiedValue> pair_value;
+    std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
 };
 
 
@@ -88,16 +89,18 @@ struct CopiedArrayType {
  */
 struct CopiedValue {
     CopiedValue() = default;
+    CopiedValue(CopiedValue&&) = default;
+    //CopiedValue(const CopiedValue&) = default;
+    ~CopiedValue() = default;
+
+    //! @onlyInAtomicAccess
     CopiedValue(const Value& value);
+
+    using copied_map_t = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>;
+
     ValueType type;
-    union {
-        bool bool_value;
-        int int_value;
-        const char* string_value; // For now this will also be used for storing references
-        double double_value;
-        // TODO semaphore sem_value;
-        CopiedArrayType array_value;
-        // TODO std::pair<CopiedValue, CopiedValue> pair_value;
-        // TODO db_map<Value> map_value;
-    };
+    // For now string will also be used for storing references
+    // TODO possibly semaphore sem_value but since we cannot copy this we will need to handle it differently
+    // TODO std::pair<CopiedValue, CopiedValue> pair_value;
+    std::variant<bool, int, std::string, double, CopiedArrayType, copied_map_t> data;
 };

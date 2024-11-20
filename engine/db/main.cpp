@@ -28,7 +28,7 @@
 void get_and_print(DB& db, const char* key) {
     std::optional<CopiedValue> val = db.get(key);
     if (val.has_value()) {
-        std::cout << "Value found: " << val.value().int_value << std::endl;
+        std::cout << "Value found: " << get<int>(val.value().data) << std::endl;
     } else {
         std::cout << "Value not found" << std::endl;
     }
@@ -57,9 +57,9 @@ int main() {
 
         CopiedValue newval{};
         newval.type = ValueType::INT;
-        newval.int_value = 42;
+        newval.data.emplace<int>(42);
         db.set("test", newval);
-        newval.int_value = 43;
+        newval.data.emplace<int>(43);
         db.set("test2", newval);
 
 

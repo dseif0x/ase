@@ -41,7 +41,7 @@ std::optional<CopiedValue> DB::get(const char *key) {
     return res;
 }
 
-void DB::set(const char *key, CopiedValue value) {
+void DB::set(const char *key, const CopiedValue& value) {
     auto entrypoint_p = get_entrypoint();
     offset_ptr<Value> new_value = mem.construct<Value>(mem, value);
     db_key_map::set(entrypoint_p, mem, key, new_value.get_relative(mem));

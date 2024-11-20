@@ -9,30 +9,35 @@
 CopiedValue::CopiedValue(const Value &value) {
     type = value.type;
     if (type == ValueType::INT) {
-        int_value = value.int_value;
+        data.emplace<int>(get<int>(value.data));
     } else if (type == ValueType::BOOLEAN) {
-        bool_value = value.bool_value;
+        data.emplace<bool>(get<bool>(value.data));
     }  else if (type == ValueType::DOUBLE) {
-        double_value = value.double_value;
-    } /* TODO else if (type == ValueType::ARRAY) {
+        data.emplace<double>(get<double>(value.data));
+    } /*else if (type == ValueType::ARRAY) {
         array_value = {value.array_value.type, value.array_value.array_value.get()};
     } else if (type == ValueType::PAIR) {
         pair_value = {value.pair_value.first.get(), value.pair_value.second.get()};
     } else if (type == ValueType::MAP) {
-        map_value = value.map_value->copy();
-    } else if (type == ValueType::STRING) {
-        string_value = value.string_value.get();
-    }*/
+        auto& map = get<Value::shmem_map_t>(value.data);
+        auto& local_map = data.emplace<CopiedValue::copied_map_t>();
+        for (auto& key : map->keys()) {
+            auto& val = *map->get(key.c_str());
+            local_map.emplace(key, std::make_unique<CopiedValue>(val));
+        }
+    }*/ else if (type == ValueType::STRING || type == ValueType::REFERENCE) {
+        data.emplace<std::string>(get<Value::shmem_string_t>(value.data).get());
+    }
 }
 
 Value::Value(shmem& mem, const CopiedValue &value) {
     type = value.type;
     if (type == ValueType::INT) {
-        int_value = value.int_value;
+        data.emplace<int>(get<int>(value.data));
     } else if (type == ValueType::BOOLEAN) {
-        bool_value = value.bool_value;
+        data.emplace<bool>(get<bool>(value.data));
     }  else if (type == ValueType::DOUBLE) {
-        double_value = value.double_value;
+        data.emplace<double>(get<double>(value.data));
     } /* TODO else if (type == ValueType::ARRAY) {
         array_value = {value.array_value.type, mem.construct_unsafe<Value>(value.array_value.array_value), value.array_value.size};
     } else if (type == ValueType::PAIR) {
