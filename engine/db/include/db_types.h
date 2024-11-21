@@ -101,7 +101,9 @@ struct CopiedValue {
     CopiedValue() = default;
     CopiedValue(CopiedValue&&) = default;
     //CopiedValue(const CopiedValue&) = default;
-    ~CopiedValue() = default;
+    ~CopiedValue();
+
+    CopiedValue& operator=(CopiedValue&&) = default;
 
     //! @onlyInAtomicAccess
     CopiedValue(const Value& value);
