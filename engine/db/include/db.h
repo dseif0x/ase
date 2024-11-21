@@ -12,12 +12,7 @@
 #include "db_types.h"
 #include "shmem.h"
 
-using db_key_map = db_map<relative_offset_ptr<Value>>;
-
-struct DB_Meta {
-    db_key_map entrypoint;
-    DB_Meta(shmem& mem) : entrypoint{mem} {}
-};
+using db_key_map = db_map;
 
 /**
  * @brief A database class that provides key-value storage with various commands.
@@ -35,7 +30,7 @@ public:
 
     // Core Commands
     std::optional<CopiedValue> get(const char* key); //!< GET command of the database, will return a copy of the value
-    void set(const char* key, CopiedValue value); //!< SET command of the database, will set a key to a value
+    void set(const char* key, const CopiedValue& value); //!< SET command of the database, will set a key to a value
 
     std::optional<CopiedValue> follow(const char* key); //!< FOLLOW command of the database, will return a copy of the value a references is pointing to
     std::vector<std::string> list(const char* key); //!< LIST command of the database, will return a list of first level sub keys in a map

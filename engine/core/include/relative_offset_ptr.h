@@ -15,6 +15,7 @@
 class shmem;
 
 /**
+ * @onlyInAtomicAccess
  * @brief A pointer-like class that stores an offset relative to another pointer.
  *
  * This template class represents a pointer with an offset relative to the current object.
