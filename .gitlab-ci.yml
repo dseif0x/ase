@@ -1,6 +1,6 @@
 stages:
   - build
-  - deploy
+  - test
 
 # Job to generate the Doxygen documentation
 generate_docs:
@@ -22,3 +22,26 @@ generate_docs:
       - web/backend/docs/html/
       - web/java-driver/docs/html/
     expire_in: 1 week
+
+variables:
+  BUILD_DIR: build
+  CMAKE_BUILD_TYPE: Release
+
+build:
+  stage: build
+  script:
+    - mkdir -p $BUILD_DIR
+    - cd $BUILD_DIR
+    - cmake -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
+    - cmake --build .
+  artifacts:
+    paths:
+      - $BUILD_DIR
+
+test:
+  stage: test
+  dependencies:
+    - build
+  script:
+    - cd $BUILD_DIR
+    - ctest --output-on-failure
