@@ -8,18 +8,21 @@
 #include <atomic>
 #include "tcp2_coding.h"
 #include "decoder.h"
+#include "encoder.h"
 
 namespace tcp2_utils {
     // following functions are system dependent
+    // todo add unix clause
     void client_acceptor(std::atomic<bool> &kys, ACL &acl, int port, int max_clients);
+    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl);
 
     // following functions are system independent
-    void client_main_thread(std::atomic<bool>& kys, int clientSocket, ACL &acl);
-    void client_state_thread(int clientSocket, std::mutex &pipe_lock, ACL &acl, TCP2Decoder &decoder);
-    void client_command_switch(ACLUser *user, TCP2Decoder &decoder, ByteEncoder &encoder, unsigned char self_perms);
+    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
+    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
+    void client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms);
 
     namespace command {
-        void stop(ACLUser *user, TCP2Decoder &decoder, ByteEncoder &encoder);
+        void stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
     }
 
     namespace permissions {

@@ -21,5 +21,7 @@ target_include_directories(server_static PUBLIC include)
 
 add_executable(tcp_test tcp_test.cpp
         src/decoder.cpp
-        include/decoder.h)
+        include/decoder.h
+        include/encoder.h
+        src/encoder.cpp)
 target_link_libraries(tcp_test server_static)

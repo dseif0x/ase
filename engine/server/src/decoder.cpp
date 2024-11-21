@@ -72,12 +72,12 @@ std::string GenericDecoder::to_string() {
 
 int GenericDecoder::to_int() {
     unsigned long long res = this->to_unsigned(sizeof(int));
-    return static_cast<int>(res);
+    return *reinterpret_cast<int*>(&res);
 }
 
 double GenericDecoder::to_double() {
     unsigned long long res = this->to_unsigned(sizeof(double));
-    return static_cast<double>(res);
+    return *reinterpret_cast<double*>(&res);
 }
 
 int GenericDecoder::to_acknak() {
