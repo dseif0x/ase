@@ -65,17 +65,23 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
     } else if (value.type == ValueType::ARRAY) {
         auto& local_array = get<CopiedArrayType>(value.data);
         auto shmem_array_data = mem.construct_array<Value>(local_array.size);
+
+        std::vector<offset_ptr<Value>> shmem_array_data_ptrs;
+        shmem_array_data_ptrs.reserve(local_array.size);
+        for (size_t i = 0; i < local_array.size; i++) {
+            shmem_array_data_ptrs.push_back(create_value(mem, local_array.array_value[i]));
+        }
+
         res.atomic_access(mem, [&](Value* new_value) {
             auto& array = new_value->data.emplace<ArrayType>();
             array.type = local_array.type;
             array.size = local_array.size;
             array.array_value = shmem_array_data.get_relative(mem);
 
-            // TODO Store the array values from the copiedvalue in the shmem array
-            /*Value* shmem_array_data_ptr = shmem_array_data.get(mem);
+            Value* shmem_array_data_ptr = shmem_array_data.get(mem);
             for (size_t i = 0; i < array.size; i++) {
-                shmem_array_data_ptr[i] = create_value(mem, local_array.array_value[i]);
-            }*/
+                shmem_array_data_ptr[i] = *shmem_array_data_ptrs[i].get(mem);
+            }
         });
     } else if (value.type == ValueType::PAIR) {
         auto& local_pair = get<CopiedValue::copied_pair_t>(value.data);
