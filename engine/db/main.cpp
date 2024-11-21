@@ -28,7 +28,13 @@
 void get_and_print(DB& db, const char* key) {
     std::optional<CopiedValue> val = db.get(key);
     if (val.has_value()) {
-        std::cout << "Value found: " << get<int>(val.value().data) << std::endl;
+        if (val->type == ValueType::INT) {
+            std::cout << "Value found: " << get<int>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::STRING) {
+            std::cout << "Value found: " << get<std::string>(val.value().data) << std::endl;
+        } else {
+            std::cout << "Value found, but type not handeled" << std::endl;
+        }
     } else {
         std::cout << "Value not found" << std::endl;
     }
@@ -42,16 +48,15 @@ int main() {
         DB db;
         db.destroy();
     }
-    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    int pid = 1;
     stopwatch s;
     if (pid == 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     DB db;
-    if (db.get("test").has_value()) {
-        std::cout << "Value found" << std::endl;
-    } else {
-        std::cout << "Value not found" << std::endl;
-    }
+    get_and_print(db, "test");
+    get_and_print(db, "test1");
+    get_and_print(db, "test2");
 
     for (int i : std::views::iota(0, 1024 * 1024)) {
 
@@ -62,9 +67,15 @@ int main() {
         newval.data.emplace<int>(43);
         db.set("test2", newval);
 
+        CopiedValue newval2{};
+        newval2.type = ValueType::STRING;
+        newval2.data.emplace<std::string>("Hello World!");
+        db.set("test3", newval2);
+
 
         get_and_print(db, "test");
         get_and_print(db, "test2");
+        get_and_print(db, "test3");
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
     return 0;

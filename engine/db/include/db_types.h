@@ -56,7 +56,8 @@ struct ArrayType {
  * booleans, integers, strings, arrays, pairs, or maps.
  */
 struct Value {
-    Value() = delete;
+    Value() = default;
+
     /**
      * @brief Construct a new Value object
      * @param mem The shared memory
@@ -64,7 +65,7 @@ struct Value {
      * Only allocate this object using construct_unsafe, as it recursively allocates other objects!
      * This also requires you to have a unique lock on the meta mutex before calling construct_unsafe
      */
-    Value(shmem& mem, const CopiedValue& value);
+    static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
 
     using shmem_pair_t = std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>>;
     using shmem_map = db_map<relative_offset_ptr<Value>>;
