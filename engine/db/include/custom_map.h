@@ -73,6 +73,7 @@ public:
         bool found = false;
         size_t used_size;
         size_t alloc_size;
+        offset_ptr<Value> old_value;
         mem.get_meta_mutex().lock_shared();
         map.get(mem)->lock.lock();
 
@@ -80,6 +81,7 @@ public:
             std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
                 if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                    old_value = data[i].second;
                     data[i].second = value;
                     found = true;
                     map->lock.unlock();
@@ -91,7 +93,10 @@ public:
         }, true);
         mem.get_meta_mutex().unlock_shared();
 
-        if (found) return;
+        if (found) {
+            Value::destroy_value(mem, old_value);
+            return;
+        }
 
         // Not found, add new
         if (used_size == alloc_size) {
