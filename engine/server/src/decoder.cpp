@@ -51,6 +51,10 @@ int GenericDecoder::to_acknak() {
     return -1;
 }
 
+bool GenericDecoder::to_bool() {
+    return *reinterpret_cast<bool*>(this->to_byte());
+}
+
 unsigned long long GenericDecoder::to_unsigned(int bytes) {
     auto data = this->get_bytes(bytes);
     unsigned long long val{};
@@ -89,14 +93,30 @@ unsigned long long GenericDecoder::to_expanding_unsigned() {
 std::unique_ptr<CopiedValue> GenericDecoder::to_basic_general(ValueType type) {
     auto val = std::make_unique<CopiedValue>();
     val->type = type;
-    //todo actually add stuff
+    if (type == ValueType::BOOLEAN) {
+        val->data = this->to_bool();
+    } else if (type == ValueType::INT) {
+        val->data = this->to_int();
+    } else if (type == ValueType::STRING) {
+        val->data = this->to_string();
+    } else if (type == ValueType::DOUBLE) {
+        val->data = this->to_double();
+    } else if (type == ValueType::SEMAPHORE) {
+        // todo implement sem
+    } else if (type == ValueType::REFERENCE) {
+        // todo implement ref
+    } else {
+        // todo think about error management
+    }
     return val;
 }
 
 std::unique_ptr<CopiedValue> GenericDecoder::to_general() {
     auto val = std::make_unique<CopiedValue>();
     unsigned char info = this->to_byte();
+    std::cout << "info:" << (int)info << std::endl;
     if (info_block::is_map(info)) {
+        std::cout << "general: map" << std::endl;
         val->type = ValueType::MAP;
         CopiedValue::copied_map_t map;
         unsigned long long length = this->to_expanding_unsigned();
@@ -106,6 +126,7 @@ std::unique_ptr<CopiedValue> GenericDecoder::to_general() {
         }
         val->data.emplace<CopiedValue::copied_map_t>(std::move(map));
     } else if (info_block::is_array(info)) {
+        std::cout << "general: array" << std::endl;
         val->type = ValueType::ARRAY;
         unsigned long long length = this->to_expanding_unsigned();
         CopiedArrayType array{};
@@ -114,18 +135,18 @@ std::unique_ptr<CopiedValue> GenericDecoder::to_general() {
         for (unsigned long long x = 0; x < length; x++) {
             auto temp = info_block::is_complex(info) ?
                 this->to_general() : this->to_basic_general(info_block::get_basic_type(info));
-            array.array_value[x] = std::move(temp);
             array.array_value[x] = std::move(*temp);
-            new (&array.array_value[x]) CopiedValue(std::move(*temp));
         }
         val->data.emplace<CopiedArrayType>(array);
     } else if (info_block::is_pair(info)) {
+        std::cout << "general: pair" << std::endl;
         val->type = ValueType::PAIR;
         CopiedValue::copied_pair_t pair;
         pair.first = std::move(info_block::is_complex(info) ? this->to_general() :
             this->to_basic_general(info_block::get_basic_type(info)));
         pair.second = std::move(this->to_general());
     } else {
+        std::cout << "general: basic" << std::endl;
         // simple type
         return this->to_basic_general(info_block::get_basic_type(info));
     }

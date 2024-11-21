@@ -11,6 +11,44 @@
 #include <thread>
 #include "decoder.h"
 
+void print(std::unique_ptr<CopiedValue> val) {
+    if (val->type == ValueType::INT) {
+        std::cout << std::get<int>(val->data);
+    } else if (val->type == ValueType::STRING) {
+        std::cout << "\"" << std::get<std::string>(val->data) << "\"";
+    } else if (val->type == ValueType::DOUBLE) {
+        std::cout << std::get<double>(val->data);
+    } else if (val->type == ValueType::BOOLEAN) {
+        std::cout << std::get<bool>(val->data);
+    } else if (val->type == ValueType::PAIR) {
+        std::cout << "(";
+        print(std::move(std::get<CopiedValue::copied_pair_t>(val->data).first));
+        std::cout << ", ";
+        print(std::move(std::get<CopiedValue::copied_pair_t>(val->data).second));
+        std::cout << ")";
+    } else if (val->type == ValueType::ARRAY) {
+        std::cout << "[";
+        auto temp = std::get<CopiedArrayType>(val->data);
+        for (int x = 0; x < temp.size; x++) {
+            if (x != 0) std::cout << ", ";
+            print(std::make_unique<CopiedValue>(std::move(temp.array_value[x])));
+        }
+        std::cout << "]";
+    } else if (val->type == ValueType::MAP) {
+        std::cout << "{";
+        auto temp = &std::get<CopiedValue::copied_map_t>(val->data);
+        bool nfirst = false;
+        for (auto& [key, value] : *temp) {
+            if (nfirst) std::cout << ", ";
+            nfirst = true;
+            std::cout << key << ": ";
+            print(std::move(value));
+        }
+        std::cout << "}";
+    } else {
+        std::cout << "Value found, but type not handeled" << std::endl;
+    }
+}
 
 void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms) {
     void (*func)(ACLUser*, TCP2Decoder&, TCP2Encoder&);
@@ -28,6 +66,10 @@ void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2
             break;
         case 0xFC: //DISCONNECT
             func = command::disconnect;
+            perms = permissions::none;
+            break;
+        case 0xAA: //test, to be deleted
+            func = command::testing;
             perms = permissions::none;
             break;
         default:
@@ -60,6 +102,15 @@ void tcp2_utils::command::ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder 
 
 void tcp2_utils::command::disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
     decoder.set_kys();
+}
+
+void tcp2_utils::command::testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+    std::cout << "starting to_general" << std::endl;
+    auto val = decoder.to_general();
+    std::cout << "starting printing" << std::endl;
+    print(std::move(val));
+    std::cout << std::endl << "all done testing" << std::endl;
+    encoder.from_ack();
 }
 
 void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl) {

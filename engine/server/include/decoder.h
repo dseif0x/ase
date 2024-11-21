@@ -38,6 +38,7 @@ public:
     int to_int();
     double to_double();
     int to_acknak();
+    bool to_bool();
     unsigned long long to_unsigned(int bytes);
     unsigned char to_byte();
     unsigned long long to_expanding_unsigned(); // limited to the size of ull regardless of actual buffer

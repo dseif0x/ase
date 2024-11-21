@@ -29,6 +29,7 @@ namespace tcp2_utils {
         void stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
         void ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
         void disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
+        void testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
     }
 
     namespace permissions {
