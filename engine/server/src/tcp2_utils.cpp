@@ -22,6 +22,14 @@ void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2
             func = command::stop;
             perms = permissions::none;
             break;
+        case 0xFD: //PING
+            func = command::ping;
+            perms = permissions::none;
+            break;
+        case 0xFC: //DISCONNECT
+            func = command::disconnect;
+            perms = permissions::none;
+            break;
         default:
             return;
     }
@@ -41,7 +49,17 @@ void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2
 }
 
 void tcp2_utils::command::stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
-    return;
+    encoder.from_ack();
+}
+
+void tcp2_utils::command::ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+    unsigned long long data = decoder.to_unsigned(4);
+    encoder.from_ack();
+    encoder.from_unsigned(4, data);
+}
+
+void tcp2_utils::command::disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+    decoder.set_kys();
 }
 
 void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl) {

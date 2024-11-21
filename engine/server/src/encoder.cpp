@@ -76,7 +76,7 @@ void GenericEncoder::from_nak() {
 void GenericEncoder::from_unsigned(int bytes, unsigned long long val) {
     std::vector<unsigned char> res{};
     for (int x = 0; x < bytes; x++) {
-        res.push_back(static_cast<unsigned char>(0xFF & val));
+        res.insert(res.begin(), static_cast<unsigned char>(0xFF & val));
         val >>= 8;
     }
     this->add_to_buffer(res);
