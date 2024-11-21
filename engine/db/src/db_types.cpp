@@ -117,3 +117,8 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
 
     return res;
 }
+
+void Value::destroy_value(shmem &mem, offset_ptr<Value> value) {
+    // TODO recursively destroy other values
+    mem.destroy(value);
+}

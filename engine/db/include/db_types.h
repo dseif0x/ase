@@ -67,6 +67,7 @@ struct Value {
      * This also requires you to have a unique lock on the meta mutex before calling construct_unsafe
      */
     static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
+    static void destroy_value(shmem& mem, offset_ptr<Value> value);
 
     using shmem_pair_t = std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>>;
     using shmem_map = db_map;

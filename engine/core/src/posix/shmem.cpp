@@ -83,7 +83,7 @@ void free_coalescence(shmem_meta& metadata, void* base, size_t prev_node_off, Fr
     }
     auto* prev_node = get_free_block(base, prev_node_off);
     if (prev_node->next_offset != -1 && (void *)((char *)prev_node + prev_node->size) == free_node) {
-        prev_node->size += next_free_node->size;
+        prev_node->size += free_node->size;
         free_block_remove(metadata, base, prev_node_off, free_node);
     }
 }
