@@ -20,9 +20,10 @@ CopiedValue::CopiedValue(const Value &value) {
         auto& local_array = data.emplace<CopiedArrayType>();
         local_array.type = array.type;
         local_array.size = array.size;
-        local_array.array_value = static_cast<CopiedValue *>(operator new[](array.size * sizeof(CopiedValue)));
+        local_array.array_value = new CopiedValue[array.size];
         for (size_t i = 0; i < array.size; i++) {
-            new(&local_array.array_value[i]) CopiedValue((array.array_value.get())[i]); // Construct CopiedValue in place using the Value in the shmem array
+            CopiedValue tmp(array.array_value.get()[i]);
+            local_array.array_value[i] = std::move(tmp);
         }
     } else if (type == ValueType::PAIR) {
         auto& pair = get<Value::shmem_pair_t>(value.data);
@@ -42,6 +43,13 @@ CopiedValue::CopiedValue(const Value &value) {
         throw std::runtime_error("Not Implemented");
     } else {
         throw std::runtime_error("Unknown ValueType");
+    }
+}
+
+CopiedValue::~CopiedValue() {
+    if (type == ValueType::ARRAY) { // This is the only thing allocated on the heap
+        auto& array = get<CopiedArrayType>(data);
+        delete[] array.array_value;
     }
 }
 
@@ -116,4 +124,9 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
     }
 
     return res;
+}
+
+void Value::destroy_value(shmem &mem, offset_ptr<Value> value) {
+    // TODO recursively destroy other values
+    mem.destroy(value);
 }
