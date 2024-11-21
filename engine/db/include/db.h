@@ -12,7 +12,7 @@
 #include "db_types.h"
 #include "shmem.h"
 
-using db_key_map = db_map<relative_offset_ptr<Value>>;
+using db_key_map = db_map;
 
 /**
  * @brief A database class that provides key-value storage with various commands.

@@ -4,6 +4,7 @@
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
+#include "custom_map.h"
 #include "db_types.h"
 
 CopiedValue::CopiedValue(const Value &value) {
@@ -30,8 +31,8 @@ CopiedValue::CopiedValue(const Value &value) {
         auto& map = get<Value::shmem_map_t>(value.data);
         auto& local_map = data.emplace<CopiedValue::copied_map_t>();
         for (auto& key : map->keys()) {
-            auto& val = *map->get(key.c_str());
-            local_map.emplace(key, std::make_unique<CopiedValue>(val));
+            auto val = map->get(key.c_str());
+            local_map.emplace(key, std::make_unique<CopiedValue>(*val));
         }
     } else if (type == ValueType::STRING || type == ValueType::REFERENCE) {
         auto& str = get<Value::shmem_string_t>(value.data);
@@ -95,7 +96,7 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
         auto& local_map = get<CopiedValue::copied_map_t>(value.data);
         for (auto& [key, val] : local_map) {
             auto shmem_value = create_value(mem, *val);
-            Value::shmem_map::set(shmem_map, mem, key.c_str(), shmem_value.get_relative(mem));
+            Value::shmem_map::set(shmem_map, mem, key.c_str(), shmem_value);
         }
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<Value::shmem_map_t>(shmem_map.get_relative(mem));

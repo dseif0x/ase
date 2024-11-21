@@ -12,11 +12,12 @@
 #include <unordered_map>
 #include <utility>
 #include "shrwlock.h"
-#include "custom_map.h"
 #include "relative_offset_ptr.h"
+#include "offset_ptr.h"
 
 struct Value;
 struct CopiedValue;
+class db_map;
 
 /**
  * @brief Enumeration representing the types of values stored in the database.
@@ -68,7 +69,7 @@ struct Value {
     static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
 
     using shmem_pair_t = std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>>;
-    using shmem_map = db_map<relative_offset_ptr<Value>>;
+    using shmem_map = db_map;
     using shmem_map_t = relative_offset_ptr<shmem_map>;
     using shmem_string_t = relative_offset_ptr<char>;
 
