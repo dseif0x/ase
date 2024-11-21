@@ -14,6 +14,7 @@
 #include "shrwlock.h"
 #include "shmem.h"
 #include "lock_utils.h"
+#include "db_types.h"
 
 #include <cstring>
 
@@ -47,12 +48,10 @@ public:
  * retrieving values, and inserting new key-value pairs into the map. The map
  * operates in shared memory and supports concurrent access through a read-write lock.
  *
- * @tparam T The type of the value stored in the map.
  */
-template <typename T>
 class db_map {
 public:
-    using map_entry_type = std::pair<offset_ptr<char>, T>;
+    using map_entry_type = std::pair<offset_ptr<char>, offset_ptr<Value>>;
 
     db_map(shmem& mem) : mem{mem} {
         used_size = 0;
@@ -67,7 +66,7 @@ public:
     std::vector<std::string> keys() {
         std::shared_lock<shrwlock> lock_guard(lock);
         std::vector<std::string> keys;
-        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             keys.push_back(data[i].first.get(mem));
         }
@@ -77,7 +76,7 @@ public:
     //! @onlyInAtomicAccess
     bool atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         std::shared_lock<shrwlock> lock_guard(lock);
-        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             if (std::strcmp(data[i].first.get(mem), key) == 0) {
                 return true;
@@ -86,12 +85,13 @@ public:
         return false;
     }
 
-    T& atomic_get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+
+    relative_offset_ptr<Value> atomic_get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         std::shared_lock<shrwlock> lock_guard(lock);
-        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                return data[i].second;
+                return data[i].second.get_relative(mem);
             }
         }
         throw std::runtime_error("Key not found");
@@ -104,17 +104,20 @@ public:
         cb(&locked_map);
     }
 
-    static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, T value) { // NEVER CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK (it will deadlock)
+
+    static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, offset_ptr<Value> value) { // NEVER CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK (it will deadlock)
         bool found = false;
         size_t used_size;
         size_t alloc_size;
+        offset_ptr<Value> old_value;
         mem.get_meta_mutex().lock_shared();
         map.get(mem)->lock.lock();
 
         map.atomic_access(mem, [&](db_map* map) {
-            std::pair<offset_ptr<char>, T>* data = map->data.get(mem);
+            std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
                 if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                    old_value = data[i].second;
                     data[i].second = value;
                     found = true;
                     map->lock.unlock();
@@ -126,7 +129,10 @@ public:
         }, true);
         mem.get_meta_mutex().unlock_shared();
 
-        if (found) return;
+        if (found) {
+            Value::destroy_value(mem, old_value);
+            return;
+        }
 
         // Not found, add new
         if (used_size == alloc_size) {
@@ -146,9 +152,9 @@ public:
     }
 
 private:
-    friend class locked_db_map<T>;
+    friend class locked_db_map;
     bool has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             if (std::strcmp(data[i].first.get(mem), key) == 0) {
                 return true;
@@ -157,11 +163,11 @@ private:
         return false;
     }
 
-    T& get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-        std::pair<offset_ptr<char>, T>* data = this->data.get(mem);
+    relative_offset_ptr<Value> get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
         for (size_t i = 0; i < used_size; i++) {
             if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                return data[i].second;
+                return data[i].second.get_relative(mem);
             }
         }
         throw std::runtime_error("Key not found");

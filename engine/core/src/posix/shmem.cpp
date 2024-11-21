@@ -83,7 +83,7 @@ void free_coalescence(shmem_meta& metadata, void* base, size_t prev_node_off, Fr
     }
     auto* prev_node = get_free_block(base, prev_node_off);
     if (prev_node->next_offset != -1 && (void *)((char *)prev_node + prev_node->size) == free_node) {
-        prev_node->size += next_free_node->size;
+        prev_node->size += free_node->size;
         free_block_remove(metadata, base, prev_node_off, free_node);
     }
 }
@@ -277,6 +277,7 @@ void shmem::ensure_enough_space(std::size_t required_memory) {
     munmap(tmp, prev_size); // Unmap the temporary buffer
 
     ++metadata->version;
+    local_version = metadata->version;
     local_size = metadata->alloc_size;
 
     // Find last block and change size
@@ -300,13 +301,10 @@ void shmem::ensure_enough_space(std::size_t required_memory) {
     }
 }
 
-offset_t shmem::allocate(std::size_t size, bool locks_held) {
+offset_t shmem::allocate(std::size_t size) {
     size += sizeof(AllocationHeader); // We also need an allocation header to store the size of the block
     size = std::max(size, sizeof (FreeBlock)); // We need to ensure that the block is at least the size of a FreeBlock
-    std::unique_lock<shrwlock> lk2(metadata->meta_mutex, std::defer_lock);
-    if (!locks_held) {
-        lk2.lock();
-    }
+    std::unique_lock<shrwlock> lk2(metadata->meta_mutex);
     ensure_mounted();
     // Ensure we have enough space, resize if needed
     ensure_enough_space(size);
@@ -338,11 +336,8 @@ offset_t shmem::allocate(std::size_t size, bool locks_held) {
     return newblock + sizeof(AllocationHeader);
 }
 
-void shmem::deallocate(offset_t ptr, bool locks_held) {
-    std::unique_lock<shrwlock> lk2(metadata->meta_mutex, std::defer_lock);
-    if (!locks_held) {
-        lk2.lock();
-    }
+void shmem::deallocate(offset_t ptr) {
+    std::unique_lock<shrwlock> lk2(metadata->meta_mutex);
     ensure_mounted();
 
     auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr - sizeof(AllocationHeader));

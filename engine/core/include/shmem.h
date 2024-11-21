@@ -39,8 +39,8 @@ class shmem {
     bool can_fit(std::size_t required_memory); //!< This function is used to check if the required size can fit in the base segment
     void ensure_enough_space(std::size_t required_memory); //!< This function is used to resize the base segment if the required size is larger than the current size
     void atomic_access(offset_t offset, std::function<void(void*)>&& lambda, bool locks_held = false); //!< This function is used to access the data segment in an atomic way
-    offset_t allocate(std::size_t size, bool locks_held = false); //!< This function is used to allocate a new block of memory in the base segment
-    void deallocate(offset_t ptr, bool locks_held = false); //!< This function is used to allocate a new block of memory in the base segment
+    offset_t allocate(std::size_t size); //!< This function is used to allocate a new block of memory in the base segment
+    void deallocate(offset_t ptr); //!< This function is used to allocate a new block of memory in the base segment
 public:
     shmem();
     shmem(std::function<void(shmem&)> on_create);
@@ -62,20 +62,6 @@ public:
         return ptr;
     }
 
-    /**
-     * Never call this inside of an atomic_access (except with locks_held = true if you know what you are doing)
-     * A unique lock must be held on the shmem if you call this!
-     */
-    template <typename T, typename... Args>
-    offset_ptr<T> construct_unsafe(Args&&... args) {
-        auto storage = allocate(sizeof(T), true);
-        offset_ptr<T> ptr{storage};
-        atomic_access(storage, [&args...](void *ptr) {
-            new (ptr) T(std::forward<Args>(args)...);
-        }, true);
-        return ptr;
-    }
-
     //! @neverInAtomicAccess
     template <typename T>
     offset_ptr<T> construct_array(size_t count) { // Using this inside an atomic_access lambda will cause a deadlock
@@ -86,32 +72,6 @@ public:
                 new (reinterpret_cast<uint8_t*>(ptr) + i * sizeof(T)) T();
             }
         });
-        return ptr;
-    }
-
-    /**
-     * Never call this inside of an atomic_access (except with locks_held = true if you know what you are doing)
-     * A unique lock must be held on the shmem if you call this!
-     */
-    template <typename T>
-    offset_ptr<T> construct_array_unsafe(size_t count) {
-        auto storage = allocate(sizeof(T) * count, true);
-        offset_ptr<T> ptr{storage};
-        atomic_access(storage, [count](void *ptr) {
-            for (size_t i = 0; i < count; i++) {
-                new (reinterpret_cast<uint8_t*>(ptr) + i * sizeof(T)) T();
-            }
-        }, true);
-        return ptr;
-    }
-
-    /**
-     * Never call this inside of an atomic_access (except with locks_held = true if you know what you are doing)
-     * A unique lock must be held on the shmem if you call this!
-     */
-    offset_ptr<uint8_t> allocate_memory_unsafe(size_t size) {
-        auto storage = allocate(size, true);
-        offset_ptr<uint8_t> ptr{storage};
         return ptr;
     }
 

@@ -17,3 +17,11 @@ add_library(core_static ${SOURCES} ${SOURCES_PLATFORM})
 target_include_directories(core_static PUBLIC include)
 add_executable(core_test main.cpp)
 target_link_libraries(core_test core_static)
+
+#gTest
+enable_testing()
+file(GLOB TEST_SOURCES "tests/*.cpp")
+add_executable(gtest_core ${TEST_SOURCES})
+target_link_libraries(gtest_core PRIVATE core_static GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(gtest_core)

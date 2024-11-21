@@ -12,11 +12,12 @@
 #include <unordered_map>
 #include <utility>
 #include "shrwlock.h"
-#include "custom_map.h"
 #include "relative_offset_ptr.h"
+#include "offset_ptr.h"
 
 struct Value;
 struct CopiedValue;
+class db_map;
 
 /**
  * @brief Enumeration representing the types of values stored in the database.
@@ -56,7 +57,8 @@ struct ArrayType {
  * booleans, integers, strings, arrays, pairs, or maps.
  */
 struct Value {
-    Value() = delete;
+    Value() = default;
+
     /**
      * @brief Construct a new Value object
      * @param mem The shared memory
@@ -64,15 +66,15 @@ struct Value {
      * Only allocate this object using construct_unsafe, as it recursively allocates other objects!
      * This also requires you to have a unique lock on the meta mutex before calling construct_unsafe
      */
-    Value(shmem& mem, const CopiedValue& value);
+    static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
+    static void destroy_value(shmem& mem, offset_ptr<Value> value);
 
     using shmem_pair_t = std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>>;
-    using shmem_map = db_map<relative_offset_ptr<Value>>;
+    using shmem_map = db_map;
     using shmem_map_t = relative_offset_ptr<shmem_map>;
     using shmem_string_t = relative_offset_ptr<char>;
 
     ValueType type = ValueType::UNKNOWN;
-    // For now string will also be used for storing references
     // TODO semaphore sem_value
     std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
 };
@@ -99,7 +101,9 @@ struct CopiedValue {
     CopiedValue() = default;
     CopiedValue(CopiedValue&&) = default;
     //CopiedValue(const CopiedValue&) = default;
-    ~CopiedValue() = default;
+    ~CopiedValue();
+
+    CopiedValue& operator=(CopiedValue&&) = default;
 
     //! @onlyInAtomicAccess
     CopiedValue(const Value& value);
@@ -109,7 +113,6 @@ struct CopiedValue {
     using copied_pair_t = std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>>;
 
     ValueType type = ValueType::UNKNOWN;
-    // For now string will also be used for storing references
     // TODO possibly semaphore sem_value but since we cannot copy this we will need to handle it differently
     std::variant<bool, int, std::string, double, CopiedArrayType, copied_map_t, copied_pair_t> data;
 };
