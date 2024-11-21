@@ -46,6 +46,8 @@ test:
   stage: test
   dependencies:
     - build
+  before_script:
+    - apk add --no-cache cmake
   script:
     - cd $BUILD_DIR
     - for folder in $TEST_DIRS; do
