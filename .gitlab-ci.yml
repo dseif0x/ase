@@ -26,16 +26,15 @@ generate_docs:
     expire_in: 1 week
 
 variables:
-  BUILD_DIR: build
-  CMAKE_BUILD_TYPE: Release
+  BUILD_DIR: engine/build
+  TEST_DIRS: "core db"
 
 build:
   stage: build
   script:
-    - cd engine
     - mkdir -p $BUILD_DIR
     - cd $BUILD_DIR
-    - cmake -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
+    - cmake ..
     - cmake --build .
   artifacts:
     paths:
@@ -47,4 +46,7 @@ test:
     - build
   script:
     - cd $BUILD_DIR
-    - ctest --output-on-failure
+    - for folder in $FOLDER_LIST; do
+        ctest --test-dir $folder;
+        done
+
