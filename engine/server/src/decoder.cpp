@@ -17,6 +17,7 @@
 #include "decoder.h"
 
 
+
 void GenericDecoder::add_to_buffer(std::vector<unsigned char> &block) {
     std::lock_guard<std::mutex> lock(this->buffer_lock);
     this->buffer.emplace_back(std::move(block));
@@ -60,6 +61,10 @@ unsigned long long GenericDecoder::to_unsigned(int bytes) {
     return val;
 }
 
+unsigned char GenericDecoder::to_byte() {
+    return this->get_bytes(1)[0];
+}
+
 unsigned long long GenericDecoder::to_expanding_unsigned() {
     auto data = this->get_bytes(1);
     unsigned char first = data[0];
@@ -81,6 +86,48 @@ unsigned long long GenericDecoder::to_expanding_unsigned() {
     return res;
 }
 
-void GenericDecoder::to_general() {
-    return;
+std::unique_ptr<CopiedValue> GenericDecoder::to_basic_general(ValueType type) {
+    auto val = std::make_unique<CopiedValue>();
+    val->type = type;
+    //todo actually add stuff
+    return val;
+}
+
+std::unique_ptr<CopiedValue> GenericDecoder::to_general() {
+    auto val = std::make_unique<CopiedValue>();
+    unsigned char info = this->to_byte();
+    if (info_block::is_map(info)) {
+        val->type = ValueType::MAP;
+        CopiedValue::copied_map_t map;
+        unsigned long long length = this->to_expanding_unsigned();
+        for (unsigned long long x = 0; x < length; x++) {
+            std::string key = this->to_string();
+            map.emplace(key, std::move(this->to_general()));
+        }
+        val->data.emplace<CopiedValue::copied_map_t>(std::move(map));
+    } else if (info_block::is_array(info)) {
+        val->type = ValueType::ARRAY;
+        unsigned long long length = this->to_expanding_unsigned();
+        CopiedArrayType array{};
+        array.size = length;
+        array.array_value = new CopiedValue[length];
+        for (unsigned long long x = 0; x < length; x++) {
+            auto temp = info_block::is_complex(info) ?
+                this->to_general() : this->to_basic_general(info_block::get_basic_type(info));
+            array.array_value[x] = std::move(temp);
+            array.array_value[x] = std::move(*temp);
+            new (&array.array_value[x]) CopiedValue(std::move(*temp));
+        }
+        val->data.emplace<CopiedArrayType>(array);
+    } else if (info_block::is_pair(info)) {
+        val->type = ValueType::PAIR;
+        CopiedValue::copied_pair_t pair;
+        pair.first = std::move(info_block::is_complex(info) ? this->to_general() :
+            this->to_basic_general(info_block::get_basic_type(info)));
+        pair.second = std::move(this->to_general());
+    } else {
+        // simple type
+        return this->to_basic_general(info_block::get_basic_type(info));
+    }
+    return val;
 }

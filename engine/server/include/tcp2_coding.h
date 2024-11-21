@@ -9,6 +9,7 @@
 #define TCP_CODING_H
 
 #include <atomic>
+#include <db_types.h>
 #include <deque>
 #include <unordered_map>
 #include <vector>
@@ -43,6 +44,43 @@ namespace errors {
         {key_already_exists, "Key already exists."},
         {username_already_exists, "The provided username already exists."},
     };
+}
+
+namespace info_block {
+    inline bool is_array(const unsigned char byte) {
+        return (byte & 0x80) > 0;
+    }
+
+    inline bool is_pair(const unsigned char byte) {
+        return (byte & 0x40) > 0;
+    }
+
+    inline bool is_complex(const unsigned char byte) {
+        return (byte & 0x20) > 0;
+    }
+
+    inline bool is_map(const unsigned char byte) {
+        return (byte & 0x10) > 0;
+    }
+
+    constexpr ValueType get_basic_type(const unsigned char byte) {
+        switch (byte & 0x07) {
+            case 1:
+                return ValueType::BOOLEAN;
+            case 2:
+                return ValueType::INT;
+            case 3:
+                return ValueType::STRING;
+            case 4:
+                return ValueType::DOUBLE;
+            case 5:
+                return ValueType::SEMAPHORE;
+            case 6:
+                return ValueType::REFERENCE;
+            default:
+                return ValueType::UNKNOWN;
+        }
+    }
 }
 
 #endif //TCP_CODING_H
