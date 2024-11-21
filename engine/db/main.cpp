@@ -60,22 +60,104 @@ int main() {
 
     for (int i : std::views::iota(0, 1024 * 1024)) {
 
-        CopiedValue newval{};
-        newval.type = ValueType::INT;
-        newval.data.emplace<int>(42);
-        db.set("test", newval);
-        newval.data.emplace<int>(43);
-        db.set("test2", newval);
+        { // Integer
+            CopiedValue newval{};
+            newval.type = ValueType::INT;
+            newval.data.emplace<int>(42);
+            db.set("test", newval);
+            newval.data.emplace<int>(43);
+            db.set("test2", newval);
+        }
 
-        CopiedValue newval2{};
-        newval2.type = ValueType::STRING;
-        newval2.data.emplace<std::string>("Hello World!");
-        db.set("test3", newval2);
+        { // String
+            CopiedValue newval2{};
+            newval2.type = ValueType::STRING;
+            newval2.data.emplace<std::string>("Hello World!");
+            db.set("test3", newval2);
+        }
 
+        { // Boolean
+            CopiedValue newval3{};
+            newval3.type = ValueType::BOOLEAN;
+            newval3.data.emplace<bool>(true);
+            db.set("test4", newval3);
+        }
+
+        { // Double
+            CopiedValue newval4{};
+            newval4.type = ValueType::DOUBLE;
+            newval4.data.emplace<double>(1.2);
+            db.set("test5", newval4);
+        }
+
+        { // Array
+            CopiedValue arrval1{};
+            arrval1.type = ValueType::INT;
+            arrval1.data.emplace<int>(13);
+            CopiedValue arrval2{};
+            arrval2.type = ValueType::INT;
+            arrval2.data.emplace<int>(12);
+
+            CopiedArrayType new_array{};
+            new_array.type = ValueType::INT;
+            new_array.size = 2;
+            new_array.array_value = new CopiedValue[2]{
+                std::move(arrval1), std::move(arrval2)
+            };
+
+            CopiedValue newval5{};
+            newval5.type = ValueType::ARRAY;
+            newval5.data.emplace<CopiedArrayType>(new_array);
+            db.set("test6", newval5);
+        }
+
+        { // Pair
+            auto pair_val = std::make_unique<CopiedValue>();
+            pair_val->type = ValueType::INT;
+            pair_val->data.emplace<int>(182);
+
+            auto pair_val2 = std::make_unique<CopiedValue>();
+            pair_val2->type = ValueType::DOUBLE;
+            pair_val2->data.emplace<double>(1.7);
+
+            std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>> pair;
+            pair.first = std::move(pair_val);
+            pair.second = std::move(pair_val2);
+
+            CopiedValue newval6{};
+            newval6.type = ValueType::PAIR;
+            newval6.data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
+            db.set("test7", newval6);
+        }
+
+        { // Map
+
+            auto map_val = std::make_unique<CopiedValue>();
+            map_val->type = ValueType::INT;
+            map_val->data.emplace<int>(1222);
+
+            auto map_val2 = std::make_unique<CopiedValue>();
+            map_val2->type = ValueType::DOUBLE;
+            map_val2->data.emplace<double>(1.2);
+
+            std::unordered_map<std::string, std::unique_ptr<CopiedValue>> map;
+            map.emplace("key1", std::move(map_val));
+            map.emplace("key2", std::move(map_val2));
+
+            CopiedValue newval6{};
+            newval6.type = ValueType::MAP;
+            newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
+            db.set("test8", newval6);
+        }
 
         get_and_print(db, "test");
         get_and_print(db, "test2");
         get_and_print(db, "test3");
+        get_and_print(db, "test4");
+        get_and_print(db, "test5");
+        get_and_print(db, "test6");
+        get_and_print(db, "test7");
+        get_and_print(db, "test8");
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
     return 0;
