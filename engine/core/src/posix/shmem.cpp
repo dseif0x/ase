@@ -277,6 +277,7 @@ void shmem::ensure_enough_space(std::size_t required_memory) {
     munmap(tmp, prev_size); // Unmap the temporary buffer
 
     ++metadata->version;
+    local_version = metadata->version;
     local_size = metadata->alloc_size;
 
     // Find last block and change size

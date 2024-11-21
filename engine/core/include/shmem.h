@@ -53,7 +53,7 @@ public:
 
     //! @neverInAtomicAccess
     template <typename T, typename... Args>
-    offset_ptr<T> construct(Args&&... args) { // Using this inside an atomic_access lambda will cause a deadlock
+    offset_ptr<T> construct(Args&&... args) {
         auto storage = allocate(sizeof(T));
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [&args...](void *ptr) {
