@@ -70,7 +70,7 @@ std::optional<CopiedValue> get_key(db_key_map* map, std::queue<std::string>& key
         return std::optional<CopiedValue>{};
     auto key = keys.front();
     std::optional<CopiedValue> res{};
-    map->transaction([&](locked_db_map<relative_offset_ptr<Value>>* map) {
+    map->transaction([&](locked_db_map* map) {
         if (map->has(key.c_str()))
             res.emplace(*map->get(key.c_str()));
     });
