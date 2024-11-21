@@ -74,7 +74,6 @@ struct Value {
     using shmem_string_t = relative_offset_ptr<char>;
 
     ValueType type = ValueType::UNKNOWN;
-    // For now string will also be used for storing references
     // TODO semaphore sem_value
     std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
 };
@@ -110,7 +109,6 @@ struct CopiedValue {
     using copied_pair_t = std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>>;
 
     ValueType type = ValueType::UNKNOWN;
-    // For now string will also be used for storing references
     // TODO possibly semaphore sem_value but since we cannot copy this we will need to handle it differently
     std::variant<bool, int, std::string, double, CopiedArrayType, copied_map_t, copied_pair_t> data;
 };
