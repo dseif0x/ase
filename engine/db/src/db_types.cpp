@@ -18,7 +18,6 @@ CopiedValue::CopiedValue(const Value &value) {
     } else if (type == ValueType::ARRAY) {
         auto& array = get<ArrayType>(value.data);
         auto& local_array = data.emplace<CopiedArrayType>();
-        local_array.type = array.type;
         local_array.size = array.size;
         local_array.array_value = new CopiedValue[array.size];
         for (size_t i = 0; i < array.size; i++) {
@@ -83,7 +82,6 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
 
         res.atomic_access(mem, [&](Value* new_value) {
             auto& array = new_value->data.emplace<ArrayType>();
-            array.type = local_array.type;
             array.size = local_array.size;
             array.array_value = shmem_array_data.get_relative(mem);
 

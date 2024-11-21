@@ -99,7 +99,6 @@ int main() {
             arrval2.data.emplace<int>(12);
 
             CopiedArrayType new_array{};
-            new_array.type = ValueType::INT;
             new_array.size = 2;
             new_array.array_value = new CopiedValue[2]{
                 std::move(arrval1), std::move(arrval2)
