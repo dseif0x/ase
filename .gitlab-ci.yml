@@ -48,7 +48,7 @@ test:
     - build
   script:
     - cd $BUILD_DIR
-    - for folder in $FOLDER_LIST; do
+    - for folder in $TEST_DIRS; do
         ctest --test-dir $folder;
         done
 
