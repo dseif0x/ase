@@ -52,35 +52,25 @@ std::queue<std::string> split(const char* input) {
     return result;
 }
 
-std::optional<CopiedValue> get_key_rec(CopiedValue::copied_map_t& map, std::queue<std::string>& keys) {
-    auto key = keys.front();
-    auto element = map.find(key);
-    if (element == map.end())
-        return std::make_optional<CopiedValue>();
-    keys.pop();
-    auto& newMap = element->second;
-    if (newMap->type != ValueType::MAP)
-        throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
-    return get_key_rec(get<CopiedValue::copied_map_t>(newMap->data), keys);
-}
-
-
-std::optional<CopiedValue> get_key(db_key_map* map, std::queue<std::string>& keys) {
+std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
     if (keys.empty())
         return std::optional<CopiedValue>{};
     auto key = keys.front();
-    std::optional<CopiedValue> res{};
-    map->transaction([&](locked_db_map* map) {
-        if (map->has(key.c_str()))
+    std::optional<std::reference_wrapper<Value>> res{};
+    map.transaction([&](locked_db_map* map) {
+        if (map->has(key.c_str())) {
             res.emplace(*map->get(key.c_str()));
+        }
     });
-    if (!res.has_value() || keys.size() == 1)
-        return res;
+    if (!res.has_value())
+        return std::make_optional<CopiedValue>();
+    if (keys.size() == 1)
+        return std::make_optional(res->get());
     keys.pop();
     auto& newMap = *res;
-    if (newMap.type != ValueType::MAP)
+    if (newMap.get().type != ValueType::MAP)
         throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
-    return get_key_rec(get<CopiedValue::copied_map_t>(res->data), keys);
+    return get_key(*std::get<Value::shmem_map_t>(newMap.get().data), keys);
 }
 
 std::optional<CopiedValue> DB::get(const char *key) {
@@ -88,9 +78,9 @@ std::optional<CopiedValue> DB::get(const char *key) {
     auto key_split = split(key);
     std::optional<CopiedValue> res {};
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        auto val = get_key(entrypoint, key_split);
+        auto val = get_key(*entrypoint, key_split);
         if (val.has_value())
-            res.emplace(*get_key(entrypoint, key_split));
+            res = std::move(val);
     });
     return res;
 }

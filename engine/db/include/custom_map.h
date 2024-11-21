@@ -47,11 +47,20 @@ public:
     std::vector<std::string> keys();
 
     //! @onlyInAtomicAccess
+    //! atomic version of @ref db_map::has
     bool atomic_has(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
 
 
+    //! atomic version of @ref db_map::get
     relative_offset_ptr<Value> atomic_get(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
 
+
+    /**
+     * This function aquires a lock for the map and then calls a callback. The callback function is the only place
+     * @ref locked_db_map::get and @ref locked_db_map::has can be called from.
+     *
+     * @param cb c Callable function that takes a @ref locked_db_map pointer as a parameter.
+     */
     template<typename Lambda>
     void transaction(Lambda &&cb) {
         static_assert(std::is_invocable_v<Lambda, locked_db_map*>, "Lambda must be invocable with locked_db_map*");
@@ -107,8 +116,19 @@ public:
 
 private:
     friend class locked_db_map;
+
+    /**
+     * Checks rather a key is contained in the map. This does not search recursively.
+     * @param key the database key that should be looked up
+     * @return indicates if the map contains such a key
+     */
     bool has(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
 
+    /**
+     * Returns the @ref Value to the corresponding key. Does not search recursively.
+     * @param key the database key that should be looked up
+     * @return returns the Value corresponding to the key
+     */
     relative_offset_ptr<Value> get(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
 
     shmem& mem;

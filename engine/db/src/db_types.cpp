@@ -47,10 +47,10 @@ CopiedValue::CopiedValue(const Value &value) {
 }
 
 CopiedValue::~CopiedValue() {
-    if (type == ValueType::ARRAY) { // This is the only thing allocated on the heap
-        auto& array = get<CopiedArrayType>(data);
-        delete[] array.array_value;
-    }
+    //if (type == ValueType::ARRAY) { // This is the only thing allocated on the heap
+    //    auto& array = get<CopiedArrayType>(data);
+    //    delete[] array.array_value;
+    //}
 }
 
 offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
