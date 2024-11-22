@@ -48,8 +48,8 @@ int main() {
         DB db;
         db.destroy();
     }
-    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    int pid = 1;
+    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    //int pid = 1;
     stopwatch s;
     if (pid == 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -91,6 +91,10 @@ int main() {
         }
 
         { // Array
+            CopiedValue newval5{};
+            newval5.type = ValueType::ARRAY;
+            auto& vector = newval5.data.emplace<CopiedValue::copied_array_t>();
+
             CopiedValue arrval1{};
             arrval1.type = ValueType::INT;
             arrval1.data.emplace<int>(13);
@@ -98,15 +102,9 @@ int main() {
             arrval2.type = ValueType::INT;
             arrval2.data.emplace<int>(12);
 
-            CopiedArrayType new_array{};
-            new_array.size = 2;
-            new_array.array_value = new CopiedValue[2]{
-                std::move(arrval1), std::move(arrval2)
-            };
+            vector.emplace_back(std::move(arrval1));
+            vector.emplace_back(std::move(arrval2));
 
-            CopiedValue newval5{};
-            newval5.type = ValueType::ARRAY;
-            newval5.data.emplace<CopiedArrayType>(new_array);
             db.set("test6", newval5);
         }
 
