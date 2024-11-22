@@ -17,12 +17,9 @@ CopiedValue::CopiedValue(const Value &value) {
         data.emplace<double>(get<double>(value.data));
     } else if (type == ValueType::ARRAY) {
         auto& array = get<ArrayType>(value.data);
-        auto& local_array = data.emplace<CopiedArrayType>();
-        local_array.size = array.size;
-        local_array.array_value = new CopiedValue[array.size];
+        auto& local_array = data.emplace<copied_array_t>();
         for (size_t i = 0; i < array.size; i++) {
-            CopiedValue tmp(array.array_value.get()[i]);
-            local_array.array_value[i] = std::move(tmp);
+            local_array.emplace_back(array.array_value.get()[i]);
         }
     } else if (type == ValueType::PAIR) {
         auto& pair = get<Value::shmem_pair_t>(value.data);
@@ -45,13 +42,6 @@ CopiedValue::CopiedValue(const Value &value) {
     }
 }
 
-CopiedValue::~CopiedValue() {
-    if (type == ValueType::ARRAY) { // This is the only thing allocated on the heap
-        auto& array = get<CopiedArrayType>(data);
-        delete[] array.array_value;
-    }
-}
-
 offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
     offset_ptr<Value> res = mem.construct<Value>();
     res.atomic_access(mem, [&](Value* new_value) {
@@ -71,18 +61,18 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
             new_value->data.emplace<double>(get<double>(value.data));
         });
     } else if (value.type == ValueType::ARRAY) {
-        auto& local_array = get<CopiedArrayType>(value.data);
-        auto shmem_array_data = mem.construct_array<Value>(local_array.size);
+        auto& local_array = get<CopiedValue::copied_array_t>(value.data);
+        auto shmem_array_data = mem.construct_array<Value>(local_array.size());
 
         std::vector<offset_ptr<Value>> shmem_array_data_ptrs;
-        shmem_array_data_ptrs.reserve(local_array.size);
-        for (size_t i = 0; i < local_array.size; i++) {
-            shmem_array_data_ptrs.push_back(create_value(mem, local_array.array_value[i]));
+        shmem_array_data_ptrs.reserve(local_array.size());
+        for (const auto& val : local_array) {
+            shmem_array_data_ptrs.push_back(create_value(mem, val));
         }
 
         res.atomic_access(mem, [&](Value* new_value) {
             auto& array = new_value->data.emplace<ArrayType>();
-            array.size = local_array.size;
+            array.size = local_array.size();
             array.array_value = shmem_array_data.get_relative(mem);
 
             Value* shmem_array_data_ptr = shmem_array_data.get(mem);
