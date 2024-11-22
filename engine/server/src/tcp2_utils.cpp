@@ -21,17 +21,18 @@ void print(std::unique_ptr<CopiedValue> &val) {
     } else if (val->type == ValueType::BOOLEAN) {
         std::cout << std::get<bool>(val->data);
     } else if (val->type == ValueType::PAIR) {
+        auto temp = &std::get<CopiedValue::copied_pair_t>(val->data);
         std::cout << "(";
-        print(std::get<CopiedValue::copied_pair_t>(val->data).first);
+        print(temp->first);
         std::cout << ", ";
-        print(std::get<CopiedValue::copied_pair_t>(val->data).second);
+        print(temp->second);
         std::cout << ")";
     } else if (val->type == ValueType::ARRAY) {
         std::cout << "[";
-        auto temp = std::get<CopiedArrayType>(val->data);
-        for (int x = 0; x < temp.size; x++) {
+        auto &temp = std::get<CopiedValue::copied_array_t>(val->data);
+        for (int x = 0; x < temp.size(); x++) {
             if (x != 0) std::cout << ", ";
-            auto ttt = std::make_unique<CopiedValue>(std::move(temp.array_value[x]));
+            auto ttt = std::make_unique<CopiedValue>(std::move(temp[x]));
             print(ttt);
         }
         std::cout << "]";

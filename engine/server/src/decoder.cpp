@@ -129,15 +129,12 @@ std::unique_ptr<CopiedValue> GenericDecoder::to_general() {
         std::cout << "general: array" << std::endl;
         val->type = ValueType::ARRAY;
         unsigned long long length = this->to_expanding_unsigned();
-        CopiedArrayType array{};
-        array.size = length;
-        array.array_value = new CopiedValue[length];
+        auto &vec = val->data.emplace<CopiedValue::copied_array_t>();
         for (unsigned long long x = 0; x < length; x++) {
             auto temp = info_block::is_complex(info) ?
                 this->to_general() : this->to_basic_general(info_block::get_basic_type(info));
-            array.array_value[x] = std::move(*temp);
+            vec.emplace_back(std::move(*temp));
         }
-        val->data.emplace<CopiedArrayType>(array);
     } else if (info_block::is_pair(info)) {
         std::cout << "general: pair" << std::endl;
         val->type = ValueType::PAIR;
@@ -145,6 +142,7 @@ std::unique_ptr<CopiedValue> GenericDecoder::to_general() {
         pair.first = std::move(info_block::is_complex(info) ? this->to_general() :
             this->to_basic_general(info_block::get_basic_type(info)));
         pair.second = std::move(this->to_general());
+        val->data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
     } else {
         std::cout << "general: basic" << std::endl;
         // simple type
