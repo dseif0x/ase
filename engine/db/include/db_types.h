@@ -45,7 +45,6 @@ enum class ValueType {
  * and the size of the array.
  */
 struct ArrayType {
-    ValueType type;
     relative_offset_ptr<Value> array_value;
     size_t size;
 };
@@ -87,7 +86,6 @@ struct Value {
  * This structure holds an array of copied values, their type, and the size of the array.
  */
 struct CopiedArrayType {
-    ValueType type;
     CopiedValue* array_value;
     size_t size;
 };
