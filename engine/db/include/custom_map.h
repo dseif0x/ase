@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <utility>
 #include <shared_mutex>
 #include <cstring>
@@ -15,6 +14,17 @@
 #include "shmem.h"
 #include "lock_utils.h"
 #include "db_types.h"
+
+#include <cstring>
+
+class locked_db_map {
+    std::shared_lock<shrwlock> lock;
+    db_map* map;
+public:
+    locked_db_map(db_map* map);
+    relative_offset_ptr<Value> get(const char* key);
+    bool has(const char* key);
+};
 
 /**
  * @brief A database-like key-value store backed by shared memory.
@@ -28,47 +38,36 @@
 class db_map {
 public:
     using map_entry_type = std::pair<offset_ptr<char>, offset_ptr<Value>>;
-    db_map(shmem& mem) : mem{mem} {
-        used_size = 0;
-        alloc_size = 0;
-    }
-    ~db_map() {
-        mem.destroy_array(data);
-    }
+
+    db_map(shmem& mem);
+
+    ~db_map();
 
     //! @onlyInAtomicAccess
-    std::vector<std::string> keys() {
-        std::shared_lock<shrwlock> lock_guard(lock);
-        std::vector<std::string> keys;
-        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
-        for (size_t i = 0; i < used_size; i++) {
-            keys.push_back(data[i].first.get(mem));
-        }
-        return keys;
-    }
+    std::vector<std::string> keys();
 
     //! @onlyInAtomicAccess
-    bool has(const char* key) {
-        std::shared_lock<shrwlock> lock_guard(lock);
-        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
-        for (size_t i = 0; i < used_size; i++) {
-            if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                return true;
-            }
-        }
-        return false;
+    //! atomic version of @ref db_map::has
+    bool atomic_has(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+
+
+    //! atomic version of @ref db_map::get
+    relative_offset_ptr<Value> atomic_get(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+
+
+    /**
+     * This function aquires a lock for the map and then calls a callback. The callback function is the only place
+     * @ref locked_db_map::get and @ref locked_db_map::has can be called from.
+     *
+     * @param cb c Callable function that takes a @ref locked_db_map pointer as a parameter.
+     */
+    template<typename Lambda>
+    void transaction(Lambda &&cb) {
+        static_assert(std::is_invocable_v<Lambda, locked_db_map*>, "Lambda must be invocable with locked_db_map*");
+        auto locked_map = locked_db_map{this};
+        cb(&locked_map);
     }
 
-    relative_offset_ptr<Value> get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-        std::shared_lock<shrwlock> lock_guard(lock);
-        std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
-        for (size_t i = 0; i < used_size; i++) {
-            if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                return data[i].second.get_relative(mem);
-            }
-        }
-        throw std::runtime_error("Key not found");
-    }
     static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, offset_ptr<Value> value) { // NEVER CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK (it will deadlock)
         bool found = false;
         size_t used_size;
@@ -116,6 +115,22 @@ public:
     }
 
 private:
+    friend class locked_db_map;
+
+    /**
+     * Checks rather a key is contained in the map. This does not search recursively.
+     * @param key the database key that should be looked up
+     * @return indicates if the map contains such a key
+     */
+    bool has(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+
+    /**
+     * Returns the @ref Value to the corresponding key. Does not search recursively.
+     * @param key the database key that should be looked up
+     * @return returns the Value corresponding to the key
+     */
+    relative_offset_ptr<Value> get(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+
     shmem& mem;
     static void resize(offset_ptr<db_map>& map, shmem& mem) {
         size_t alloc_size;
