@@ -11,7 +11,7 @@
 #include <thread>
 #include "decoder.h"
 
-void print(std::unique_ptr<CopiedValue> val) {
+void print(std::unique_ptr<CopiedValue> &val) {
     if (val->type == ValueType::INT) {
         std::cout << std::get<int>(val->data);
     } else if (val->type == ValueType::STRING) {
@@ -22,16 +22,17 @@ void print(std::unique_ptr<CopiedValue> val) {
         std::cout << std::get<bool>(val->data);
     } else if (val->type == ValueType::PAIR) {
         std::cout << "(";
-        print(std::move(std::get<CopiedValue::copied_pair_t>(val->data).first));
+        print(std::get<CopiedValue::copied_pair_t>(val->data).first);
         std::cout << ", ";
-        print(std::move(std::get<CopiedValue::copied_pair_t>(val->data).second));
+        print(std::get<CopiedValue::copied_pair_t>(val->data).second);
         std::cout << ")";
     } else if (val->type == ValueType::ARRAY) {
         std::cout << "[";
         auto temp = std::get<CopiedArrayType>(val->data);
         for (int x = 0; x < temp.size; x++) {
             if (x != 0) std::cout << ", ";
-            print(std::make_unique<CopiedValue>(std::move(temp.array_value[x])));
+            auto ttt = std::make_unique<CopiedValue>(std::move(temp.array_value[x]));
+            print(ttt);
         }
         std::cout << "]";
     } else if (val->type == ValueType::MAP) {
@@ -42,7 +43,7 @@ void print(std::unique_ptr<CopiedValue> val) {
             if (nfirst) std::cout << ", ";
             nfirst = true;
             std::cout << key << ": ";
-            print(std::move(value));
+            print(value);
         }
         std::cout << "}";
     } else {
@@ -50,7 +51,7 @@ void print(std::unique_ptr<CopiedValue> val) {
     }
 }
 
-void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms) {
+bool tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms) {
     void (*func)(ACLUser*, TCP2Decoder&, TCP2Encoder&);
     unsigned char perms{};
     bool error = false;
@@ -73,7 +74,8 @@ void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2
             perms = permissions::none;
             break;
         default:
-            return;
+
+            return false;
     }
     if ((self_perms | perms) != self_perms) {
         // check connection permissions
@@ -88,6 +90,7 @@ void tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2
     }
     // todo think about how to get all the information out of the decoder that is not needed if we dont execute
     //  the command -> run the command, but block the encoder
+    return true;
 }
 
 void tcp2_utils::command::stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
@@ -108,7 +111,7 @@ void tcp2_utils::command::testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encod
     std::cout << "starting to_general" << std::endl;
     auto val = decoder.to_general();
     std::cout << "starting printing" << std::endl;
-    print(std::move(val));
+    print(val);
     std::cout << std::endl << "all done testing" << std::endl;
     encoder.from_ack();
 }
@@ -173,7 +176,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             state = 2;
         } else if (state == 2) {
             // logged in and ready for commands
-            client_command_switch(user, decoder, encoder, self_perms);
+            if (!client_command_switch(user, decoder, encoder, self_perms)) state = -2;
         }
         // send buffer
         while (!encoder.is_empty()) {
