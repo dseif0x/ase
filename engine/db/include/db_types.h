@@ -45,7 +45,6 @@ enum class ValueType {
  * and the size of the array.
  */
 struct ArrayType {
-    ValueType type;
     relative_offset_ptr<Value> array_value;
     size_t size;
 };
@@ -79,19 +78,6 @@ struct Value {
     std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
 };
 
-
-// These types are for returning values from the database as we cannot return a view we need to copy data
-/**
- * @brief Represents a copied array type for returning from the database.
- *
- * This structure holds an array of copied values, their type, and the size of the array.
- */
-struct CopiedArrayType {
-    ValueType type;
-    CopiedValue* array_value;
-    size_t size;
-};
-
 /**
  * @brief Represents a copied version of a value for returning from the database.
  *
@@ -101,7 +87,7 @@ struct CopiedValue {
     CopiedValue() = default;
     CopiedValue(CopiedValue&&) = default;
     //CopiedValue(const CopiedValue&) = default;
-    ~CopiedValue();
+    ~CopiedValue() = default;
 
     CopiedValue& operator=(CopiedValue&&) = default;
 
@@ -110,8 +96,9 @@ struct CopiedValue {
 
     using copied_map_t = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>;
     using copied_pair_t = std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>>;
+    using copied_array_t = std::vector<CopiedValue>;
 
     ValueType type = ValueType::UNKNOWN;
     // TODO possibly semaphore sem_value but since we cannot copy this we will need to handle it differently
-    std::variant<bool, int, std::string, double, CopiedArrayType, copied_map_t, copied_pair_t> data;
+    std::variant<bool, int, std::string, double, copied_array_t, copied_map_t, copied_pair_t> data;
 };
