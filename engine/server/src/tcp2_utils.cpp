@@ -177,8 +177,11 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
         }
         // send buffer
         while (!encoder.is_empty()) {
+            // stop is only valid if the connection is achieved and the user is logged in
+            if (state == 2 && decoder.is_stop()) {
+                break;
+            }
             encoder.write_data();
-            // todo add checks if a stop command has come in
         }
     }
     acl.disconnect(username);

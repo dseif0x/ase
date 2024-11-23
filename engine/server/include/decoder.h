@@ -75,6 +75,7 @@ public:
 
     void set_kys();
     bool is_healthy();
+    bool is_stop();
     std::string get_error();
 };
 
