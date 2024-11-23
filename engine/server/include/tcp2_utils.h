@@ -14,11 +14,16 @@
 #include "decoder.h"
 #include "encoder.h"
 
+// todo replace symbol with correct one
+#define UNIX
+
 namespace tcp2_utils {
     // following functions are system dependent
-    // todo add unix clause
+#ifdef UNIX
     void client_acceptor(std::atomic<bool> &kys, ACL &acl, int port, int max_clients);
     void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl);
+#elifdef WIN32
+#endif
 
     // following functions are system independent
     void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);

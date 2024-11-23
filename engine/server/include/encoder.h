@@ -30,6 +30,7 @@ protected:
     void add_to_buffer(std::vector<unsigned char> &block);
 
     void from_basic_general(CopiedValue &val);
+    void from_complex_general(CopiedValue &val);
 
 public:
     virtual ~GenericEncoder() = default;
@@ -52,7 +53,7 @@ public:
     void from_byte(unsigned char val);
     void from_unsigned(int bytes, unsigned long long val);
     void from_expanding_unsigned(unsigned long long val);
-    void from_general(CopiedValue &val);
+    bool from_general(CopiedValue &val);
 };
 
 

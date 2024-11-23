@@ -5,9 +5,8 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
-#include "tcp2_utils.h"
+
 #include <iostream>
-#include <tcp2_server.h>
 #include <thread>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -15,6 +14,8 @@
 #include <sys/socket.h>
 #include <sys/_select.h>
 #include "decoder.h"
+#include "tcp2_utils.h"
+#include "tcp2_server.h"
 
 
 std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {

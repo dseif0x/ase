@@ -5,15 +5,9 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
-#include "tcp2_utils.h"
 #include <iostream>
 #include <tcp2_server.h>
 #include <thread>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/_select.h>
 #include "decoder.h"
 
 
@@ -136,12 +130,9 @@ std::optional<CopiedValue> GenericDecoder::to_general() {
 }
 
 CopiedValue GenericDecoder::to_complex_general() {
-    //todo add type checking to avoid runtime errors
     auto val = CopiedValue();
     unsigned char info = this->to_byte();
-    std::cout << "info:" << (int)info << std::endl;
     if (info_block::is_map(info)) {
-        std::cout << "general: map" << std::endl;
         val.type = ValueType::MAP;
         CopiedValue::copied_map_t map;
         unsigned long long length = this->to_expanding_unsigned();
@@ -151,7 +142,6 @@ CopiedValue GenericDecoder::to_complex_general() {
         }
         val.data.emplace<CopiedValue::copied_map_t>(std::move(map));
     } else if (info_block::is_array(info)) {
-        std::cout << "general: array" << std::endl;
         val.type = ValueType::ARRAY;
         unsigned long long length = this->to_expanding_unsigned();
         auto &vec = val.data.emplace<CopiedValue::copied_array_t>();
@@ -161,14 +151,12 @@ CopiedValue GenericDecoder::to_complex_general() {
             vec.emplace_back(std::move(temp));
         }
     } else if (info_block::is_pair(info)) {
-        std::cout << "general: pair" << std::endl;
         val.type = ValueType::PAIR;
         auto &pair = val.data.emplace<CopiedValue::copied_pair_t>();
         pair.first = (std::make_unique<CopiedValue>(std::move(info_block::is_complex(info) ? this->to_complex_general() :
             this->to_basic_general(info_block::get_basic_type(info)))));
         pair.second = std::make_unique<CopiedValue>(std::move(this->to_complex_general()));
     } else {
-        std::cout << "general: basic" << std::endl;
         // simple type
         return this->to_basic_general(info_block::get_basic_type(info));
     }

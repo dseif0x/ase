@@ -5,14 +5,11 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
-
+#include <iostream>
+#include "tcp2_utils.h"
+#include "tcp2_coding.h"
 #include "encoder.h"
 
-#include <iostream>
-#include <tcp2_utils.h>
-#include <sys/socket.h>
-
-#include "tcp2_coding.h"
 
 std::pair<std::unique_ptr<unsigned char[]>, int> GenericEncoder::get_bytes(size_t bytes) {
     size_t cur_size{};
@@ -127,9 +124,18 @@ void GenericEncoder::from_expanding_unsigned(unsigned long long val) {
     this->add_to_buffer(data);
 }
 
+bool GenericEncoder::from_general(CopiedValue &val) {
+    try {
+        this->from_complex_general(val);
+        return true;
+    } catch (...) {
+        // error most likely because of std::get getting a value with incompatible type
+        return false;
+    }
+}
+
 
 void GenericEncoder::from_basic_general(CopiedValue &val) {
-    std::cout << "general basic entry" << std::endl;
     if (val.type == ValueType::BOOLEAN) {
         bool temp = std::get<bool>(val.data);
         this->from_bool(temp);
@@ -147,16 +153,14 @@ void GenericEncoder::from_basic_general(CopiedValue &val) {
     } else if (val.type == ValueType::REFERENCE) {
         // todo implement ref
     } else {
-        // todo think about error management
+        throw std::invalid_argument("Invalid datatype");
     }
 }
 
-void GenericEncoder::from_general(CopiedValue &val) {
-    std::cout << "general normal entry" << std::endl;
+void GenericEncoder::from_complex_general(CopiedValue &val) {
     val.print();
     unsigned char info{};
     if (val.type == ValueType::MAP) {
-        std::cout << "en Map" << std::endl;
         this->from_byte(info_block::map_bit);
         auto &temp = std::get<CopiedValue::copied_map_t>(val.data);
         this->from_expanding_unsigned(temp.size()); // add key length
@@ -166,7 +170,6 @@ void GenericEncoder::from_general(CopiedValue &val) {
             this->from_general(*value);
         }
     } else if (val.type == ValueType::ARRAY) {
-        std::cout << "en Array" << std::endl;
         info = info_block::array_bit;
         auto &temp = std::get<CopiedValue::copied_array_t>(val.data);
         auto type = ValueType::UNKNOWN;
@@ -189,12 +192,10 @@ void GenericEncoder::from_general(CopiedValue &val) {
         this->from_expanding_unsigned(temp.size()); // add array size
         int i = 0;
         for (auto &x : temp) { // add values
-            std::cout << "arrayloop: " << i++ << " - " << (int)info_block::get_basic_byte(type) << " - " << (type == ValueType::UNKNOWN) << std::endl;
             if (type == ValueType::UNKNOWN) this->from_general(x);
             else this->from_basic_general(x);
         }
     } else if (val.type == ValueType::PAIR) {
-        std::cout << "en Pair" << std::endl;
         info = info_block::pair_bit;
         auto &temp = std::get<CopiedValue::copied_pair_t>(val.data);
         if (int basic_byte = info_block::get_basic_byte(temp.first->type); basic_byte > 0) {
@@ -210,7 +211,6 @@ void GenericEncoder::from_general(CopiedValue &val) {
         this->from_general(*temp.second);
     } else {
         info = info_block::get_basic_byte(val.type);
-        std::cout << "basic: " << (int) info << std::endl;
         this->from_byte(info);
         this->from_basic_general(val);
     }
