@@ -2,6 +2,7 @@ package com.ase.driver;
 
 import com.ase.exception.HandshakeException;
 import com.ase.exception.TCPClientException;
+import com.ase.utility.DynamicDataReader;
 import com.ase.utility.ServerInformation;
 import com.ase.utility.TcpErrorCode;
 import com.ase.utility.Utility;
@@ -20,9 +21,6 @@ public class DatabaseClient {
 
     /** Output stream for sending data to the server. */
     private final DataOutputStream writer;
-
-    /** Stores information about the server's configuration. */
-    private ServerInformation serverInformation;
 
     /** Indicates whether a connection to the server has been established. */
     private boolean isConnected = false;
@@ -66,15 +64,9 @@ public class DatabaseClient {
                 TcpErrorCode error = TcpErrorCode.fromCode(errorCode);
                 throw new TCPClientException(error.toString());
             } else if (response == Utility.AK) {
-                int boolSize = reader.readUnsignedByte();
-                int intSize = reader.readUnsignedByte();
-                int charSize = reader.readUnsignedByte();
-                int doubleSize = reader.readUnsignedByte();
-                int semaphoreSize = reader.readUnsignedByte();
-                int maxStringSize = reader.readUnsignedShort();
-                int maxArrayLength = reader.readUnsignedShort();
+                ServerInformation serverInfo = ServerInformation.readServerInformation(reader);
+                DynamicDataReader dataReader = new DynamicDataReader(serverInfo, reader);
 
-                this.serverInformation = new ServerInformation(boolSize, intSize, charSize, doubleSize, semaphoreSize, maxStringSize, maxArrayLength);
                 writer.write(Utility.AK);
                 writer.flush();
                 this.isConnected = true;
@@ -101,7 +93,7 @@ public class DatabaseClient {
             byte response = reader.readByte();
             if (response == Utility.NAK) {
                 int receivedErrorCode = reader.readUnsignedShort();
-                TcpErrorCode errorCode = TcpErrorCode.fromCode(receivedErrorCode);
+                TcpErrorCode errorCode = TcpErrorCode.fromCode(receivedErrorCode); //TODO Add message from server to user
                 throw new TCPClientException(errorCode.toString());
             } else if (response == Utility.AK) {
                 this.isLoggedIn = true;
