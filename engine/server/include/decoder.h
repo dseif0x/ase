@@ -12,6 +12,7 @@
 #include <mutex>
 #include <optional>
 
+#include "sys/time.h"
 #include "db_types.h"
 
 // todo replace symbol with correct one
