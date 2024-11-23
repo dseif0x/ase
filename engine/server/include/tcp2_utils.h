@@ -10,6 +10,8 @@
 #define TCP2_UTILS_H
 #include "acl.h"
 #include <atomic>
+#include <db.h>
+
 #include "tcp2_coding.h"
 #include "decoder.h"
 #include "encoder.h"
@@ -18,23 +20,28 @@
 #define UNIX
 
 namespace tcp2_utils {
-    // following functions are system dependent
+    // client_acceptor needs a system dependent implementation but keeps the same signature
+    void client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients);
 #ifdef UNIX
-    void client_acceptor(std::atomic<bool> &kys, ACL &acl, int port, int max_clients);
-    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl);
+    // following function needs system dependent implementation as well as possibly different signatures
+    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db);
 #elifdef WIN32
 #endif
 
     // following functions are system independent
-    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
-    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
-    int client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms);
+    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
+    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
+    int client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db, unsigned char self_perms);
+
+    std::optional<std::vector<std::string>> check_and_create_key(std::string &key);
 
     namespace command {
-        int stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        int ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        int disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        int testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
+        int stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
+        int ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
+        int disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
+        int get(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
+
+        int testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
     }
 
     namespace permissions {
@@ -45,6 +52,7 @@ namespace tcp2_utils {
         constexpr unsigned char admin = 0x08;
         constexpr unsigned char read_write = read | write;
         constexpr unsigned char read_write_del = read_write | del;
+        constexpr unsigned char all = read | write | del;
     }
 }
 

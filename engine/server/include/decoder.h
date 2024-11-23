@@ -37,7 +37,7 @@ public:
     virtual void read_data() = 0;
 
     bool is_empty();
-    void clear_buffer(int delay_ms);
+    void clear_buffer(int delay_ms = 250);
 
     std::string to_string();
     int to_int();

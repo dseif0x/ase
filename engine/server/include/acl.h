@@ -12,6 +12,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "db_types.h"
 
 struct ACLNode {
     // permissions:
@@ -29,7 +30,10 @@ class ACLUser {
     std::string pwd;
     bool is_admin;
 
-    ACLNode scope;
+    // Tree representation of permissions
+    // All elements except for the leafs are of type MAP
+    // each map contains one key "$" which points to a CopiedValue of type int storing the actual permission
+    CopiedValue permissions;
 
 public:
     ACLUser(const std::string& password, bool isAdmin);

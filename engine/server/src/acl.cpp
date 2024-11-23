@@ -9,13 +9,23 @@
 #include "acl.h"
 
 #include <iostream>
+#include <tcp2_utils.h>
 #include <vector>
 
 ACLUser::ACLUser(const std::string& password, bool isAdmin)
-    : pwd(password), is_admin(isAdmin), scope() {
+    : pwd(password), is_admin(isAdmin) {
+    CopiedValue perms;
+    perms.type = ValueType::INT;
+    perms.data = tcp2_utils::permissions::all;
+    CopiedValue::copied_map_t map;
+    map.emplace("$", std::make_unique<CopiedValue>(std::move(perms)));
+
+    this->permissions = CopiedValue{};
+    this->permissions.type = ValueType::MAP;
+    this->permissions.data.emplace<CopiedValue::copied_map_t>(std::move(map));
 }
 
-ACLUser::ACLUser() : is_admin(false), scope() {}
+ACLUser::ACLUser() : is_admin(false), permissions() {}
 
 
 ACL::ACL() {
@@ -27,13 +37,21 @@ constexpr bool ACLNode::has_perms(const unsigned char perms) const {
 }
 
 bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permissions) {
-    ACLNode *curNode = &scope;
+    this->permissions.print();
+    auto *cur_node = &this->permissions;
     for (auto &x : key) {
-        if (curNode->has_perms(permissions)) return true; // Node containing necessary perms found
-        if (!curNode->subs.contains(x)) return false; // No more specific permissions exist
-        curNode = &curNode->subs[x];
+        cur_node->print();
+        auto &cur_map = std::get<CopiedValue::copied_map_t>(cur_node->data);
+        if (!cur_map.contains("$")) return false;
+        unsigned char cur_perm = std::get<int>(cur_map["$"]->data);
+        if ((cur_perm | permissions) == cur_perm) {
+            // permission found
+            return true;
+        }
+        if (!cur_map.contains(x)) return false; // cant go any deeper
+        cur_node = &(*cur_map[x]);
     }
-    return curNode->has_perms(permissions);
+    return false;
 }
 
 bool ACLUser::check_pwd(const std::string &pwd) {
