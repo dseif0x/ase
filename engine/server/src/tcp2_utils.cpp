@@ -181,7 +181,11 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             if (state == 2 && decoder.is_stop()) {
                 break;
             }
-            encoder.write_data();
+            if (!encoder.write_data()) {
+                // sending is broken, hard stop
+                decoder.set_kys();
+                break;
+            }
         }
     }
     acl.disconnect(username);

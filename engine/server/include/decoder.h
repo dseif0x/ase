@@ -12,6 +12,9 @@
 #include <mutex>
 #include "db_types.h"
 
+// todo replace symbol with correct one
+#define UNIX
+
 constexpr int DECODER_BUFFER_SIZE = 8;
 
 class GenericDecoder {
@@ -49,30 +52,33 @@ public:
 
 
 class TCP2Decoder : public GenericDecoder {
-// todo update with correct symbol (ifdef UNIX)
     std::atomic<bool> kys;
+    // error message if tcp is closed or error
+    std::string error_msg;
+    // shared lock to protect tcp connection from simultaneous read and write
+    std::mutex *pipe_lock;
 
+#ifdef UNIX
     // tcp stuff
     int client_socket;
     struct timeval timeout{};
     fd_set readfds{};
     char tcp_buffer[DECODER_BUFFER_SIZE]{};
     ssize_t bytesReceived{};
-
-    // shared lock to protect tcp connection from simultaneous read and write
-    std::mutex *pipe_lock;
-
-    // error message if tcp is closed or error
-    std::string error_msg;
+#elifdef WIN32
+    // tcp stuff for win
+#endif
 protected:
     std::vector<unsigned char> get_bytes(size_t bytes) override;
 
 public:
+#ifdef UNIX
     TCP2Decoder(int client_socket, std::mutex *pipe_lock);
+#endif
 
     void read_data() override;
 
-
+    // following functions are system independent implemented
     void set_kys();
     bool is_healthy();
     bool is_stop();

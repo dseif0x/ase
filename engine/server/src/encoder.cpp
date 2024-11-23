@@ -216,5 +216,14 @@ void GenericEncoder::from_general(CopiedValue &val) {
     }
 }
 
+void TCP2Encoder::encode_error(unsigned long long error_id) {
+    this->from_unsigned(2, error_id);
+    if (errors::messages.contains(error_id)) this->from_string(errors::messages[error_id]);
+    else this->from_string("Unknown Error!");
+}
 
+void TCP2Encoder::encode_nak_error(unsigned long long error_id) {
+    this->from_acknak(false);
+    this->encode_error(error_id);
+}
 

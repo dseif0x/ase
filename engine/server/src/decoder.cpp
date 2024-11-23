@@ -175,3 +175,19 @@ CopiedValue GenericDecoder::to_complex_general() {
     return val;
 }
 
+bool TCP2Decoder::is_healthy() {
+    return !this->kys;
+}
+
+bool TCP2Decoder::is_stop() {
+    std::unique_lock<std::mutex> lock(this->buffer_lock);
+    return (!this->buffer.empty() && !buffer.front().empty() && buffer.front()[0] == 0xFE);
+}
+
+std::string TCP2Decoder::get_error() {
+    return this->error_msg;
+}
+
+void TCP2Decoder::set_kys() {
+    this->kys = true;
+}
