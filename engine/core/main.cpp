@@ -15,6 +15,8 @@
 #include "shmem.h"
 #include "stopwatch.h"
 
+#include <sys/wait.h>
+
 struct value {
     int a;
     int b;

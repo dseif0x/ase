@@ -29,14 +29,14 @@ void get_and_print(DB& db, const char* key) {
     std::optional<CopiedValue> val = db.get(key);
     if (val.has_value()) {
         if (val->type == ValueType::INT) {
-            std::cout << "Value found: " << get<int>(val.value().data) << std::endl;
+            std::cout << "Value found for key " << key << ": " << get<int>(val.value().data) << std::endl;
         } else if (val->type == ValueType::STRING) {
-            std::cout << "Value found: " << get<std::string>(val.value().data) << std::endl;
+            std::cout << "Value found for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
         } else {
-            std::cout << "Value found, but type not handeled" << std::endl;
+            std::cout << "Value found for key " << key << ", " <<  "but type not handeled" << std::endl;
         }
     } else {
-        std::cout << "Value not found" << std::endl;
+        std::cout << "Value not found for key " << key << std::endl;
     }
 }
 
@@ -155,6 +155,8 @@ int main() {
         get_and_print(db, "test6");
         get_and_print(db, "test7");
         get_and_print(db, "test8");
+        get_and_print(db, "test8.key1");
+        get_and_print(db, "test8.key2");
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
     return 0;
