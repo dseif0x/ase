@@ -9,6 +9,7 @@
 #include "encoder.h"
 
 #include <iostream>
+#include <tcp2_utils.h>
 #include <sys/socket.h>
 
 #include "tcp2_coding.h"
@@ -39,6 +40,7 @@ void GenericEncoder::add_to_buffer(std::vector<unsigned char> &block) {
     std::lock_guard<std::mutex> lock(this->buffer_lock);
     this->buffer.emplace_back(std::move(block));
 }
+
 
 bool GenericEncoder::is_empty() {
     std::lock_guard<std::mutex> lock(this->buffer_lock);
@@ -71,6 +73,16 @@ void GenericEncoder::from_ack() {
 
 void GenericEncoder::from_nak() {
     this->from_acknak(false);
+}
+
+void GenericEncoder::from_bool(bool val) {
+    this->from_byte(*reinterpret_cast<unsigned char*>(val));
+}
+
+void GenericEncoder::from_byte(unsigned char val) {
+    std::vector<unsigned char> res{};
+    res.push_back(val);
+    this->add_to_buffer(res);
 }
 
 void GenericEncoder::from_unsigned(int bytes, unsigned long long val) {
@@ -109,8 +121,93 @@ void GenericEncoder::from_expanding_unsigned(unsigned long long val) {
     this->add_to_buffer(data);
 }
 
-void GenericEncoder::from_general() {
-    return;
+
+void GenericEncoder::from_basic_general(CopiedValue &val) {
+    std::cout << "general basic entry" << std::endl;
+    if (val.type == ValueType::BOOLEAN) {
+        bool temp = std::get<bool>(val.data);
+        this->from_bool(temp);
+    } else if (val.type == ValueType::INT) {
+        int temp = std::get<int>(val.data);
+        this->from_int(temp);
+    } else if (val.type == ValueType::STRING) {
+        std::string temp = std::get<std::string>(val.data);
+        this->from_string(temp);
+    } else if (val.type == ValueType::DOUBLE) {
+        double temp = std::get<double>(val.data);
+        this->from_double(temp);
+    } else if (val.type == ValueType::SEMAPHORE) {
+        // todo implement sem
+    } else if (val.type == ValueType::REFERENCE) {
+        // todo implement ref
+    } else {
+        // todo think about error management
+    }
+}
+
+void GenericEncoder::from_general(CopiedValue &val) {
+    std::cout << "general normal entry" << std::endl;
+    val.print();
+    unsigned char info{};
+    if (val.type == ValueType::MAP) {
+        std::cout << "en Map" << std::endl;
+        this->from_byte(info_block::map_bit);
+        auto &temp = std::get<CopiedValue::copied_map_t>(val.data);
+        this->from_expanding_unsigned(temp.size()); // add key length
+        for (auto& [key, value] : temp) {
+            // add keys and values
+            this->from_string(key);
+            this->from_general(*value);
+        }
+    } else if (val.type == ValueType::ARRAY) {
+        std::cout << "en Array" << std::endl;
+        info = info_block::array_bit;
+        auto &temp = std::get<CopiedValue::copied_array_t>(val.data);
+        auto type = ValueType::UNKNOWN;
+        bool first = true;
+        for (auto &x : temp) { // check if all values in array have the same type
+            if (first) type = x.type;
+            first = false;
+            if (type != x.type) {
+                type = ValueType::UNKNOWN;
+                break;
+            }
+        }
+        if (info_block::get_basic_byte(type) > 0) {
+            info |= info_block::get_basic_byte(type); // if all have same basic type, add it to info
+        } else {
+            info |= info_block::complex_bit;
+            type = ValueType::UNKNOWN; // replace possible map, pair, or array types
+        }
+        this->from_byte(info);
+        this->from_expanding_unsigned(temp.size()); // add array size
+        int i = 0;
+        for (auto &x : temp) { // add values
+            std::cout << "arrayloop: " << i++ << " - " << (int)info_block::get_basic_byte(type) << " - " << (type == ValueType::UNKNOWN) << std::endl;
+            if (type == ValueType::UNKNOWN) this->from_general(x);
+            else this->from_basic_general(x);
+        }
+    } else if (val.type == ValueType::PAIR) {
+        std::cout << "en Pair" << std::endl;
+        info = info_block::pair_bit;
+        auto &temp = std::get<CopiedValue::copied_pair_t>(val.data);
+        if (int basic_byte = info_block::get_basic_byte(temp.first->type); basic_byte > 0) {
+            // first type is simple
+            info |= basic_byte; // add basic type for first element to type
+            this->from_byte(info);
+            this->from_basic_general(*temp.first);
+        } else {
+            info |= info_block::complex_bit;
+            this->from_byte(info);
+            this->from_general(*temp.first);
+        }
+        this->from_general(*temp.second);
+    } else {
+        info = info_block::get_basic_byte(val.type);
+        std::cout << "basic: " << (int) info << std::endl;
+        this->from_byte(info);
+        this->from_basic_general(val);
+    }
 }
 
 

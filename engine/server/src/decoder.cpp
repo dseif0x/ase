@@ -90,59 +90,67 @@ unsigned long long GenericDecoder::to_expanding_unsigned() {
     return res;
 }
 
-std::unique_ptr<CopiedValue> GenericDecoder::to_basic_general(ValueType type) {
-    auto val = std::make_unique<CopiedValue>();
-    val->type = type;
+CopiedValue GenericDecoder::to_basic_general(ValueType type) {
+    auto val = CopiedValue();
+    val.type = type;
     if (type == ValueType::BOOLEAN) {
-        val->data = this->to_bool();
+        val.data = this->to_bool();
     } else if (type == ValueType::INT) {
-        val->data = this->to_int();
+        val.data = this->to_int();
     } else if (type == ValueType::STRING) {
-        val->data = this->to_string();
+        val.data = std::move(this->to_string());
     } else if (type == ValueType::DOUBLE) {
-        val->data = this->to_double();
+        val.data = this->to_double();
     } else if (type == ValueType::SEMAPHORE) {
         // todo implement sem
     } else if (type == ValueType::REFERENCE) {
         // todo implement ref
     } else {
-        // todo think about error management
+        throw std::invalid_argument("unkown type");
     }
     return val;
 }
 
-std::unique_ptr<CopiedValue> GenericDecoder::to_general() {
-    auto val = std::make_unique<CopiedValue>();
+std::optional<CopiedValue> GenericDecoder::to_general() {
+    try {
+        return std::optional<CopiedValue>{this->to_complex_general()};
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+CopiedValue GenericDecoder::to_complex_general() {
+    //todo add type checking to avoid runtime errors
+    auto val = CopiedValue();
     unsigned char info = this->to_byte();
     std::cout << "info:" << (int)info << std::endl;
     if (info_block::is_map(info)) {
         std::cout << "general: map" << std::endl;
-        val->type = ValueType::MAP;
+        val.type = ValueType::MAP;
         CopiedValue::copied_map_t map;
         unsigned long long length = this->to_expanding_unsigned();
         for (unsigned long long x = 0; x < length; x++) {
             std::string key = this->to_string();
-            map.emplace(key, std::move(this->to_general()));
+            map.emplace(std::move(key), std::make_unique<CopiedValue>(this->to_complex_general()));
         }
-        val->data.emplace<CopiedValue::copied_map_t>(std::move(map));
+        val.data.emplace<CopiedValue::copied_map_t>(std::move(map));
     } else if (info_block::is_array(info)) {
         std::cout << "general: array" << std::endl;
-        val->type = ValueType::ARRAY;
+        val.type = ValueType::ARRAY;
         unsigned long long length = this->to_expanding_unsigned();
-        auto &vec = val->data.emplace<CopiedValue::copied_array_t>();
+        auto &vec = val.data.emplace<CopiedValue::copied_array_t>();
         for (unsigned long long x = 0; x < length; x++) {
             auto temp = info_block::is_complex(info) ?
-                this->to_general() : this->to_basic_general(info_block::get_basic_type(info));
-            vec.emplace_back(std::move(*temp));
+                this->to_complex_general() : this->to_basic_general(info_block::get_basic_type(info));
+            vec.emplace_back(std::move(temp));
         }
     } else if (info_block::is_pair(info)) {
         std::cout << "general: pair" << std::endl;
-        val->type = ValueType::PAIR;
-        CopiedValue::copied_pair_t pair;
-        pair.first = std::move(info_block::is_complex(info) ? this->to_general() :
-            this->to_basic_general(info_block::get_basic_type(info)));
-        pair.second = std::move(this->to_general());
-        val->data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
+        val.type = ValueType::PAIR;
+        auto &pair = val.data.emplace<CopiedValue::copied_pair_t>();
+        pair.first = (std::make_unique<CopiedValue>(std::move(info_block::is_complex(info) ? this->to_complex_general() :
+            this->to_basic_general(info_block::get_basic_type(info)))));
+        pair.second = std::make_unique<CopiedValue>(std::move(this->to_complex_general()));
     } else {
         std::cout << "general: basic" << std::endl;
         // simple type

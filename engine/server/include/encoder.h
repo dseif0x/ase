@@ -10,6 +10,7 @@
 #define ENCODER_H
 
 #include <atomic>
+#include <db_types.h>
 #include <deque>
 #include <unordered_map>
 #include <vector>
@@ -24,6 +25,8 @@ class GenericEncoder {
 protected:
     std::pair<std::unique_ptr<unsigned char[]>, int> get_bytes(size_t bytes);
     void add_to_buffer(std::vector<unsigned char> &block);
+
+    void from_basic_general(CopiedValue &val);
 
 public:
     virtual ~GenericEncoder() = default;
@@ -41,9 +44,11 @@ public:
     void from_ack();
     void from_nak();
 
+    void from_bool(bool val);
+    void from_byte(unsigned char val);
     void from_unsigned(int bytes, unsigned long long val);
     void from_expanding_unsigned(unsigned long long val);
-    void from_general(); // todo will later return the some kind of db compatible type
+    void from_general(CopiedValue &val);
 };
 
 

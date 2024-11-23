@@ -47,24 +47,30 @@ namespace errors {
 }
 
 namespace info_block {
-    inline bool is_array(const unsigned char byte) {
-        return (byte & 0x80) > 0;
+    constexpr unsigned char array_bit = 0x80;
+    constexpr unsigned char pair_bit = 0x40;
+    constexpr unsigned char complex_bit = 0x20;
+    constexpr unsigned char map_bit = 0x10;
+    constexpr unsigned char basic_mask = 0x07;
+
+    constexpr bool is_array(const unsigned char byte) {
+        return (byte & array_bit) > 0;
     }
 
-    inline bool is_pair(const unsigned char byte) {
-        return (byte & 0x40) > 0;
+    constexpr bool is_pair(const unsigned char byte) {
+        return (byte & pair_bit) > 0;
     }
 
-    inline bool is_complex(const unsigned char byte) {
-        return (byte & 0x20) > 0;
+    constexpr bool is_complex(const unsigned char byte) {
+        return (byte & complex_bit) > 0;
     }
 
-    inline bool is_map(const unsigned char byte) {
-        return (byte & 0x10) > 0;
+    constexpr bool is_map(const unsigned char byte) {
+        return (byte & map_bit) > 0;
     }
 
     constexpr ValueType get_basic_type(const unsigned char byte) {
-        switch (byte & 0x07) {
+        switch (byte & basic_mask) {
             case 1:
                 return ValueType::BOOLEAN;
             case 2:
@@ -79,6 +85,25 @@ namespace info_block {
                 return ValueType::REFERENCE;
             default:
                 return ValueType::UNKNOWN;
+        }
+    }
+
+    constexpr unsigned char get_basic_byte(const ValueType type) {
+        switch (type) {
+            case ValueType::BOOLEAN:
+                return 1;
+            case ValueType::INT:
+                return 2;
+            case ValueType::STRING:
+                return 3;
+            case ValueType::DOUBLE:
+                return 4;
+            case ValueType::SEMAPHORE:
+                return 5;
+            case ValueType::REFERENCE:
+                return 6;
+            default:
+                return 0;
         }
     }
 }

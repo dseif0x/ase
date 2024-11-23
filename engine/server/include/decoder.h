@@ -23,7 +23,8 @@ protected: // todo think about if there is an elegant way to encapsulate buffer 
     virtual std::vector<unsigned char> get_bytes(size_t bytes) = 0;
     void add_to_buffer(std::vector<unsigned char> &block);
 
-    std::unique_ptr<CopiedValue> to_basic_general(ValueType type);
+    CopiedValue to_basic_general(ValueType type);
+    CopiedValue to_complex_general();
 
 public:
     virtual ~GenericDecoder() = default;
@@ -42,7 +43,7 @@ public:
     unsigned long long to_unsigned(int bytes);
     unsigned char to_byte();
     unsigned long long to_expanding_unsigned(); // limited to the size of ull regardless of actual buffer
-    std::unique_ptr<CopiedValue> to_general();
+    std::optional<CopiedValue> to_general();
 };
 
 
