@@ -1,118 +1,183 @@
 package com.ase.utility;
 
+import com.ase.exception.HandshakeException;
+import com.ase.exception.TCPClientException;
+
+import java.io.DataInputStream;
+
 /**
  * Represents server-side information about size constraints for different data types.
  */
 public class ServerInformation {
     /** Size limit for boolean type. */
-    private final int booleanSize;
+    private int booleanSize;
 
     /** Size limit for integer type. */
-    private final int intSize;
+    private int intSize;
 
     /** Size limit for character type. */
-    private final int charSize;
+    private int charSize;
 
     /** Size limit for double type. */
-    private final int doubleSize;
+    private int doubleSize;
 
     /** Size limit for semaphore type. */
-    private final int semaphoreSize;
+    private int semaphoreSize;
 
     /** Size limit for string type. */
-    private final int stringSize;
+    private int stringSize;
 
     /** Size limit for array type. */
-    private final int arraySize;
+    private int arraySize;
 
     /**
-     * Constructs a new ServerInformation instance with specified size limits for various data types.
+     * Reads server information from the given input stream.
      *
-     * @param booleanSize   Maximum size limit for boolean type.
-     * @param intSize       Maximum size limit for integer type.
-     * @param charSize      Maximum size limit for character type.
-     * @param doubleSize    Maximum size limit for double type.
-     * @param semaphoreSize Maximum size limit for semaphore type.
-     * @param stringSize    Maximum size limit for string type.
-     * @param arraySize     Maximum size limit for array type.
+     * @param reader the input stream to read from
+     * @return the server information read from the stream
+     * @throws HandshakeException if there is an error reading the server information
      */
-    public ServerInformation(int booleanSize, int intSize, int charSize, int doubleSize, int semaphoreSize, int stringSize, int arraySize) {
+    public static ServerInformation readServerInformation(DataInputStream reader) throws HandshakeException {
+        ServerInformation serverInformation = new ServerInformation();
+
+        try {
+            serverInformation.setBooleanSize(reader.readUnsignedByte());
+            serverInformation.setIntSize(reader.readUnsignedByte());
+            serverInformation.setCharSize(reader.readUnsignedByte());
+            serverInformation.setDoubleSize(reader.readUnsignedByte());
+            serverInformation.setSemaphoreSize(reader.readUnsignedByte());
+            serverInformation.setStringSize(reader.readUnsignedShort());
+            serverInformation.setArraySize(reader.readUnsignedShort());
+        } catch (Exception e) {
+            throw new HandshakeException("Error reading server information");
+        }
+
+        return serverInformation;
+    }
+
+    /**
+     * Retrieves the size limit for the boolean type.
+     *
+     * @return the size of boolean in bytes
+     */
+    public int getBooleanSize() {
+        return booleanSize;
+    }
+
+    /**
+     * Sets the size limit for the boolean type.
+     *
+     * @param booleanSize the size of boolean in bytes, must be positive
+     */
+    public void setBooleanSize(int booleanSize) {
         this.booleanSize = booleanSize;
+    }
+
+    /**
+     * Retrieves the size limit for the integer type.
+     *
+     * @return the size of integer in bytes
+     */
+    public int getIntSize() {
+        return intSize;
+    }
+
+    /**
+     * Sets the size limit for the integer type.
+     *
+     * @param intSize the size of integer in bytes, must be positive
+     */
+    public void setIntSize(int intSize) {
         this.intSize = intSize;
+    }
+
+    /**
+     * Retrieves the size limit for the character type.
+     *
+     * @return the size of character in bytes
+     */
+    public int getCharSize() {
+        return charSize;
+    }
+
+    /**
+     * Sets the size limit for the character type.
+     *
+     * @param charSize the size of character in bytes, must be positive
+     */
+    public void setCharSize(int charSize) {
         this.charSize = charSize;
+    }
+
+    /**
+     * Retrieves the size limit for the double type.
+     *
+     * @return the size of double in bytes
+     */
+    public int getDoubleSize() {
+        return doubleSize;
+    }
+
+    /**
+     * Sets the size limit for the double type.
+     *
+     * @param doubleSize the size of double in bytes, must be positive
+     */
+    public void setDoubleSize(int doubleSize) {
         this.doubleSize = doubleSize;
+    }
+
+    /**
+     * Retrieves the size limit for the semaphore type.
+     *
+     * @return the size of semaphore in bytes
+     */
+    public int getSemaphoreSize() {
+        return semaphoreSize;
+    }
+
+    /**
+     * Sets the size limit for the semaphore type.
+     *
+     * @param semaphoreSize the size of semaphore in bytes, must be positive
+     */
+    public void setSemaphoreSize(int semaphoreSize) {
         this.semaphoreSize = semaphoreSize;
+    }
+
+    /**
+     * Retrieves the size limit for the string type.
+     *
+     * @return the size of string in bytes
+     */
+    public int getStringSize() {
+        return stringSize;
+    }
+
+    /**
+     * Sets the size limit for the string type.
+     *
+     * @param stringSize the size of string in bytes, must be positive
+     */
+    public void setStringSize(int stringSize) {
         this.stringSize = stringSize;
+    }
+
+    /**
+     * Retrieves the size limit for the array type.
+     *
+     * @return the size of array in bytes
+     */
+    public int getArraySize() {
+        return arraySize;
+    }
+
+    /**
+     * Sets the size limit for the array type.
+     *
+     * @param arraySize the size of array in bytes, must be positive
+     */
+    public void setArraySize(int arraySize) {
         this.arraySize = arraySize;
-    }
-
-    /**
-     * Checks if the given size is within the boolean type size limit.
-     *
-     * @param size The size to check against the boolean size limit.
-     * @return true if the given size is less than or equal to the boolean size limit, false otherwise.
-     */
-    public boolean checkBooleanSize(int size) {
-        return this.booleanSize >= size;
-    }
-
-    /**
-     * Checks if the given size is within the integer type size limit.
-     *
-     * @param size The size to check against the integer size limit.
-     * @return true if the given size is less than or equal to the integer size limit, false otherwise.
-     */
-    public boolean checkIntSize(int size) {
-        return this.intSize >= size;
-    }
-
-    /**
-     * Checks if the given size is within the character type size limit.
-     *
-     * @param size The size to check against the character size limit.
-     * @return true if the given size is less than or equal to the character size limit, false otherwise.
-     */
-    public boolean checkCharSize(int size) {
-        return this.charSize >= size;
-    }
-
-    /**
-     * Checks if the given size is within the double type size limit.
-     *
-     * @param size The size to check against the double size limit.
-     * @return true if the given size is less than or equal to the double size limit, false otherwise.
-     */
-    public boolean checkDoubleSize(int size) {
-        return this.doubleSize >= size;
-    }
-
-    /**
-     * Checks if the given size is within the semaphore type size limit.
-     *
-     * @param size The size to check against the semaphore size limit.
-     * @return true if the given size is less than or equal to the semaphore size limit, false otherwise.
-     */
-    public boolean checkSemaphoreSize(int size) {
-        return this.semaphoreSize >= size;
-    }
-
-    /**
-     * Checks if the given size is within the string type size limit.
-     *
-     * @param size The size to check against the string size limit.
-     * @return true if the given size is less than or equal to the string size limit, false otherwise.
-     */
-    public boolean checkStringSize(int size) {
-        return this.stringSize >= size;
-    }
-
-    /**
-     * Checks if the given size is within the array type size limit.
-     *
-     * @param size The size to check against the array size limit.
-     * @return true if the given size is less than or equal to the array size limit, false otherwise.
-     */
-    public boolean checkArraySize(int size) {
-        return this.arraySize >= size;
     }
 }
