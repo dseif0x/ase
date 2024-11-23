@@ -10,6 +10,7 @@
 #include <thread>
 #include "decoder.h"
 
+#include <optional>
 
 
 void GenericDecoder::add_to_buffer(std::vector<unsigned char> &block) {
