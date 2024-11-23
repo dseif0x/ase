@@ -6,13 +6,14 @@
  */
 
 
+#include <cstring>
 #include <iostream>
 #include <thread>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <sys/_select.h>
+#include <sys/select.h>
 #include "decoder.h"
 #include "tcp2_utils.h"
 #include "tcp2_server.h"
