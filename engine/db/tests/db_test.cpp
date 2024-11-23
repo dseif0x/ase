@@ -23,6 +23,7 @@ TEST(IntTest, HandlesPositiveInput) {
     newval.data.emplace<int>(43);
     db.set("test2", newval);
     EXPECT_EQ(std::get<int>(db.get("test2")->data), 43);
+    EXPECT_EQ(db.get("test2")->type, ValueType::INT);
 }
 
 TEST(MapTest, HandlesPositiveInput) {
@@ -54,4 +55,6 @@ TEST(MapTest, HandlesPositiveInput) {
 
     EXPECT_EQ(std::get<int>(db.get("test8.key1")->data), 1222);
     EXPECT_EQ(std::get<double>(db.get("test8.key2")->data), 1.2);
+    EXPECT_EQ(db.get("test8.key1")->type, ValueType::INT);
+    EXPECT_EQ(db.get("test8.key2")->type, ValueType::DOUBLE);
 }
