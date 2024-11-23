@@ -179,3 +179,30 @@ std::string TCP2Decoder::get_error() {
 void TCP2Decoder::set_kys() {
     this->kys = true;
 }
+
+std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {
+    std::vector<unsigned char> res;
+    res.reserve(bytes);
+    this->buffer_lock.lock();
+    while (!this->kys) {
+        if (bytes == 0) break;
+        if (this->buffer.empty()) {
+            this->buffer_lock.unlock();
+            // free lock to allow new data to be written into the buffer
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            this->buffer_lock.lock();
+            continue;
+        }
+        auto bytes_to_copy = std::min(bytes, this->buffer.front().size() - this->start);
+        res.insert(res.end(), this->buffer.front().begin() + this->start,
+            this->buffer.front().begin() + this->start + bytes_to_copy);
+        bytes -= bytes_to_copy;
+        this->start += bytes_to_copy;
+        if (this->buffer.front().size() <= this->start) {
+            this->buffer.pop_front();
+            this->start = 0;
+        }
+    }
+    this->buffer_lock.unlock();
+    return res;
+}
