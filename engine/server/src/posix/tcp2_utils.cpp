@@ -102,5 +102,4 @@ void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, 
     TCP2Encoder encoder{client_socket, &pipe_lock};
     client_main_thread(kys, decoder, encoder, acl);
     close(client_socket);
-    std::cout << "client is gone" << std::endl;
 }

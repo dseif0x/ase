@@ -20,10 +20,8 @@ bool TCP2Encoder::write_data() {
     for (int x = 0; x < data.second; x++) std::cout << "[" << (int)(unsigned char)data.first.get()[x] << "]";
     std::cout << std::endl;
     {
-        std::cout << "requesting lock" << std::endl;
         std::lock_guard<std::mutex> lock(*this->pipe_lock);
         if (send(this->client_socket, data.first.get(), data.second, 0) < 0) return false;
     }
-    std::cout << "data sent" << std::endl;
     return true;
 }
