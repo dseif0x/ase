@@ -159,6 +159,7 @@ void GenericEncoder::from_basic_general(CopiedValue &val) {
 
 void GenericEncoder::from_complex_general(CopiedValue &val) {
     val.print();
+    std::cout << "type:" << (int)val.type << std::endl;
     unsigned char info{};
     if (val.type == ValueType::MAP) {
         this->from_byte(info_block::map_bit);

@@ -39,8 +39,11 @@ constexpr bool ACLNode::has_perms(const unsigned char perms) const {
 bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permissions) {
     this->permissions.print();
     auto *cur_node = &this->permissions;
+    std::cout << std::endl;
+    int i = 0;
     for (auto &x : key) {
         cur_node->print();
+        std::cout << " -> i: " << i << std::endl;
         auto &cur_map = std::get<CopiedValue::copied_map_t>(cur_node->data);
         if (!cur_map.contains("$")) return false;
         unsigned char cur_perm = std::get<int>(cur_map["$"]->data);

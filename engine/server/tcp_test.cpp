@@ -13,6 +13,10 @@
 
 
 int main() {
+    {
+        DB db;
+        db.destroy();
+    }
     DB db{};
     { // Integer
         CopiedValue newval{};
@@ -27,11 +31,11 @@ int main() {
         CopiedValue newval2{};
         newval2.type = ValueType::STRING;
         newval2.data.emplace<std::string>("This are news from ORF.");
-        db.set(".at.orf.news", newval2);
+        db.set("at.orf.news", newval2);
         newval2.data.emplace<std::string>("This is tvtheke.");
-        db.set(".at.orf.tv", newval2);
+        db.set("at.orf.tv", newval2);
         newval2.data.emplace<std::string>("This is sport.");
-        db.set(".at.orf.sport", newval2);
+        db.set("at.orf.sport", newval2);
     }
 
     std::cout << "after db" << std::endl;
