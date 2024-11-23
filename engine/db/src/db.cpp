@@ -85,8 +85,32 @@ std::optional<CopiedValue> DB::get(const char *key) {
     return res;
 }
 
+void set_key(offset_ptr<db_map> map, shmem& mem, std::queue<std::string>& keys, offset_ptr<Value>& new_value) {
+    if (keys.empty())
+        return;
+    auto key = keys.front();
+    if (keys.size() == 1) {
+        db_key_map::set(map, mem, key.c_str(), new_value);
+        return;
+    }
+    std::optional<std::reference_wrapper<Value>> res{};
+    map.get(mem)->transaction([&](locked_db_map* map) {
+        if (map->has(key.c_str())) {
+            res.emplace(*map->get(key.c_str()));
+        }
+    });
+    if (!res.has_value())
+        return;
+    keys.pop();
+    auto& newMap = *res;
+    if (newMap.get().type != ValueType::MAP)
+        throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
+    return set_key(mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.get().data)), mem, keys, new_value);
+}
+
 void DB::set(const char *key, const CopiedValue& value) {
     auto entrypoint_p = get_entrypoint();
     offset_ptr<Value> new_value = Value::create_value(mem, value);
-    db_key_map::set(entrypoint_p, mem, key, new_value);
+    auto keys = split(key);
+    set_key(entrypoint_p, mem, keys, new_value);
 }
