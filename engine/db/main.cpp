@@ -50,7 +50,7 @@ int main() {
         DB db;
         db.destroy();
     }
-    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS (not)
+    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
     int pid = 1;
     stopwatch s;
     if (pid == 0)
