@@ -23,13 +23,13 @@ namespace tcp2_utils {
     // following functions are system independent
     void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
     void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
-    bool client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms);
+    int client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms);
 
     namespace command {
-        void stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        void ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        void disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        void testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
+        int stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
+        int ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
+        int disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
+        int testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
     }
 
     namespace permissions {

@@ -34,6 +34,7 @@ public:
     virtual void read_data() = 0;
 
     bool is_empty();
+    void clear_buffer(int delay_ms);
 
     std::string to_string();
     int to_int();
@@ -70,6 +71,7 @@ public:
     TCP2Decoder(int client_socket, std::mutex *pipe_lock);
 
     void read_data() override;
+
 
     void set_kys();
     bool is_healthy();

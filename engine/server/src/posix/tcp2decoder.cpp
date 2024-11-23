@@ -26,7 +26,7 @@ std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {
         if (this->buffer.empty()) {
             this->buffer_lock.unlock();
             // free lock to allow new data to be written into the buffer
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
             this->buffer_lock.lock();
             continue;
         }
@@ -93,6 +93,7 @@ void TCP2Decoder::read_data() {
         this->kys = true;
     }
 }
+
 
 void TCP2Decoder::set_kys() {
     this->kys = true;

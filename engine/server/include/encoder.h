@@ -36,6 +36,7 @@ public:
     virtual void write_data() = 0;
 
     bool is_empty();
+    void clear_buffer();
 
     void from_string(std::string val);
     void from_int(int val);

@@ -47,6 +47,12 @@ bool GenericEncoder::is_empty() {
     return this->buffer.empty();
 }
 
+void GenericEncoder::clear_buffer() {
+    std::lock_guard<std::mutex> lock(this->buffer_lock);
+    this->buffer.clear();
+    this->start = 0;
+}
+
 void GenericEncoder::from_string(std::string val) {
     std::vector<unsigned char> data(val.begin(), val.end());
     this->from_expanding_unsigned(data.size());

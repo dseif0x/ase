@@ -26,6 +26,7 @@ namespace errors {
     constexpr uint16_t wrong_password               = 0xFF03;
     constexpr uint16_t already_connected            = 0xFF04;
     constexpr uint16_t username_already_exists      = 0xFF05;
+    constexpr uint16_t unknown_command              = 0xFF06;
 
     constexpr uint16_t invalid_key                  = 0x0100;
     constexpr uint16_t key_not_found                = 0x0101;
@@ -43,6 +44,7 @@ namespace errors {
         {key_not_found, "Key not found."},
         {key_already_exists, "Key already exists."},
         {username_already_exists, "The provided username already exists."},
+        {unknown_command, "The provided command code is unknown."},
     };
 }
 

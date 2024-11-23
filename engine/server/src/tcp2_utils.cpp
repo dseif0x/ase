@@ -11,11 +11,14 @@
 #include <thread>
 #include "decoder.h"
 
-
-bool tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms) {
-    void (*func)(ACLUser*, TCP2Decoder&, TCP2Encoder&);
+// returns -1: some non-critical error occurred, not executed and decoder is cleared
+// returns 0: command executed fine
+// returns 1: soft shutdown
+// returns 2: hard shutdown
+int tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms) {
+    int (*func)(ACLUser*, TCP2Decoder&, TCP2Encoder&);
     unsigned char perms{};
-    bool error = false;
+    uint16_t error = 0;
 
     switch (decoder.to_unsigned(1)) {
         case 0xFE: //STOP
@@ -35,40 +38,49 @@ bool tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2
             perms = permissions::none;
             break;
         default:
-
-            return false;
+            error = errors::unknown_command;
+            break;
     }
-    if ((self_perms | perms) != self_perms) {
-        // check connection permissions
-        encoder.from_nak();
-        encoder.encode_error(errors::permission_denied_self);
-    } else if ((perms & permissions::admin) > 0) {
-        // check admin permission
-        encoder.from_nak();
-        encoder.encode_error(errors::permission_denied);
+    if (error == 0) {
+        if ((self_perms | perms) != self_perms) {
+            // check connection permissions
+            error = errors::permission_denied_self;
+        } else if ((perms & permissions::admin) > 0) {
+            // check admin permission
+            error = errors::permission_denied;
+        }
+    }
+
+    if (error == 0) {
+        encoder.from_ack();
+        return func(user, decoder, encoder);
     } else {
-        func(user, decoder, encoder);
+        encoder.from_nak();
+        encoder.encode_error(error);
+        decoder.clear_buffer(200);
+        return -1;
     }
-    // todo think about how to get all the information out of the decoder that is not needed if we dont execute
-    //  the command -> run the command, but block the encoder
-    return true;
 }
 
-void tcp2_utils::command::stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+int tcp2_utils::command::stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+    encoder.clear_buffer();
     encoder.from_ack();
+    return 0;
 }
 
-void tcp2_utils::command::ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+int tcp2_utils::command::ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
     unsigned long long data = decoder.to_unsigned(4);
-    encoder.from_ack();
     encoder.from_unsigned(4, data);
+    return 0;
 }
 
-void tcp2_utils::command::disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
-    decoder.set_kys();
+int tcp2_utils::command::disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+    encoder.from_ack();
+    encoder.from_string("Goodbye!");
+    return 1;
 }
 
-void tcp2_utils::command::testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
+int tcp2_utils::command::testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder) {
     std::cout << "starting to_general" << std::endl;
 
     if (auto val = decoder.to_general()) {
@@ -85,6 +97,7 @@ void tcp2_utils::command::testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encod
     }
 
     std::cout << std::endl << "all done testing" << std::endl;
+    return 0;
 }
 
 void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl) {
@@ -147,7 +160,20 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             state = 2;
         } else if (state == 2) {
             // logged in and ready for commands
-            if (!client_command_switch(user, decoder, encoder, self_perms)) state = -2;
+            switch (client_command_switch(user, decoder, encoder, self_perms)) {
+                case -1: // error, but recovered
+                case 0: // executed fine
+                    break;
+                case 1: // soft shutdown
+                    state = -3;
+                    break;
+                case 2: // hard shutdown
+                    decoder.set_kys();
+                    continue;
+                    break;
+                default: // undefined -> soft shutdown
+                    state = -1;
+            }
         }
         // send buffer
         while (!encoder.is_empty()) {
