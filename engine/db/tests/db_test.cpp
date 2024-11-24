@@ -207,3 +207,8 @@ TEST_F(DatabaseWithData, GetNonExistentKey) {
     auto test = get<int>(*db, "test_123");
     ASSERT_FALSE(test.has_value());
 }
+
+TEST_F(DatabaseWithData, GetExistingKeyWithWrongType) {
+    auto test = get<std::string>(*db, "test");
+    ASSERT_FALSE(test.has_value());
+}
