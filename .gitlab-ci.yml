@@ -32,11 +32,11 @@ variables:
 build:
   stage: build
   before_script:
-    - apk add --no-cache cmake clang make
+    - apk add --no-cache cmake build-base make
   script:
     - mkdir -p $BUILD_DIR
     - cd $BUILD_DIR
-    - cmake ..
+    - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage ..
     - cmake --build .
   artifacts:
     paths:
@@ -47,10 +47,17 @@ test:
   dependencies:
     - build
   before_script:
-    - apk add --no-cache cmake
+    - apk add --no-cache cmake build-base lcov gzip
   script:
+    - mkdir -p coverage_report
     - cd $BUILD_DIR
     - for folder in $TEST_DIRS; do
         ctest --test-dir $folder;
-        done
+        lcov --ignore-errors mismatch --directory $folder --capture --output-file $folder/coverage.info;
+        lcov --remove $folder/coverage.info '/usr/*' '*googletest*' --output-file $folder/coverage.info;
+        genhtml $folder/coverage.info --output-directory ../../coverage_report/$folder;
+      done
+  artifacts:
+    paths:
+      - coverage_report
 
