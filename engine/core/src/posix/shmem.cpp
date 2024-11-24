@@ -17,7 +17,9 @@
 #include <cmath>
 #include <unistd.h>
 
+#ifndef NDEBUG
 #define MEM_DEBUG 1
+#endif
 
 namespace {
     size_t page_size = sysconf(_SC_PAGESIZE);
@@ -81,6 +83,7 @@ void free_coalescence(shmem_meta& metadata, void* base, size_t prev_node_off, Fr
         free_node->size += next_free_node->size;
         free_block_remove(metadata, base, get_offset_from_ptr(base, free_node), next_free_node);
     }
+    if (prev_node_off == -1) return;
     auto* prev_node = get_free_block(base, prev_node_off);
     if (prev_node->next_offset != -1 && (void *)((char *)prev_node + prev_node->size) == free_node) {
         prev_node->size += free_node->size;
@@ -283,7 +286,7 @@ void shmem::ensure_enough_space(std::size_t required_memory) {
     // Find last block and change size
     size_t tail = find_tail_block(*metadata, base);
     FreeBlock* tailblock = get_free_block(base, tail);
-    if (tail + tailblock->size == prev_size) { // This block is at the end so we can just extend it
+    if (tail != -1 && tail + tailblock->size == prev_size) { // This block is at the end so we can just extend it
         tailblock->size = metadata->alloc_size - tail;
     } else { // The block is not at the end so we need to create a new block
         size_t new_block_offset = prev_size;
