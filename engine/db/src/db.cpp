@@ -105,7 +105,11 @@ void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys,
     auto& newMap = *res;
     if (newMap.get().type != ValueType::MAP)
         throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
-    auto ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.get().data));
+    offset_ptr<db_map> ptr;
+    map.atomic_access(mem, [&](db_key_map* entrypoint)
+    {
+        ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.get().data));
+    });
     return set_key(ptr, mem, keys, new_value);
 }
 
