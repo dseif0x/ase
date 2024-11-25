@@ -99,4 +99,42 @@ public class Utility {
 
         return result;
     }
+
+    /**
+     * Decodes a byte array representing a variable-length encoded positive integer
+     * using the TCP_EUI encoding method.
+     *
+     * @param encodedBytes The byte array to decode.
+     * @return The decoded long value.
+     * @throws IllegalArgumentException if the byte array is invalid or exceeds 9 bytes.
+     */
+    public static long decodeTCPEUIByteArray(byte[] encodedBytes) {
+        if (encodedBytes == null || encodedBytes.length == 0) {
+            throw new IllegalArgumentException("Encoded byte array is null or empty.");
+        }
+
+        int leadingOnes = 0;
+        byte firstByte = encodedBytes[0];
+        while (leadingOnes < 8 && ((firstByte & (0x80 >> leadingOnes)) != 0)) {
+            leadingOnes++;
+        }
+
+        if (leadingOnes == 0) {
+            return firstByte & 0x7F;
+        }
+
+        if (leadingOnes > 8 || encodedBytes.length != leadingOnes + 1) {
+            throw new IllegalArgumentException("Invalid encoding.");
+        }
+
+        long value = 0;
+        value |= (long)(firstByte & (0xFF >> (leadingOnes + 1))) << (8 * leadingOnes);
+
+        for (int i = 1; i < encodedBytes.length; i++) {
+            value |= (long)(encodedBytes[i] & 0xFF) << (8 * (encodedBytes.length - i -1));
+        }
+
+        return value;
+    }
+
 }
