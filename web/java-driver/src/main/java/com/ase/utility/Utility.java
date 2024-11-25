@@ -59,7 +59,7 @@ public class Utility {
 
     /**
      * Creates a byte array representing a variable-length encoded integer
-     * using the TCP Extended Unique Identifier (TCPEUI) encoding method.
+     * using the TCP_EUI encoding method.
      *
      * @param value The non-negative long value to be encoded.
      * @return A byte array representing the encoded value.
@@ -70,24 +70,21 @@ public class Utility {
             throw new IllegalArgumentException("Cannot encode negative values");
         }
 
-        int bytesNeeded = 0;
+        if (value == 0) {
+            return new byte[] {0x00};
+        }
+
+        int bytesNeeded = 1;
         long tempValue = value;
-        while (tempValue > 0) {
-            tempValue >>= 7;
+        while (tempValue > (1L << (7 * bytesNeeded)) - 1) {
             bytesNeeded++;
-        }
-
-        if (bytesNeeded == 0) {
-            bytesNeeded = 1;
-        }
-
-        if (bytesNeeded > 8) {
-            throw new IllegalArgumentException("Value too large to encode: " + value);
+            if (bytesNeeded > 9) {
+                throw new IllegalArgumentException("Value too large to encode: " + value);
+            }
         }
 
         byte[] result = new byte[bytesNeeded];
 
-        tempValue = value;
         for (int i = bytesNeeded - 1; i >= 0; i--) {
             result[i] = (byte)(tempValue & 0xFF);
             tempValue >>= 8;
@@ -98,12 +95,8 @@ public class Utility {
         }
 
         byte header = (byte)(((1 << (bytesNeeded - 1)) - 1) << (8 - (bytesNeeded - 1)));
-        header |= result[0];
+        result[0] = (byte) (header | (result[0] & (0xFF >> (bytesNeeded - 1))));
 
-        byte[] withHeader = new byte[bytesNeeded];
-        withHeader[0] = header;
-        System.arraycopy(result, 1, withHeader, 1, bytesNeeded - 1);
-
-        return withHeader;
+        return result;
     }
 }
