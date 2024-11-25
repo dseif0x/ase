@@ -1,4 +1,5 @@
 package com.ase.utility;
+import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.exception.TCPClientReadException;
 
@@ -77,7 +78,7 @@ public class DynamicDataReader {
             }
 
             if (leadingOnes > 8) {
-                throw new TCPClientReadException("Invalid TCP_EUI encoding: too many leading ones.");
+                throw new IllegalArgumentException("Invalid TCP_EUI encoding: too many leading ones.");
             }
 
             long value = 0;
@@ -174,6 +175,22 @@ public class DynamicDataReader {
         } catch (Exception e) {
             throw new TCPClientReadException("Failed to read semaphore.", e);
         }
+    }
+
+    /**
+     * Reads a Generic Server Error Package from the input stream.
+     *
+     * @throws ServerErrorException   when an error package is successfully read from the server.
+     * @throws TCPClientException     if an error occurs while reading the server error string.
+     * @throws IOException            if an I/O error occurs while reading the server error.
+     */
+    public void readServerError() throws ServerErrorException, TCPClientException, IOException {
+        long errorCodeLong = dataInputStream.readUnsignedShort();
+
+        int errorCode = (int) errorCodeLong;
+
+        String errorMessage = readString();
+        throw new ServerErrorException(errorCode, errorMessage);
     }
 
     /**

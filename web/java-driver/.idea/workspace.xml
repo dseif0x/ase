@@ -4,42 +4,58 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="79fa0403-2c7e-47d8-8a37-825d8416ac0d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../backend/src/main/java/com/ase/backend/service/DatabaseService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/ase/driver/DatabaseClient.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../pom.xml" afterDir="false" />
+    <list default="true" id="79fa0403-2c7e-47d8-8a37-825d8416ac0d" name="Changes" comment="#30 Adds readString to dynamic data reader using encoded tcp_eui.">
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/ase/exception/ServerErrorException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ase/driver/DatabaseClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ase/driver/DatabaseClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ase/utility/DynamicDataReader.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ase/utility/DynamicDataReader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ase/utility/TcpErrorCode.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ase/utility/TcpErrorCode.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$/../.." value="19-setup-java-backend" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
   </component>
+  <component name="KubernetesApiPersistence">{}</component>
+  <component name="KubernetesApiProvider">{
+  &quot;isMigrated&quot;: true
+}</component>
   <component name="ProjectCodeStyleSettingsMigration">
     <option name="version" value="2" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 2
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 2
+}</component>
   <component name="ProjectId" id="2ol4cIz6kGDTvsgUWvAznSqHzMl" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Application.DynamicDataReader.executor": "Run",
+    "Application.Utility.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "19-setup-java-backend",
+    "git-widget-placeholder": "feature-tcp2-java-30",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/vladi/IdeaProjects/24ws-ase-pr-qse-06/web/java-driver",
     "node.js.detected.package.eslint": "true",
@@ -48,9 +64,44 @@
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "onboarding.tips.debug.path": "/Users/vladi/IdeaProjects/24ws-ase-pr-qse-06/web/java-driver/src/main/java/com/ase/Main.java",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RunManager" selected="Application.Utility">
+    <configuration name="DynamicDataReader" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.ase.utility.DynamicDataReader" />
+      <module name="java-driver" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ase.utility.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Utility" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.ase.utility.Utility" />
+      <module name="java-driver" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ase.utility.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.Utility" />
+        <item itemvalue="Application.DynamicDataReader" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -67,11 +118,131 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1731430906430</updated>
-      <workItem from="1731430907586" duration="3196000" />
+      <workItem from="1731430907586" duration="3771000" />
+      <workItem from="1731435845230" duration="520000" />
+      <workItem from="1731436374716" duration="11583000" />
+      <workItem from="1731670525466" duration="1005000" />
+      <workItem from="1731674973661" duration="14699000" />
+      <workItem from="1731869466295" duration="11086000" />
+      <workItem from="1732034589202" duration="8741000" />
+      <workItem from="1732043363036" duration="2584000" />
+      <workItem from="1732050781666" duration="113000" />
+      <workItem from="1732136642933" duration="5338000" />
+      <workItem from="1732198920049" duration="38869000" />
     </task>
+    <task id="LOCAL-00001" summary="#30 Add DatabaseClient with connect and login for handshake.">
+      <option name="closed" value="true" />
+      <created>1732042966814</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1732042966814</updated>
+    </task>
+    <task id="LOCAL-00002" summary="#30 Add TCP Error Codes.">
+      <option name="closed" value="true" />
+      <created>1732137108678</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1732137108678</updated>
+    </task>
+    <task id="LOCAL-00003" summary="#30 Add documentation.">
+      <option name="closed" value="true" />
+      <created>1732139749004</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1732139749004</updated>
+    </task>
+    <task id="LOCAL-00004" summary="#30 Updates ServerInformation.">
+      <option name="closed" value="true" />
+      <created>1732384454342</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1732384454342</updated>
+    </task>
+    <task id="LOCAL-00005" summary="#30 Moves reading of ServerInformation to ServerInformation class.">
+      <option name="closed" value="true" />
+      <created>1732384488746</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1732384488746</updated>
+    </task>
+    <task id="LOCAL-00006" summary="#30 Adds DynamicDataReader for int, chars, bools and semaphores.">
+      <option name="closed" value="true" />
+      <created>1732384513986</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1732384513986</updated>
+    </task>
+    <task id="LOCAL-00007" summary="#30 Fixes encode tcp eui.">
+      <option name="closed" value="true" />
+      <created>1732531629117</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1732531629117</updated>
+    </task>
+    <task id="LOCAL-00008" summary="#30 Adds decode tcp eui.">
+      <option name="closed" value="true" />
+      <created>1732532590607</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1732532590607</updated>
+    </task>
+    <task id="LOCAL-00009" summary="#30 Adds validation of server info.">
+      <option name="closed" value="true" />
+      <created>1732535333839</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1732535333839</updated>
+    </task>
+    <task id="LOCAL-00010" summary="#30 Adds readString to dynamic data reader using encoded tcp_eui.">
+      <option name="closed" value="true" />
+      <created>1732538325390</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1732538325390</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+    <MESSAGE value="#30 Add DatabaseClient with connect and login for handshake." />
+    <MESSAGE value="#30 Add TCP Error Codes." />
+    <MESSAGE value="#30 Add documentation." />
+    <MESSAGE value="#30 Updates ServerInformation." />
+    <MESSAGE value="#30 Moves reading of ServerInformation to ServerInformation class." />
+    <MESSAGE value="#30 Adds DynamicDataReader for int, chars, bools and semaphores." />
+    <MESSAGE value="#30 Fixes encode tcp eui." />
+    <MESSAGE value="#30 Adds decode tcp eui." />
+    <MESSAGE value="#30 Adds validation of server info." />
+    <MESSAGE value="#30 Adds readString to dynamic data reader using encoded tcp_eui." />
+    <option name="LAST_COMMIT_MESSAGE" value="#30 Adds readString to dynamic data reader using encoded tcp_eui." />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
   </component>
 </project>

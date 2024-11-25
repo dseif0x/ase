@@ -1,6 +1,7 @@
 package com.ase.driver;
 
 import com.ase.exception.HandshakeException;
+import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.utility.DynamicDataReader;
 import com.ase.utility.ServerInformation;
@@ -61,8 +62,8 @@ public class DatabaseClient {
             byte response = reader.readByte();
             if (response == Utility.NAK) {
                 int errorCode = reader.readUnsignedShort();
-                TcpErrorCode error = TcpErrorCode.fromCode(errorCode);
-                throw new TCPClientException(error.toString());
+                TcpErrorCode errorCodeEnum = TcpErrorCode.fromCode(errorCode);
+                throw new ServerErrorException(errorCodeEnum.toString());
             } else if (response == Utility.AK) {
                 ServerInformation serverInfo = ServerInformation.readServerInformation(reader);
                 if (!serverInfo.validate()) {
@@ -87,7 +88,7 @@ public class DatabaseClient {
      * @param password The password for authentication
      * @throws TCPClientException If authentication fails or connection is not established
      */
-    public void login(String username, String password) throws TCPClientException {
+    public void login(String username, String password) throws TCPClientException, ServerErrorException {
         byte[] userInfo = Utility.createUserInfoPacket(username, password);
         try {
             writer.write(userInfo);
@@ -95,9 +96,7 @@ public class DatabaseClient {
 
             byte response = reader.readByte();
             if (response == Utility.NAK) {
-                int receivedErrorCode = reader.readUnsignedShort();
-                TcpErrorCode errorCode = TcpErrorCode.fromCode(receivedErrorCode); //TODO Add message from server to user
-                throw new TCPClientException(errorCode.toString());
+                this.dataReader.readServerError();
             } else if (response == Utility.AK) {
                 this.isLoggedIn = true;
             } else throw new TCPClientException("Server responded with unknown response.");
