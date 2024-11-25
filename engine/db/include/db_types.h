@@ -91,8 +91,12 @@ struct CopiedValue {
 
     CopiedValue& operator=(CopiedValue&&) = default;
 
+
     //! @onlyInAtomicAccess
     CopiedValue(const Value& value);
+
+    void print();
+    static void print(CopiedValue &val);
 
     using copied_map_t = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>;
     using copied_pair_t = std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>>;

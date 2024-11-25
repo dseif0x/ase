@@ -35,6 +35,9 @@ public:
     offset_ptr(offset_t offset) : offset{offset} {};
     offset_ptr() : offset{-1} {};
 
+    offset_t get_offset() const {
+        return offset;
+    }
     T* get(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     relative_offset_ptr<T> get_relative(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     template <typename Lambda>
