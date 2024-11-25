@@ -63,7 +63,7 @@ std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
         }
     });
     if (!res.has_value())
-        return std::make_optional<CopiedValue>();
+        return std::nullopt;
     if (keys.size() == 1)
         return std::make_optional(res->get());
     keys.pop();
@@ -94,22 +94,24 @@ void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys,
         return;
     }
     std::optional<std::reference_wrapper<Value>> res{};
-    map.get(mem)->transaction([&](locked_db_map* map) {
-        if (map->has(key.c_str())) {
-            res.emplace(*map->get(key.c_str()));
-        }
-    });
-    if (!res.has_value())
-        return;
     keys.pop();
-    auto& newMap = *res;
-    if (newMap.get().type != ValueType::MAP)
-        throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
     offset_ptr<db_map> ptr;
     map.atomic_access(mem, [&](db_key_map* entrypoint)
     {
+        entrypoint->transaction([&](locked_db_map* map) {
+            if (map->has(key.c_str())) {
+                res.emplace(*map->get(key.c_str()));
+            }
+        });
+        if (!res.has_value())
+            return;
+        auto& newMap = *res;
+        if (newMap.get().type != ValueType::MAP)
+            throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
         ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.get().data));
     });
+    if (!res.has_value())
+        return;
     return set_key(ptr, mem, keys, new_value);
 }
 
