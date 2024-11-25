@@ -1,7 +1,8 @@
 package com.ase.utility;
 
 /**
- * Represents error codes for TCP communication. It is used before the connection handshake and server information is established.
+ * Represents error codes for TCP communication.
+ * It is used before the connection handshake and server information is established.
  */
 public enum TcpErrorCode {
     /**
