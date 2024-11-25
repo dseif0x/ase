@@ -23,10 +23,10 @@ public class DatabaseClient {
     private final DataOutputStream writer;
 
     /** Indicates whether a connection to the server has been established. */
-    private boolean isConnected = false;
-
-    /** Indicates whether a user is logged in to the server. */
     private boolean isLoggedIn = false;
+
+    /** Reader for reading data from the server based on server-provided size information. */
+    private DynamicDataReader dataReader;
 
     /**
      * Constructs a new DatabaseClient and establishes a socket connection.
@@ -65,11 +65,14 @@ public class DatabaseClient {
                 throw new TCPClientException(error.toString());
             } else if (response == Utility.AK) {
                 ServerInformation serverInfo = ServerInformation.readServerInformation(reader);
-                DynamicDataReader dataReader = new DynamicDataReader(serverInfo, reader);
+                if (!serverInfo.validate()) {
+                    throw new HandshakeException("Validation failed for server information. Sizes of server are too large.");
+                } else {
+                    this.dataReader = new DynamicDataReader(serverInfo, reader);
 
-                writer.write(Utility.AK);
-                writer.flush();
-                this.isConnected = true;
+                    writer.write(Utility.AK);
+                    writer.flush();
+                }
             } else throw new HandshakeException("Server responded with unknown response.");
         } catch (IOException e) {
             throw new TCPClientException("Failed to send client info packet.", e);
@@ -84,7 +87,6 @@ public class DatabaseClient {
      * @throws TCPClientException If authentication fails or connection is not established
      */
     public void login(String username, String password) throws TCPClientException {
-        if (!this.isConnected) throw new HandshakeException("Client is not connected to the server.");
         byte[] userInfo = Utility.createUserInfoPacket(username, password);
         try {
             writer.write(userInfo);

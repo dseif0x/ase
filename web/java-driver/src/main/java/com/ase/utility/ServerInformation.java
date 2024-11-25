@@ -56,6 +56,16 @@ public class ServerInformation {
     }
 
     /**
+     * Validates the server information.
+     *
+     * @return true if the server information is valid, false otherwise
+     */
+    public boolean validate() {
+        return booleanSize <= 1 && intSize <= Integer.SIZE / Byte.SIZE && charSize <= Character.SIZE / Byte.SIZE
+            && doubleSize <= Double.SIZE / Byte.SIZE && semaphoreSize <= Integer.SIZE / Byte.SIZE;
+    }
+
+    /**
      * Retrieves the size limit for the boolean type.
      *
      * @return the size of boolean in bytes
