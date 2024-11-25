@@ -10,6 +10,7 @@
 #include <thread>
 #include "decoder.h"
 
+#include <fstream>
 
 
 void GenericDecoder::add_to_buffer(std::vector<unsigned char> &block) {
@@ -178,4 +179,87 @@ std::string TCP2Decoder::get_error() {
 
 void TCP2Decoder::set_kys() {
     this->kys = true;
+}
+
+std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {
+    std::vector<unsigned char> res;
+    res.reserve(bytes);
+    this->buffer_lock.lock();
+    while (!this->kys) {
+        if (bytes == 0) break;
+        if (this->buffer.empty()) {
+            this->buffer_lock.unlock();
+            // free lock to allow new data to be written into the buffer
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            this->buffer_lock.lock();
+            continue;
+        }
+        auto bytes_to_copy = std::min(bytes, this->buffer.front().size() - this->start);
+        res.insert(res.end(), this->buffer.front().begin() + this->start,
+            this->buffer.front().begin() + this->start + bytes_to_copy);
+        bytes -= bytes_to_copy;
+        this->start += bytes_to_copy;
+        if (this->buffer.front().size() <= this->start) {
+            this->buffer.pop_front();
+            this->start = 0;
+        }
+    }
+    this->buffer_lock.unlock();
+    return res;
+}
+
+FileDecoder::FileDecoder(std::string &file_path) : file_path(file_path) {
+}
+
+/**
+ * Returns requested bytes from the buffer or throws an error if this is not possible.
+ * This function is non-blocking if the lock is available.
+ *
+ * @param bytes The requested amount of bytes.
+ * @return The requested bytes.
+ */
+std::vector<unsigned char> FileDecoder::get_bytes(size_t bytes) {
+    std::vector<unsigned char> res;
+    res.reserve(bytes);
+    this->buffer_lock.lock();
+    while (true) {
+        if (bytes == 0 || this->buffer.empty()) break;
+        auto bytes_to_copy = std::min(bytes, this->buffer.front().size() - this->start);
+        res.insert(res.end(), this->buffer.front().begin() + this->start,
+            this->buffer.front().begin() + this->start + bytes_to_copy);
+        bytes -= bytes_to_copy;
+        this->start += bytes_to_copy;
+        if (this->buffer.front().size() <= this->start) {
+            this->buffer.pop_front();
+            this->start = 0;
+        }
+    }
+    this->buffer_lock.unlock();
+    if (res.size() != bytes) throw std::invalid_argument("Not enough data to extract given bytes.");
+    return res;
+}
+
+void FileDecoder::read_data() {
+    std::ifstream file(file_path, std::ios::binary);
+
+    if (!file) {
+        throw std::ios_base::failure("Error: Unable to open file.");
+    }
+
+    int block_size = 64;
+    char buffer[block_size];
+    while (true) {
+        file.read(buffer, block_size);
+        std::streamsize bytes_read = file.gcount();
+
+        if (bytes_read == 0) break; // eof
+        std::vector<unsigned char> unsigned_buffer(buffer, buffer + bytes_read);
+        this->add_to_buffer(unsigned_buffer);
+
+        if (file.eof()) break; // eof
+
+        if (file.fail() && !file.eof()) throw std::ios_base::failure("Could not read file.");
+    }
+
+    file.close();
 }

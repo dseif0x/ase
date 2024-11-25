@@ -85,6 +85,16 @@ public:
     std::string get_error();
 };
 
+class FileDecoder : public GenericDecoder {
+    std::string file_path;
+
+public:
+    FileDecoder(std::string &file_path);
+
+    std::vector<unsigned char> get_bytes(size_t bytes) override;
+    void read_data() override;
+};
+
 
 
 #endif //DECODER_H

@@ -18,6 +18,5 @@ target_link_libraries(server_static PUBLIC core_static)
 target_link_libraries(server_static PUBLIC db_static)
 target_include_directories(server_static PUBLIC include)
 
-add_executable(tcp_test tcp_test.cpp
-        src/posix/tcp2encoder.cpp)
+add_executable(tcp_test tcp_test.cpp)
 target_link_libraries(tcp_test server_static)

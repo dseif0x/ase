@@ -42,6 +42,8 @@ public:
     bool has_permission(std::vector<std::string> key, unsigned char permissions);
     bool check_pwd(const std::string& pwd);
 
+    void set_permissions(CopiedValue &value);
+
     std::string print_user_data();
 };
 
@@ -56,7 +58,8 @@ class ACL {
 
 public:
     ACL(); // create default with one admin
-    explicit ACL(std::string path); // load acl from disk
+
+    bool load_from_disk(std::string path); // load acl from disk
 
     int try_login(const std::string &user, const std::string &pwd);
     ACLUser *get_user(const std::string &user);

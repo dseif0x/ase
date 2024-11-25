@@ -12,6 +12,8 @@
 #include <tcp2_utils.h>
 #include <vector>
 
+#include "decoder.h"
+
 ACLUser::ACLUser(const std::string& password, bool isAdmin)
     : pwd(password), is_admin(isAdmin) {
     CopiedValue perms;
@@ -30,6 +32,30 @@ ACLUser::ACLUser() : is_admin(false), permissions() {}
 
 ACL::ACL() {
     this->users["admin"] = ACLUser("rootpwd", true);
+}
+
+bool ACL::load_from_disk(std::string path) {
+    // format: [ ["username", "pwd", bool <is_admin>, {scope}], ...]
+    try {
+        FileDecoder decoder{path};
+        auto data = decoder.to_general();
+        if (!data) return false;
+        if (data->type != ValueType::ARRAY) return false;
+        auto &elems = std::get<CopiedValue::copied_array_t>(data->data);
+        for (auto &elem : elems) {
+            if (elem.type != ValueType::ARRAY) return false;
+            auto &ud = std::get<CopiedValue::copied_array_t>(elem.data);
+            if (ud.size() != 4) return false;
+            if (ud[0].type != ValueType::STRING || ud[1].type != ValueType::STRING || ud[2].type != ValueType::BOOLEAN
+                || ud[3].type != ValueType::MAP) return false;
+            auto u = ACLUser(std::get<std::string>(ud[1].data), std::get<bool>(ud[2].data));
+            u.set_permissions(ud[3]);
+            this->users.emplace(std::get<std::string>(ud[0].data), std::move(u));
+        }
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 constexpr bool ACLNode::has_perms(const unsigned char perms) const {
@@ -59,6 +85,10 @@ bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permiss
 
 bool ACLUser::check_pwd(const std::string &pwd) {
     return this->pwd == pwd;
+}
+
+void ACLUser::set_permissions(CopiedValue &value) {
+    this->permissions = std::move(value);
 }
 
 std::string ACLUser::print_user_data() {
