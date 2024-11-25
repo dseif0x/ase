@@ -66,6 +66,7 @@ public class DatabaseClient {
             } else if (response == Utility.AK) {
                 ServerInformation serverInfo = ServerInformation.readServerInformation(reader);
                 if (!serverInfo.validate()) {
+                    writer.write(Utility.NAK);
                     throw new HandshakeException("Validation failed for server information. Sizes of server are too large.");
                 } else {
                     this.dataReader = new DynamicDataReader(serverInfo, reader);

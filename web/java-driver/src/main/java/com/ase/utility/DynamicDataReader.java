@@ -35,6 +35,67 @@ public class DynamicDataReader {
     }
 
     /**
+     * Reads a string from the input stream using the TCP_EUI encoding scheme.
+     *
+     * @return The decoded String.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     */
+    public String readString() throws TCPClientException {
+        try {
+            long length = readTCPEUI();
+
+            if (length < 0 || length > this.serverInfo.getStringSize()) {
+                throw new TCPClientReadException("Invalid string length: " + length);
+            }
+
+            byte[] bytes = new byte[(int) length];
+            dataInputStream.readFully(bytes);
+
+            return new String(bytes, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new TCPClientReadException("Failed to read string.", e);
+        }
+    }
+
+    /**
+     * Decodes a TCP_EUI-encoded unsigned integer from the input stream.
+     *
+     * @return The decoded long value.
+     * @throws TCPClientException if an I/O error occurs or the encoding is invalid.
+     */
+    public long readTCPEUI() throws TCPClientException {
+        try {
+            int firstByte = dataInputStream.readUnsignedByte();
+            int leadingOnes = 0;
+
+            while (leadingOnes < 8 && ((firstByte & (0x80 >> leadingOnes)) != 0)) {
+                leadingOnes++;
+            }
+
+            if (leadingOnes == 0) {
+                return firstByte & 0x7F;
+            }
+
+            if (leadingOnes > 8) {
+                throw new TCPClientReadException("Invalid TCP_EUI encoding: too many leading ones.");
+            }
+
+            long value = 0;
+            value |= (long)(firstByte & (0xFF >> (leadingOnes + 1))) << (8 * leadingOnes);
+
+            // Read continuation bytes and assemble the value
+            for (int i = 0; i < leadingOnes; i++) {
+                int nextByte = dataInputStream.readUnsignedByte();
+                value |= ((long) nextByte) << (8 * (leadingOnes - 1 - i));
+            }
+
+            return value;
+        } catch (IOException e) {
+            throw new TCPClientReadException("Failed to read TCP_EUI encoded integer.", e);
+        }
+    }
+
+    /**
      * Reads a boolean value based on the server-provided size.
      *
      * @return the boolean value read from the stream
@@ -44,7 +105,6 @@ public class DynamicDataReader {
         try {
             byte[] bytes = new byte[serverInfo.getBooleanSize()];
             dataInputStream.readFully(bytes);
-            // Assuming non-zero is true
             return bytes[0] != 0;
         } catch (Exception e) {
             throw new TCPClientReadException("Failed to read boolean.", e);
@@ -132,10 +192,7 @@ public class DynamicDataReader {
         ByteBuffer buffer = ByteBuffer.allocate(TARGET_SIZE);
         buffer.order(ByteOrder.BIG_ENDIAN);
 
-        // Check if the most significant bit is set
         final byte padByte = (bytes.length > 0 && (bytes[0] & 0x80) != 0) ? (byte) 0xFF : 0x00;
-
-        // Pad with sign extension bytes
         for (int i = 0; i < TARGET_SIZE - bytes.length; i++) {
             buffer.put(padByte);
         }
@@ -145,7 +202,6 @@ public class DynamicDataReader {
 
         return buffer.getInt();
     }
-
 
     /**
      * Converts a byte array to a character value.
