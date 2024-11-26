@@ -144,6 +144,7 @@ public class Utility {
             long decoded = decodeTCPEUIByteArray(encoded);
             System.out.println("Value: " + value + " Encoded: " + bytesToBinary(encoded) + " Decoded: " + decoded);
         }
+
     }
 
     public static String bytesToBinary(byte[] bytes) {

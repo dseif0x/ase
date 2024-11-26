@@ -62,7 +62,7 @@ public class ServerInformation {
      */
     public boolean validate() {
         return booleanSize <= 1 && intSize <= Integer.SIZE / Byte.SIZE && charSize <= Character.SIZE / Byte.SIZE
-            && doubleSize <= Double.SIZE / Byte.SIZE && semaphoreSize <= Integer.SIZE / Byte.SIZE;
+            && (doubleSize == 4 || doubleSize == 8) && semaphoreSize <= Integer.SIZE / Byte.SIZE;
     }
 
     /**

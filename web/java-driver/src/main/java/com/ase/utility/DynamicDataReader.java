@@ -226,33 +226,9 @@ public class DynamicDataReader {
      *
      * @param bytes the byte array to convert
      * @return the character represented by the byte array
-     * @throws IllegalArgumentException if the byte array is null, empty, or does not represent a valid character
      */
-    private char bytesToChar(byte[] bytes) throws TCPClientException {
-        if (bytes == null || bytes.length == 0) {
-            throw new TCPClientReadException("Byte array is null or empty.");
-        }
-
-        Charset charset = StandardCharsets.UTF_8;
-        CharsetDecoder decoder = charset.newDecoder();
-
-        decoder.onMalformedInput(CodingErrorAction.REPORT);
-        decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-
-        try {
-            ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-            String decoded = decoder.decode(byteBuffer).toString();
-
-            if (decoded.length() == 1) {
-                return decoded.charAt(0);
-            } else if (decoded.length() > 1) {
-                throw new TCPClientReadException("Byte array represents multiple characters.");
-            } else {
-                throw new TCPClientReadException("Byte array does not represent a valid character.");
-            }
-        } catch (CharacterCodingException e) {
-            throw new TCPClientReadException("Failed to decode byte array into a character.", e);
-        }
+    private char bytesToChar(byte[] bytes) {
+        return new String(bytes, StandardCharsets.UTF_8).charAt(0);
     }
 
     /**
