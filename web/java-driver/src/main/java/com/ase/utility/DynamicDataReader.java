@@ -264,13 +264,17 @@ public class DynamicDataReader {
      * @throws IllegalArgumentException if the byte array length is not 8
      */
     private double bytesToDouble(byte[] bytes) {
-        if (bytes.length != 8) {
+        if (bytes.length != 8 && bytes.length != 4)  {
             throw new IllegalArgumentException("Double must be 8 bytes.");
         }
+
         long bits = 0;
+
         for (byte b : bytes) {
             bits = (bits << 8) | (b & 0xFF);
         }
-        return Double.longBitsToDouble(bits);
+
+        if (bytes.length == 4) return Float.intBitsToFloat((int) bits);
+        else return Double.longBitsToDouble(bits);
     }
 }
