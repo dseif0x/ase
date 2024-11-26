@@ -61,8 +61,8 @@ public class ServerInformation {
      * @return true if the server information is valid, false otherwise
      */
     public boolean validate() {
-        return booleanSize <= 1 && intSize <= Integer.SIZE / Byte.SIZE && charSize <= Character.SIZE / Byte.SIZE
-            && (doubleSize == 4 || doubleSize == 8) && semaphoreSize <= Integer.SIZE / Byte.SIZE;
+        return booleanSize == 1 && intSize <= Integer.BYTES && charSize <= Character.BYTES
+            && (doubleSize == Float.BYTES || doubleSize == Double.BYTES) && semaphoreSize <= Integer.BYTES;
     }
 
     /**

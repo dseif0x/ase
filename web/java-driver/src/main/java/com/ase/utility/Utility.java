@@ -154,4 +154,12 @@ public class Utility {
         }
         return binaryString.toString();
     }
+
+    public static long getMinValue(int targetSize) {
+        return -(1L << (8 * targetSize - 1));
+    }
+
+    public static long getMaxValue(int targetSize) {
+        return (1L << (8 * targetSize - 1)) - 1;
+    }
 }

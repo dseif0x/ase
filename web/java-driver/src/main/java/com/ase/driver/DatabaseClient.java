@@ -3,10 +3,8 @@ package com.ase.driver;
 import com.ase.exception.HandshakeException;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
-import com.ase.utility.DynamicDataReader;
-import com.ase.utility.ServerInformation;
-import com.ase.utility.TcpErrorCode;
-import com.ase.utility.Utility;
+import com.ase.utility.*;
+
 import java.io.*;
 import java.net.Socket;
 
@@ -28,6 +26,7 @@ public class DatabaseClient {
 
     /** Reader for reading data from the server based on server-provided size information. */
     private DynamicDataReader dataReader;
+    private DynamicDataWriter dataWriter;
 
     /**
      * Constructs a new DatabaseClient and establishes a socket connection.
@@ -71,7 +70,7 @@ public class DatabaseClient {
                     throw new HandshakeException("Validation failed for server information. Sizes of server are too large.");
                 } else {
                     this.dataReader = new DynamicDataReader(serverInfo, reader);
-
+                    this.dataWriter = new DynamicDataWriter(serverInfo, writer);
                     writer.write(Utility.AK);
                     writer.flush();
                 }
@@ -96,7 +95,7 @@ public class DatabaseClient {
 
             byte response = reader.readByte();
             if (response == Utility.NAK) {
-                this.dataReader.readServerError();
+                this.dataReader.readServerError(true);
             } else if (response == Utility.AK) {
                 this.isLoggedIn = true;
             } else throw new TCPClientException("Server responded with unknown response.");
