@@ -2,7 +2,7 @@ package com.ase.utility;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.exception.TCPClientReadException;
-import jdk.internal.net.http.common.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -170,20 +170,38 @@ public class DynamicDataReader {
     }
 
     /**
+     * Reads a 4-byte unsigned integer from the input stream in big-endian order.
+     *
+     * @return The unsigned integer value as a long (0 to 4294967295).
+     * @throws IOException If an I/O error occurs or if the end of the stream is reached prematurely.
+     */
+    public long readUnsignedInt() throws IOException {
+        byte[] bytes = new byte[4];
+        dataInputStream.readFully(bytes);
+
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+        return buffer.getInt() & 0xFFFFFFFFL;
+    }
+
+    /**
      * Reads a Generic Server Error Package from the input stream.
+     *
+     * @param  throwException whether to throw an exception if a server error is read
+     * @return an optional pair containing the error message and error code
      *
      * @throws ServerErrorException   when an error package is successfully read from the server.
      * @throws TCPClientException     if an error occurs while reading the server error string.
      * @throws IOException            if an I/O error occurs while reading the server error.
      */
-    public Optional<Pair<Integer, String>> readServerError(boolean throwException) throws ServerErrorException, TCPClientException, IOException {
+    public Optional<Pair<String, Integer>> readServerError(boolean throwException) throws ServerErrorException, TCPClientException, IOException {
         long errorCodeLong = dataInputStream.readUnsignedShort();
 
         int errorCode = (int) errorCodeLong;
 
         String errorMessage = readString();
         if (throwException) throw new ServerErrorException(errorCode, errorMessage);
-        return Optional.of(new Pair<>(errorCode, errorMessage));
+        return Optional.of(Pair.of(errorMessage, errorCode));
     }
 
     /**

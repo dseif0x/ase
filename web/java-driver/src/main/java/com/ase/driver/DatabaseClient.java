@@ -4,9 +4,12 @@ import com.ase.exception.HandshakeException;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.utility.*;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
  * Manages the TCP connection and communication with a database server.
@@ -63,7 +66,7 @@ public class DatabaseClient {
                 int errorCode = reader.readUnsignedShort();
                 TcpErrorCode errorCodeEnum = TcpErrorCode.fromCode(errorCode);
                 throw new ServerErrorException(errorCodeEnum.toString());
-            } else if (response == Utility.AK) {
+            } else if (response == Utility.ACK) {
                 ServerInformation serverInfo = ServerInformation.readServerInformation(reader);
                 if (!serverInfo.validate()) {
                     writer.write(Utility.NAK);
@@ -71,10 +74,10 @@ public class DatabaseClient {
                 } else {
                     this.dataReader = new DynamicDataReader(serverInfo, reader);
                     this.dataWriter = new DynamicDataWriter(serverInfo, writer);
-                    writer.write(Utility.AK);
+                    writer.write(Utility.ACK);
                     writer.flush();
                 }
-            } else throw new HandshakeException("Server responded with unknown response.");
+            } else throw new HandshakeException("Server responded with unknown response: " + String.format("0x%02X", response));
         } catch (IOException e) {
             throw new TCPClientException("Failed to send client info packet.", e);
         }
@@ -86,6 +89,7 @@ public class DatabaseClient {
      * @param username The username for authentication
      * @param password The password for authentication
      * @throws TCPClientException If authentication fails or connection is not established
+     * @throws ServerErrorException If the server responds with an error
      */
     public void login(String username, String password) throws TCPClientException, ServerErrorException {
         byte[] userInfo = Utility.createUserInfoPacket(username, password);
@@ -96,22 +100,228 @@ public class DatabaseClient {
             byte response = reader.readByte();
             if (response == Utility.NAK) {
                 this.dataReader.readServerError(true);
-            } else if (response == Utility.AK) {
+            } else if (response == Utility.ACK) {
                 this.isLoggedIn = true;
-            } else throw new TCPClientException("Server responded with unknown response.");
+            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
         } catch (IOException e) {
             throw new TCPClientException("Failed to send user info packet.", e);
         }
     }
 
     /**
-     * Closes the socket connection to the server.
+     * Sends a command to the server to delete a key-value pair.
+     *
+     * @param key The key of the value to be deleted from the server.
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li>If deletion is successful:
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li>If deletion fails:
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains the error message.</li>
+     *                     <li>{@code data} contains the error code.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
+     */
+    public WebReturn<Integer> delete(String key) throws TCPClientException {
+        try {
+            writer.write(Utility.DELETE_COMMAND);
+            dataWriter.writeString(key);
+
+            byte response = reader.readByte();
+            if (response == Utility.NAK) {
+                return readError();
+            } else if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+        } catch (IOException e) {
+            throw new TCPClientException("Failed to send delete command.", e);
+        }
+    }
+
+    /**
+     * Sends a command to the server to update the scope permissions of a user.
+     *
+     * @param username   The username of the user whose scope permissions are to be updated.
+     * @param key        The scope key to be added, edited, or deleted.
+     * @param options    The permission options for the scope:
+     *                   <ul>
+     *                       <li>0x01: read-permission</li>
+     *                       <li>0x02: write-permission</li>
+     *                       <li>0x04: delete-permission</li>
+     *                   </ul>
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains the server's error message.</li>
+     *                     <li>{@code data} contains the server's error code.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
+     */
+    public WebReturn<Integer> updateScope(String username, String key, byte options) throws TCPClientException {
+        try {
+            writer.write(Utility.UPDATE_SCOPE_COMMAND);
+
+            dataWriter.writeString(username);
+            dataWriter.writeString(key);
+
+            writer.write(options);
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else if (response == Utility.NAK) {
+                return readError();
+            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+
+        } catch (IOException e) {
+            throw new TCPClientException("Failed to send update scope command.", e);
+        }
+    }
+
+    /**
+     * Sends a command to the server to create a new user. A new user can be created as an administrator.
+     *
+     * @param username   The username of the user to be created.
+     * @param password   The password of the user to be created.
+     * @param options    The permission options for the scope:
+     *                   <ul>
+     *                       <li>0x01: new user will be administrator</li>
+     *                   </ul>
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains the server's error message.</li>
+     *                     <li>{@code data} contains the server's error code.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
+     */
+    public WebReturn<Integer> createUser(String username, String password, byte options) throws TCPClientException {
+        try {
+            writer.write(Utility.CREATE_USER_COMMAND);
+
+            dataWriter.writeString(username);
+            dataWriter.writeString(password);
+
+            writer.write(options);
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else if (response == Utility.NAK) {
+                return readError();
+            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+
+        } catch (IOException e) {
+            throw new TCPClientException("Failed to send update scope command.", e);
+        }
+    }
+
+    /**
+     * Sends a PING command to the server to verify communication and synchronization.
+     *
+     * @param packageToSend The unsigned integer data payload to send with the PING command.
+     * @return A {@link WebReturn} object indicating the outcome of the PING operation:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains an error description.</li>
+     *                     <li>{@code data} contains the error code.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
+     */
+    public WebReturn<Integer> ping(long packageToSend) throws TCPClientException {
+        try {
+            writer.write(Utility.PING_COMMAND);
+            dataWriter.writeUnsignedInt(packageToSend);
+
+            byte response = reader.readByte();
+            if (response == Utility.ACK) {
+                long responsePackage = dataReader.readUnsignedInt();
+                if (responsePackage == packageToSend) return WebReturn.success();
+                else return WebReturn.error("Server responded with " + responsePackage + " which is not equal to " + packageToSend + ".");
+            } else if (response == Utility.NAK) {
+                return readError();
+            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+        } catch (IOException e) {
+            throw new TCPClientException("Failed to send ping command.", e);
+        }
+    }
+
+    /**
+     * Sends disconnect to the server and closes the socket connection to the server.
      */
     public void disconnect() {
         try {
+            writer.write(Utility.DISCONNECT_COMMAND);
+            this.isLoggedIn = false;
             this.socket.close();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Reads a server error package from the input stream.
+     *
+     * @return A {@link WebReturn} object containing the error details:
+     *         <ul>
+     *             <li>{@code ok}: {@code false}</li>
+     *             <li>{@code message}: The error message returned by the server.</li>
+     *             <li>{@code data}: The error code returned by the server.</li>
+     *         </ul>
+     * @throws TCPClientException If an error occurs while reading the server error string.
+     * @throws IOException If an I/O error occurs while reading the server error.
+     */
+    private WebReturn<Integer> readError() throws TCPClientException, IOException {
+        Optional<Pair<String, Integer>> errorOpt = this.dataReader.readServerError(false);
+        if (errorOpt.isPresent()) {
+            Pair<String, Integer> error = errorOpt.get();
+            return WebReturn.error(error.getLeft(), error.getRight());
+        } else {
+            throw new TCPClientException("Received NAK but failed to read server error.");
         }
     }
 }

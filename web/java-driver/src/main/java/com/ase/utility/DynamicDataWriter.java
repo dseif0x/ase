@@ -138,6 +138,24 @@ public class DynamicDataWriter {
     }
 
     /**
+     * Writes a 4-byte unsigned integer to the output stream in big-endian order.
+     *
+     * @param value The unsigned integer value to write. Should be between 0 and 0xFFFFFFFF (4294967295).
+     * @throws IOException If an I/O error occurs.
+     * @throws IllegalArgumentException If the value is out of the unsigned int range.
+     */
+    public void writeUnsignedInt(long value) throws IOException {
+        if (value < 0 || value > 0xFFFFFFFFL) {
+            throw new IllegalArgumentException("Value out of range for unsigned int: " + value);
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(4);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+        buffer.putInt((int) value); // Only the lower 32 bits are used
+        dataOutputStream.write(buffer.array());
+    }
+
+    /**
      * Converts a float value to a 4-byte array.
      * Uses big-endian byte order.
      *

@@ -14,7 +14,42 @@ public class Utility {
     public static final byte NAK = 0x00;
 
     /** Acknowledgement sent by server (AK). */
-    public static final byte AK = (byte) 0xFF;
+    public static final byte ACK = (byte) 0xFF;
+
+    // --- START DATA COMMANDS ---
+    /** Command to get a key. */
+    public static final byte GET_COMMAND = (byte) 0x01;
+
+    /** Command to set a key. */
+    public static final byte SET_COMMAND = (byte) 0x02;
+
+    /** Command to force set a key. */
+    public static final byte FORCED_SET_COMMAND = (byte) 0x03;
+
+    /** Command to delete a key. */
+    public static final byte DELETE_COMMAND = (byte) 0x04;
+    // --- END DATA COMMANDS ---
+
+
+    // --- START USER  COMMANDS ---
+    /** Command to create a user. */
+    public static final byte CREATE_USER_COMMAND = (byte) 0x80;
+
+    /** Command to update scope. */
+    public static final byte UPDATE_SCOPE_COMMAND = (byte) 0x81;
+    // --- END USER COMMANDS ---
+
+
+    // --- START SERVER COMMANDS ---
+    /** Command to stop operation. */
+    public static final byte STOP_COMMAND = (byte) 0xFE;
+
+    /** Command to ping the server. */
+    public static final byte PING_COMMAND = (byte) 0xFD;
+
+    /** Command to disconnect from the server. */
+    public static final byte DISCONNECT_COMMAND = (byte) 0xFC;
+    // --- END SERVER COMMANDS ---
 
     /**
      * Creates a client information packet with version and flags.
@@ -138,13 +173,12 @@ public class Utility {
     }
 
     public static void main(String[] args) {
-        long[] testValues = {0, 1, 127, 128, 255, 256, 65535, 65536, 16777215, 16777216, 4294967295L, 4294967296L, 1099511627775L, 1099511627776L, 281474976710655L, 281474976710656L, 72057594037927935L, 72057594037927936L, 9223372036854775807L};
+        /*long[] testValues = {0, 1, 127, 128, 255, 256, 65535, 65536, 16777215, 16777216, 4294967295L, 4294967296L, 1099511627775L, 1099511627776L, 281474976710655L, 281474976710656L, 72057594037927935L, 72057594037927936L, 9223372036854775807L};
         for (long value : testValues) {
             byte[] encoded = createTCPEUIByteArray(value);
             long decoded = decodeTCPEUIByteArray(encoded);
             System.out.println("Value: " + value + " Encoded: " + bytesToBinary(encoded) + " Decoded: " + decoded);
-        }
-
+        }*/
     }
 
     public static String bytesToBinary(byte[] bytes) {
