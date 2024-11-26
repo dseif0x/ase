@@ -2,15 +2,17 @@ package com.ase.utility;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.exception.TCPClientReadException;
+import jdk.internal.net.http.common.Pair;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.*;
+import java.util.Optional;
 
 /**
- * Facilitates dynamic reading of various data types from a DataInputStream based on server-provided size information.
+ * Dynamic reading of various data types from a DataInputStream based on server-provided size information.
  */
 public class DynamicDataReader {
 
@@ -148,32 +150,22 @@ public class DynamicDataReader {
      * Reads a double value based on the server-provided size.
      *
      * @return the double value read from the stream
-     * @throws TCPClientReadException if reading the double fails
+     * @throws TCPClientException if reading the double fails
      */
     public double readDouble() throws TCPClientException {
         try {
-            byte[] bytes = new byte[serverInfo.getDoubleSize()];
-            dataInputStream.readFully(bytes);
-            return bytesToDouble(bytes);
-        } catch (Exception e) {
-            throw new TCPClientReadException("Failed to read double.", e);
-        }
-    }
+            int size = serverInfo.getDoubleSize();
 
-    /**
-     * Reads a semaphore value based on the server-provided size.
-     * Assumes that the semaphore is represented as an integer identifier.
-     *
-     * @return the semaphore identifier read from the stream
-     * @throws TCPClientReadException if reading the semaphore fails
-     */
-    public int readSemaphore() throws TCPClientException {
-        try {
-            byte[] bytes = new byte[serverInfo.getSemaphoreSize()];
+            byte[] bytes = new byte[size];
             dataInputStream.readFully(bytes);
-            return bytesToInt(bytes);
-        } catch (Exception e) {
-            throw new TCPClientReadException("Failed to read semaphore.", e);
+
+            if (size == Double.BYTES) {
+                return bytesToDouble(bytes);
+            } else {
+                return bytesToFloat(bytes);
+            }
+        } catch (IOException e) {
+            throw new TCPClientReadException("Failed to read double.", e);
         }
     }
 
@@ -184,13 +176,14 @@ public class DynamicDataReader {
      * @throws TCPClientException     if an error occurs while reading the server error string.
      * @throws IOException            if an I/O error occurs while reading the server error.
      */
-    public void readServerError() throws ServerErrorException, TCPClientException, IOException {
+    public Optional<Pair<Integer, String>> readServerError(boolean throwException) throws ServerErrorException, TCPClientException, IOException {
         long errorCodeLong = dataInputStream.readUnsignedShort();
 
         int errorCode = (int) errorCodeLong;
 
         String errorMessage = readString();
-        throw new ServerErrorException(errorCode, errorMessage);
+        if (throwException) throw new ServerErrorException(errorCode, errorMessage);
+        return Optional.of(new Pair<>(errorCode, errorMessage));
     }
 
     /**
@@ -201,16 +194,16 @@ public class DynamicDataReader {
      * @return the integer value represented by the byte array
      */
     private int bytesToInt(byte[] bytes) throws TCPClientException {
-        final int TARGET_SIZE = Integer.BYTES;
-        if (bytes.length > TARGET_SIZE) {
+        final int targetSize = Integer.BYTES;
+        if (bytes.length > targetSize) {
             throw new TCPClientReadException("Byte array too large to convert to int: " + bytes.length + " bytes");
         }
 
-        ByteBuffer buffer = ByteBuffer.allocate(TARGET_SIZE);
+        ByteBuffer buffer = ByteBuffer.allocate(targetSize);
         buffer.order(ByteOrder.BIG_ENDIAN);
 
         final byte padByte = (bytes.length > 0 && (bytes[0] & 0x80) != 0) ? (byte) 0xFF : 0x00;
-        for (int i = 0; i < TARGET_SIZE - bytes.length; i++) {
+        for (int i = 0; i < targetSize - bytes.length; i++) {
             buffer.put(padByte);
         }
 
@@ -232,25 +225,42 @@ public class DynamicDataReader {
     }
 
     /**
-     * Converts a byte array to a double value.
+     * Converts an 8-byte array to a double value using ByteBuffer.
      * Assumes big-endian byte order.
      *
-     * @param bytes the byte array to convert
+     * @param bytes the byte array to convert (must be 8 bytes)
      * @return the double value represented by the byte array
      * @throws IllegalArgumentException if the byte array length is not 8
      */
     private double bytesToDouble(byte[] bytes) {
-        if (bytes.length != 8 && bytes.length != 4)  {
+        if (bytes.length != 8)  {
             throw new IllegalArgumentException("Double must be 8 bytes.");
         }
 
-        long bits = 0;
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+        return buffer.getDouble();
+    }
+
+    /**
+     * Converts a 4-byte array to a float value.
+     * Assumes big-endian byte order.
+     *
+     * @param bytes the byte array to convert (must be 4 bytes)
+     * @return the float value represented by the byte array
+     * @throws IllegalArgumentException if the byte array length is not 4
+     */
+    private float bytesToFloat(byte[] bytes) {
+        if (bytes.length != 4)  {
+            throw new IllegalArgumentException("Float must be 4 bytes.");
+        }
+
+        int bits = 0;
 
         for (byte b : bytes) {
             bits = (bits << 8) | (b & 0xFF);
         }
 
-        if (bytes.length == 4) return Float.intBitsToFloat((int) bits);
-        else return Double.longBitsToDouble(bits);
+        return Float.intBitsToFloat(bits);
     }
 }
