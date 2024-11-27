@@ -85,6 +85,37 @@ std::optional<CopiedValue> DB::get(const char *key) {
     return res;
 }
 
+std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_follows) {
+    if (max_chained_follows == 1) {
+        auto start = get(key); // TODO: it's inefficient to copy more than once.
+        if (!start.has_value()) return std::nullopt;
+        auto& start_val = start.value();
+        if (start_val.type != ValueType::REFERENCE) return start;
+        return get(std::get<std::string>(start_val.data).c_str());
+    }
+    if (max_chained_follows == 0) {
+        std::optional<CopiedValue> next;
+        std::string next_key{key};
+        while(true) {
+            next = get(next_key.c_str());
+            if (!next.has_value()) return std::nullopt;
+            auto& val = next.value();
+            if (val.type == ValueType::REFERENCE) {
+                next_key = std::get<std::string>(val.data);
+            } else {
+                return next;
+            }
+        }
+    }
+    { // max_chained_follows > 1
+        auto start = get(key);
+        if (!start.has_value()) return std::nullopt;
+        auto& val = start.value();
+        if (val.type != ValueType::REFERENCE) return start;
+        return follow(std::get<std::string>(val.data).c_str(), max_chained_follows - 1);
+    }
+}
+
 void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys, offset_ptr<Value>& new_value) {
     if (keys.empty())
         return;

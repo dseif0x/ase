@@ -32,7 +32,7 @@ public:
     std::optional<CopiedValue> get(const char* key); //!< GET command of the database, will return a copy of the value
     void set(const char* key, const CopiedValue& value); //!< SET command of the database, will set a key to a value
 
-    std::optional<CopiedValue> follow(const char* key); //!< FOLLOW command of the database, will return a copy of the value a references is pointing to
+    std::optional<CopiedValue> follow(const char* key, uint16_t max_chained_follows = 1); //!< FOLLOW command of the database, will return a copy of the value a references is pointing to
     std::vector<std::string> list(const char* key); //!< LIST command of the database, will return a list of first level sub keys in a map
     void remove(const char* key); //!< DELETE command of the database, will remove a key and its value from the database
 
