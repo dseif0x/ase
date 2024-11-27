@@ -14,11 +14,21 @@
 TCP2Server::TCP2Server(ACL &acl, DB &db, int port, int max_clients): port(port), max_clients(max_clients), acl(acl), db(db) {
 }
 
+TCP2Server::~TCP2Server() {
+    this->stop();
+}
+
 void TCP2Server::start() {
-    this->client_acceptor = std::thread(tcp2_utils::client_acceptor, std::ref(this->kill_acceptor), std::ref(this->acl), std::ref(this->db), this->port, this->max_clients);
+    if (!this->running) {
+        this->running = true;
+        this->client_acceptor = std::thread(tcp2_utils::client_acceptor, std::ref(this->kill_acceptor), std::ref(this->acl), std::ref(this->db), this->port, this->max_clients);
+    }
 }
 
 void TCP2Server::stop() {
-    this->kill_acceptor = true;
-    this->client_acceptor.join();
+    if (this->running) {
+        this->kill_acceptor = true;
+        this->client_acceptor.join();
+        this->running = false;
+    }
 }

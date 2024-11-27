@@ -41,6 +41,13 @@ int main() {
     std::cout << "after db" << std::endl;
 
     ACL acl{};
+
+    if (acl.load_from_disk("../../../test.bin")) {
+        std::cout << "acl loaded from disk" << std::endl;
+    } else {
+        std::cout << "could not load from disk" << std::endl;
+        return -1;
+    }
     TCP2Server server{acl, db, 42069, 10};
 
     server.start();

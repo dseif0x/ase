@@ -27,10 +27,13 @@ class TCP2Server {
     std::atomic<int> socket_error{0};
 
     std::thread client_acceptor;
+    bool running = false;
 
 public:
     TCP2Server(ACL &acl, DB &db, int port, int max_clients);
+    ~TCP2Server();
     bool load_acl_from_disk(std::string path);
+    bool save_acl_to_disk(std::string path);
     void start();
     void stop();
 

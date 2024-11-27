@@ -38,7 +38,10 @@ bool ACL::load_from_disk(std::string path) {
     // format: [ ["username", "pwd", bool <is_admin>, {scope}], ...]
     try {
         FileDecoder decoder{path};
+        decoder.read_data();
         auto data = decoder.to_general();
+        data->print();
+        std::cout << std::endl;
         if (!data) return false;
         if (data->type != ValueType::ARRAY) return false;
         auto &elems = std::get<CopiedValue::copied_array_t>(data->data);
@@ -52,6 +55,35 @@ bool ACL::load_from_disk(std::string path) {
             u.set_permissions(ud[3]);
             this->users.emplace(std::get<std::string>(ud[0].data), std::move(u));
         }
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool ACL::save_to_disk(std::string path) {
+    try {
+        FileEncoder encoder{path};
+        CopiedValue val{};
+        val.type = ValueType::ARRAY;
+        auto &vec = val.data.emplace<CopiedValue::copied_array_t>();
+        for (auto &user : this->users) {
+            CopiedValue cur{};
+            cur.type = ValueType::ARRAY;
+            auto &cur_vec = cur.data.emplace<CopiedValue::copied_array_t>();
+            CopiedValue username{};
+            username.type = ValueType::STRING;
+            username.data = user.first;
+            cur_vec.emplace_back(std::move(username));
+            user.second.serialize_user(cur_vec);
+            vec.emplace_back(std::move(cur));
+        }
+        std::cout << "saving following data:";
+        val.print();
+        std::cout << std::endl;
+        encoder.from_general(val);
+        std::cout << "encode worked" << std::endl;
+        encoder.write_data();
         return true;
     } catch (...) {
         return false;
@@ -89,6 +121,22 @@ bool ACLUser::check_pwd(const std::string &pwd) {
 
 void ACLUser::set_permissions(CopiedValue &value) {
     this->permissions = std::move(value);
+}
+
+
+void ACLUser::serialize_user(std::vector<CopiedValue> &value) {
+    CopiedValue pwd{};
+    pwd.type = ValueType::STRING;
+    pwd.data = this->pwd;
+    value.emplace_back(std::move(pwd));
+
+    CopiedValue is_admin{};
+    is_admin.type = ValueType::BOOLEAN;
+    is_admin.data = this->is_admin;
+    value.emplace_back(std::move(is_admin));
+
+    // TODO create a copy of permissions!!!
+    value.emplace_back(std::move(this->permissions));
 }
 
 std::string ACLUser::print_user_data() {

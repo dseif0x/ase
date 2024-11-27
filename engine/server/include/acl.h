@@ -43,6 +43,7 @@ public:
     bool check_pwd(const std::string& pwd);
 
     void set_permissions(CopiedValue &value);
+    void serialize_user(std::vector<CopiedValue> &value);
 
     std::string print_user_data();
 };
@@ -60,6 +61,7 @@ public:
     ACL(); // create default with one admin
 
     bool load_from_disk(std::string path); // load acl from disk
+    bool save_to_disk(std::string path);
 
     int try_login(const std::string &user, const std::string &pwd);
     ACLUser *get_user(const std::string &user);

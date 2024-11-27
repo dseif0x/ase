@@ -78,4 +78,14 @@ public:
 };
 
 
+class FileEncoder : public GenericEncoder {
+    std::string file_path;
+
+public:
+    explicit FileEncoder(std::string &file_path);
+
+    bool write_data() override;
+};
+
+
 #endif //ENCODER_H

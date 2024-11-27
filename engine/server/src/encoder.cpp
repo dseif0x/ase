@@ -10,6 +10,8 @@
 #include "tcp2_coding.h"
 #include "encoder.h"
 
+#include <fstream>
+
 
 std::pair<std::unique_ptr<unsigned char[]>, int> GenericEncoder::get_bytes(size_t bytes) {
     size_t cur_size{};
@@ -79,7 +81,7 @@ void GenericEncoder::from_nak() {
 }
 
 void GenericEncoder::from_bool(bool val) {
-    this->from_byte(*reinterpret_cast<unsigned char*>(val));
+    this->from_byte(*reinterpret_cast<unsigned char*>(&val));
 }
 
 void GenericEncoder::from_byte(unsigned char val) {
@@ -128,6 +130,10 @@ bool GenericEncoder::from_general(CopiedValue &val) {
     try {
         this->from_complex_general(val);
         return true;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions derived from std::exception
+        std::cerr << "Caught exception: " << e.what() << '\n';
+        return false;
     } catch (...) {
         // error most likely because of std::get getting a value with incompatible type
         return false;
@@ -159,7 +165,7 @@ void GenericEncoder::from_basic_general(CopiedValue &val) {
 
 void GenericEncoder::from_complex_general(CopiedValue &val) {
     val.print();
-    std::cout << "type:" << (int)val.type << std::endl;
+    std::cout << std::endl;
     unsigned char info{};
     if (val.type == ValueType::MAP) {
         this->from_byte(info_block::map_bit);
@@ -226,5 +232,31 @@ void TCP2Encoder::encode_error(unsigned long long error_id) {
 void TCP2Encoder::encode_nak_error(unsigned long long error_id) {
     this->from_acknak(false);
     this->encode_error(error_id);
+}
+
+FileEncoder::FileEncoder(std::string &file_path): GenericEncoder(), file_path(file_path) {
+}
+
+bool FileEncoder::write_data() {
+    std::ofstream file(file_path, std::ios::binary);
+
+    if (!file) {
+        throw std::ios_base::failure("Error: Unable to open file for writing.");
+    }
+
+    int block_size = 64;
+    while (!this->is_empty()) {
+        auto data = this->get_bytes(block_size);
+        file.write(reinterpret_cast<const char*>(data.first.get()), data.second);
+        if (!file) {
+            throw std::ios_base::failure("Error: Failed to write array data to file.");
+        }
+    }
+
+    file.close();
+    if (!file.good()) {
+        throw std::ios_base::failure("Error: File stream encountered an error on close.");
+    }
+    return true;
 }
 
