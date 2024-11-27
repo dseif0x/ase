@@ -9,8 +9,8 @@
 #include <tcp2_server.h>
 #include <thread>
 #include "decoder.h"
-
 #include <fstream>
+#include <optional>
 
 
 void GenericDecoder::add_to_buffer(std::vector<unsigned char> &block) {

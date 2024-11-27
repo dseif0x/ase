@@ -10,6 +10,9 @@
 #include <atomic>
 #include <deque>
 #include <mutex>
+#include <optional>
+
+#include "sys/time.h"
 #include "db_types.h"
 
 // todo replace symbol with correct one
@@ -65,7 +68,7 @@ class TCP2Decoder : public GenericDecoder {
     fd_set readfds{};
     char tcp_buffer[DECODER_BUFFER_SIZE]{};
     ssize_t bytesReceived{};
-#elifdef WIN32
+#elif define WIN32
     // tcp stuff for win
 #endif
 protected:

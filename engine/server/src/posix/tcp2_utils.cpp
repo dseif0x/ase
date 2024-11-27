@@ -6,6 +6,8 @@
  */
 
 #include "tcp2_utils.h"
+
+#include <cstring>
 #include <iostream>
 #include <tcp2_server.h>
 #include <thread>
@@ -13,7 +15,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <sys/_select.h>
+#include <sys/select.h>
 
 #include "encoder.h"
 
