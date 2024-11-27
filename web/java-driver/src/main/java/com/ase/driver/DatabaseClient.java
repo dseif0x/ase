@@ -313,7 +313,7 @@ public class DatabaseClient {
      * @throws TCPClientException If the command fails to send, the connection is not established,
      *                             an unexpected server response is received, or server never responds with ACK/NAK.
      */
-    public WebReturn<Integer> stopCommand() throws TCPClientException {
+    public WebReturn<Integer> stop() throws TCPClientException {
         try {
             writer.writeByte(Utility.STOP_COMMAND);
             writer.flush();
