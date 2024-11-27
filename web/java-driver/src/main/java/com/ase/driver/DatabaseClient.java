@@ -291,6 +291,63 @@ public class DatabaseClient {
     }
 
     /**
+     * Sends a STOP command to the server to halt any ongoing data transmission.
+     *
+     * @return A {@link WebReturn} object indicating the outcome of the STOP operation:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains an error description.</li>
+     *                     <li>{@code data} contains the error code.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     * @throws TCPClientException If the command fails to send, the connection is not established,
+     *                             an unexpected server response is received, or server never responds with ACK/NAK.
+     */
+    public WebReturn<Integer> stopCommand() throws TCPClientException {
+        try {
+            writer.writeByte(Utility.STOP_COMMAND);
+            writer.flush();
+
+            final int MAX_BYTES_TO_READ = 1024; // Maximum number of bytes to read before giving up
+            int bytesRead = 0;
+
+            while (bytesRead < MAX_BYTES_TO_READ) {
+                if (reader.available() > 0) {
+                    byte responseByte = reader.readByte();
+                    bytesRead++;
+
+                    if (responseByte == Utility.ACK) { // 0xFF
+                        return WebReturn.success();
+                    } else if (responseByte == Utility.NAK) { // 0x00
+                        return readError();
+                    }
+                } else {
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new TCPClientException("Thread interrupted while waiting for STOP response.", e);
+                    }
+                }
+            }
+
+            throw new TCPClientException("ACK/NAK not received after sending STOP command.");
+        } catch (IOException e) {
+            throw new TCPClientException("Failed to send STOP command.", e);
+        }
+    }
+
+    /**
      * Sends disconnect to the server and closes the socket connection to the server.
      */
     public void disconnect() {

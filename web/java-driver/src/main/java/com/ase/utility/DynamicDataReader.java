@@ -64,7 +64,7 @@ public class DynamicDataReader {
      * Decodes a TCP_EUI-encoded unsigned integer from the input stream.
      *
      * @return The decoded long value.
-     * @throws TCPClientException if an I/O error occurs or the encoding is invalid.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
     public long readTCPEUI() throws TCPClientException {
         try {
@@ -150,7 +150,7 @@ public class DynamicDataReader {
      * Reads a double value based on the server-provided size.
      *
      * @return the double value read from the stream
-     * @throws TCPClientException if reading the double fails
+     * @throws TCPClientReadException if reading the double fails
      */
     public double readDouble() throws TCPClientException {
         try {
