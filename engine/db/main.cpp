@@ -32,6 +32,8 @@ void get_and_print(DB& db, const char* key) {
             std::cout << "Value found for key " << key << ": " << get<int>(val.value().data) << std::endl;
         } else if (val->type == ValueType::STRING) {
             std::cout << "Value found for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::DOUBLE) {
+            std::cout << "Value found for key " << key << ": " << get<double>(val.value().data) << std::endl;
         } else {
             std::cout << "Value found for key " << key << ", " <<  "but type not handeled" << std::endl;
         }
@@ -48,8 +50,8 @@ int main() {
         DB db;
         db.destroy();
     }
-    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    //int pid = 1;
+    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    int pid = 1;
     stopwatch s;
     if (pid == 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -129,22 +131,23 @@ int main() {
 
         { // Map
 
-            auto map_val = std::make_unique<CopiedValue>();
-            map_val->type = ValueType::INT;
-            map_val->data.emplace<int>(1222);
+            CopiedValue map_val {};
+            map_val.type = ValueType::INT;
+            map_val.data.emplace<int>(1222);
 
-            auto map_val2 = std::make_unique<CopiedValue>();
-            map_val2->type = ValueType::DOUBLE;
-            map_val2->data.emplace<double>(1.2);
+            CopiedValue map_val2 {};
+            map_val2.type = ValueType::DOUBLE;
+            map_val2.data.emplace<double>(1.2);
 
             std::unordered_map<std::string, std::unique_ptr<CopiedValue>> map;
-            map.emplace("key1", std::move(map_val));
-            map.emplace("key2", std::move(map_val2));
 
-            CopiedValue newval6{};
+            CopiedValue newval6 {};
             newval6.type = ValueType::MAP;
             newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
             db.set("test8", newval6);
+
+            db.set("test8.key1", map_val);
+            db.set("test8.key2", map_val2);
         }
 
         get_and_print(db, "test");
