@@ -39,8 +39,8 @@ class shmem {
     bool can_fit(std::size_t required_memory); //!< This function is used to check if the required size can fit in the base segment
     void ensure_enough_space(std::size_t required_memory); //!< This function is used to resize the base segment if the required size is larger than the current size
     void atomic_access(offset_t offset, std::function<void(void*)>&& lambda, bool locks_held = false); //!< This function is used to access the data segment in an atomic way
-    offset_t allocate(std::size_t size); //!< This function is used to allocate a new block of memory in the base segment
-    void deallocate(offset_t ptr); //!< This function is used to allocate a new block of memory in the base segment
+    offset_t allocate(std::size_t size, bool lock_held = false); //!< This function is used to allocate a new block of memory in the base segment
+    void deallocate(offset_t ptr, bool lock_held = false); //!< This function is used to allocate a new block of memory in the base segment
 public:
     shmem();
     shmem(std::function<void(shmem&)> on_create);
@@ -75,23 +75,38 @@ public:
         return ptr;
     }
 
-    //! @neverInAtomicAccess
-    template<typename T>
-    void destroy(offset_ptr<T> ptr) { // Using this inside an atomic_access lambda will cause a deadlock
-        atomic_access(ptr.offset, [](void *ptr) {
-            reinterpret_cast<T*>(ptr)->~T();
-        });
-        deallocate(ptr.offset);
+    /**
+     * Only call this function if you have a unique_lock on the meta_mutex
+     */
+    template <typename T>
+    offset_ptr<T> construct_array_unsafe(size_t count) { // Using this inside an atomic_access lambda will cause a deadlock
+        auto storage = allocate(sizeof(T) * count, true);
+        offset_ptr<T> ptr{storage};
+        atomic_access(storage, [count](void *ptr) {
+            for (size_t i = 0; i < count; i++) {
+                new (reinterpret_cast<uint8_t*>(ptr) + i * sizeof(T)) T();
+            }
+        }, true);
+        return ptr;
     }
 
     //! @neverInAtomicAccess
     template<typename T>
-    void destroy_array(offset_ptr<T> ptr) { // Using this inside an atomic_access lambda will cause a deadlock
+    void destroy(offset_ptr<T> ptr, bool locks_held = false) { // Using this inside an atomic_access lambda will cause a deadlock
+        atomic_access(ptr.offset, [](void *ptr) {
+            reinterpret_cast<T*>(ptr)->~T();
+        }, locks_held);
+        deallocate(ptr.offset, locks_held);
+    }
+
+    //! @neverInAtomicAccess
+    template<typename T>
+    void destroy_array(offset_ptr<T> ptr, bool locks_held = false) { // Using this inside an atomic_access lambda will cause a deadlock
         // TODO get count and call destructors
         atomic_access(ptr.offset, [](void *ptr) {
             reinterpret_cast<T*>(ptr)->~T();
-        });
-        deallocate(ptr.offset);
+        }, locks_held);
+        deallocate(ptr.offset, locks_held);
     }
 
     template<typename T>
