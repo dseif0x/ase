@@ -68,6 +68,7 @@ public:
         cb(&locked_map);
     }
 
+    //! @neverInAtomicAccess
     static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, offset_ptr<Value> value) { // NEVER CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK (it will deadlock)
         bool found = false;
         size_t used_size;
