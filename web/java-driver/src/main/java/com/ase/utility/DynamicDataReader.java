@@ -2,6 +2,9 @@ package com.ase.utility;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.exception.TCPClientReadException;
+import com.ase.utility.tcp.SimpleType;
+import com.ase.utility.tcp.TypeDefinition;
+import com.ase.utility.tcp.TypeFlag;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.DataInputStream;
@@ -9,6 +12,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -182,6 +188,147 @@ public class DynamicDataReader {
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
         buffer.order(ByteOrder.BIG_ENDIAN);
         return buffer.getInt() & 0xFFFFFFFFL;
+    }
+
+    /**
+     * Reads a key from the input stream based on the Type-Definition-Block.
+     *
+     * @return The Key-Value HashMap.
+     * @throws TCPClientReadException if an I/O error occurs or the reading fails.
+     */
+    public HashMap<String, Object> readKey() throws TCPClientException {
+        long keyLength = readTCPEUI();
+        int len = (int) keyLength;
+
+        HashMap<String, Object> key = new HashMap<>(len);
+
+        for (int i = 0; i < len; i++) {
+            String keyE = readString();
+            Object valueE = readGeneral();
+            key.put(keyE, valueE);
+        }
+        return key;
+    }
+
+    /**
+     * Reads an array from the input stream based on the Type-Definition-Block.
+     *
+     * @return A List containing the array elements.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     */
+    public List<Object> readArray(boolean isComplex, SimpleType simpleType) throws TCPClientException {
+        long arrayLength = readTCPEUI();
+        if (arrayLength < 0 || arrayLength > serverInfo.getArraySize()) {
+            throw new TCPClientReadException("Invalid array length: " + arrayLength);
+        }
+
+        int len = (int) arrayLength;
+
+        List<Object> array = new ArrayList<>(len);
+
+        if (!isComplex) {
+            for (int i = 0; i < len; i++) {
+                Object element = readSimpleType(simpleType);
+                array.add(element);
+            }
+        } else {
+            for (int i = 0; i < len; i++) {
+                Object element = readGeneral();
+                array.add(element);
+            }
+        }
+
+        return array;
+    }
+
+    /**
+     * Reads a value from the input stream based on its Type-Definition-Block.
+     *
+     * @return The decoded value as an Object.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     */
+    public Object readGeneral() throws TCPClientException {
+        TypeDefinition typeDef = readTypeDefinition();
+
+        if (typeDef.isKey()) {
+            return readKey();
+        } else if (typeDef.isArray()) {
+            return readArray(typeDef.isComplex(), typeDef.getSimpleType());
+        } else if (typeDef.isPair()) {
+            return readPair(typeDef.isComplex(), typeDef.getSimpleType());
+        } else {
+            if (typeDef.getSimpleType() == null) {
+                throw new TCPClientReadException("SimpleType is null for a non-complex, non-array, non-pair type.");
+            }
+            return readSimpleType(typeDef.getSimpleType());
+        }
+    }
+
+    /**
+     * Reads a Type-Definition-Block from the input stream.
+     *
+     * @return A TypeDefinition object encapsulating the type properties.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     */
+    private TypeDefinition readTypeDefinition() throws TCPClientReadException {
+        try {
+            int typeByte = dataInputStream.readUnsignedByte();
+
+            boolean isArray = (typeByte & TypeFlag.ARRAY.getBitmask()) != 0;
+            boolean isPair = (typeByte & TypeFlag.PAIR.getBitmask()) != 0;
+            boolean isComplex = (typeByte & TypeFlag.COMPLEX.getBitmask()) != 0 && (isPair || isArray);
+            boolean isKey = (typeByte & TypeFlag.KEY.getBitmask()) != 0;
+
+            if (isArray && isPair) {
+                throw new TCPClientReadException("Type-Definition-Block cannot have both Array and Pair flags set.");
+            }
+
+            SimpleType simpleType = SimpleType.fromTypeId(typeByte & 0x07);
+            return new TypeDefinition(isArray, isPair, isComplex, isKey, simpleType);
+        } catch (IOException e) {
+            throw new TCPClientReadException("Failed to read Type-Definition-Block.", e);
+        } catch (IllegalArgumentException e) {
+            throw new TCPClientReadException("Unknown SimpleType in Type-Definition-Block.", e);
+        }
+    }
+
+    /**
+     * Reads a pair (key-value pair) from the input stream based on the Type-Definition-Block.
+     *
+     * @param isComplex Indicates whether the first value is a complex type requiring its own TDB.
+     * @return A Pair object containing the key and value.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     */
+    private Pair<Object, Object> readPair(boolean isComplex, SimpleType type) throws TCPClientException {
+        Object first, second;
+
+        if (isComplex) first = readGeneral();
+        else first = readSimpleType(type);
+
+        second = readGeneral();
+        return Pair.of(first, second);
+    }
+
+    /**
+     * Reads a simple type value from the input stream.
+     *
+     * @param simpleType The SimpleType to read.
+     * @return The decoded value as an Object.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     */
+    private Object readSimpleType(SimpleType simpleType) throws TCPClientException {
+        switch (simpleType) {
+            case BOOLEAN:
+                return readBoolean();
+            case INT:
+                return readInt();
+            case STRING:
+                return readString();
+            case DOUBLE:
+                return readDouble();
+            default:
+                throw new TCPClientReadException("Unsupported SimpleType: " + simpleType);
+        }
     }
 
     /**

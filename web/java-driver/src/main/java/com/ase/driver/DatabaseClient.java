@@ -4,11 +4,11 @@ import com.ase.exception.HandshakeException;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.utility.*;
+import com.ase.utility.tcp.TcpErrorCode;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
