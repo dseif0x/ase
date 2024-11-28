@@ -1,4 +1,4 @@
-package com.ase.utility;
+package com.ase.utility.tcp;
 
 /**
  * Represents error codes for TCP communication.
