@@ -19,6 +19,10 @@ public class TypeDefinition {
         return isArray;
     }
 
+    public boolean isKey() {
+        return isKey;
+    }
+
     public boolean isPair() {
         return isPair;
     }
