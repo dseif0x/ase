@@ -21,15 +21,6 @@ public enum SimpleType {
     }
 
     /**
-     * Retrieves the type ID.
-     *
-     * @return The type ID.
-     */
-    public int getTypeId() {
-        return typeId;
-    }
-
-    /**
      * Retrieves the SimpleType based on the provided type ID.
      *
      * @param typeId The type ID to lookup.
