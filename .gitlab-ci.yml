@@ -1,0 +1,63 @@
+stages:
+  - build
+  - test
+
+default:
+  image: alpine:latest
+
+# Job to generate the Doxygen documentation
+generate_docs:
+  stage: build
+  before_script:
+    - apk add --no-cache doxygen graphviz # Install Doxygen and Graphviz
+  script:
+    - cd engine
+    - doxygen Doxyfile
+    - cd ../web/backend
+    - doxygen Doxyfile
+    - cd ../java-driver
+    - doxygen Doxyfile
+    - cd ../..
+  artifacts:
+    paths:
+      - engine/docs/html/   # Path where Doxygen output is generated
+      - web/backend/docs/html/
+      - web/java-driver/docs/html/
+    expire_in: 1 week
+
+variables:
+  BUILD_DIR: engine/build
+  TEST_DIRS: "core db"
+
+build:
+  stage: build
+  before_script:
+    - apk add --no-cache cmake build-base make
+  script:
+    - mkdir -p $BUILD_DIR
+    - cd $BUILD_DIR
+    - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage ..
+    - cmake --build .
+  artifacts:
+    paths:
+      - $BUILD_DIR
+
+test:
+  stage: test
+  dependencies:
+    - build
+  before_script:
+    - apk add --no-cache cmake build-base lcov gzip
+  script:
+    - mkdir -p coverage_report
+    - cd $BUILD_DIR
+    - for folder in $TEST_DIRS; do
+        ctest --test-dir $folder;
+        lcov --ignore-errors mismatch --directory $folder --capture --output-file $folder/coverage.info;
+        lcov --remove $folder/coverage.info '/usr/*' '*googletest*' --output-file $folder/coverage.info;
+        genhtml $folder/coverage.info --output-directory ../../coverage_report/$folder;
+      done
+  artifacts:
+    paths:
+      - coverage_report
+

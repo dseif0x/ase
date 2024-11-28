@@ -1,3 +1,3 @@
-cmake-build-debug/
-cmake-build-release/
-cmake-build-relwithdebinfo/
+docs/
+cmake-build-*/
+.DS_Store
