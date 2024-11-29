@@ -34,8 +34,37 @@ void get_and_print(DB& db, const char* key) {
             std::cout << "Value found for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
         } else if (val->type == ValueType::DOUBLE) {
             std::cout << "Value found for key " << key << ": " << get<double>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::REFERENCE) {
+            std::cout << "Value found for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
         } else {
             std::cout << "Value found for key " << key << ", " <<  "but type not handeled" << std::endl;
+        }
+    } else {
+        std::cout << "Value not found for key " << key << std::endl;
+    }
+}
+
+/**
+ * @brief Retrieves a value from the database by key and prints it.
+ *
+ * This function attempts to retrieve a value associated with the given reference from
+ * the database. If the value is found, it prints the integer value to the standard
+ * output. If not, it prints a "Value not found" message.
+ *
+ * @param db A reference to the `DB` object from which the value is retrieved.
+ * @param key A pointer to a C-string representing the key of the reference to retrieve.
+ */
+void follow_and_print(DB& db, const char* key) {
+    std::optional<CopiedValue> val = db.follow(key);
+    if (val.has_value()) {
+        if (val->type == ValueType::INT) {
+            std::cout << "Reference followed for key " << key << ": " << get<int>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::STRING) {
+            std::cout << "Reference followed for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::DOUBLE) {
+            std::cout << "Reference followed for key " << key << ": " << get<double>(val.value().data) << std::endl;
+        } else {
+            std::cout << "Reference followed for key " << key << ", " <<  "but type not handeled" << std::endl;
         }
     } else {
         std::cout << "Value not found for key " << key << std::endl;
@@ -154,6 +183,13 @@ int main() {
             db.set("test8.key2", std::move(map_val2));
         }
 
+        { // Reference
+            CopiedValue newval2{};
+            newval2.type = ValueType::REFERENCE;
+            newval2.data.emplace<std::string>("test3");
+            db.set("test9", newval2);
+        }
+
         get_and_print(db, "test");
         get_and_print(db, "test2");
         get_and_print(db, "test3");
@@ -164,6 +200,7 @@ int main() {
         get_and_print(db, "test8");
         get_and_print(db, "test8.key1");
         get_and_print(db, "test8.key2");
+        follow_and_print(db, "test9");
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
     return 0;
