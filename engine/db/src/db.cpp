@@ -52,9 +52,9 @@ std::queue<std::string> split(const char* input) {
     return result;
 }
 
-std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
+std::optional<std::reference_wrapper<Value>> get_key(db_map& map, std::queue<std::string>& keys) {
     if (keys.empty())
-        return std::optional<CopiedValue>{};
+        return std::nullopt;
     auto key = keys.front();
     std::optional<std::reference_wrapper<Value>> res{};
     map.transaction([&](locked_db_map* map) {
@@ -65,7 +65,7 @@ std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
     if (!res.has_value())
         return std::nullopt;
     if (keys.size() == 1)
-        return std::make_optional(res->get());
+        return res;
     keys.pop();
     auto& newMap = *res;
     if (newMap.get().type != ValueType::MAP)
@@ -80,7 +80,29 @@ std::optional<CopiedValue> DB::get(const char *key) {
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
         auto val = get_key(*entrypoint, key_split);
         if (val.has_value())
-            res = std::move(val);
+            res.emplace(val.value().get());
+    });
+    return res;
+}
+
+std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_follows) {
+    auto entrypoint_p = get_entrypoint();
+    std::optional<CopiedValue> res{};
+    std::string next_key = std::string(key);
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        do {
+            auto split_keys = split(next_key.c_str());
+            auto nextNode = get_key(*entrypoint, split_keys);
+            if (!nextNode.has_value()) break;
+            auto nextVal = nextNode.value();
+            if (nextVal.get().type == ValueType::REFERENCE) {
+                auto& str = std::get<Value::shmem_string_t>(nextVal.get().data);
+                next_key = str.get();
+            } else {
+                res.emplace(nextVal.get());
+                break;
+            }
+        } while(max_chained_follows-- > 0);
     });
     return res;
 }

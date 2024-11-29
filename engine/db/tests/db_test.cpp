@@ -96,6 +96,24 @@ void insert_test_data(DB& db) {
         newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
         db.set("test8", newval6);
     }
+    { // Reference
+        CopiedValue newval1{};
+        newval1.type = ValueType::REFERENCE;
+        newval1.data.emplace<std::string>("reference2");
+        db.set("reference1", newval1);
+        CopiedValue newval2{};
+        newval2.type = ValueType::REFERENCE;
+        newval2.data.emplace<std::string>("reference3");
+        db.set("reference2", newval2);
+        CopiedValue newval3{};
+        newval3.type = ValueType::REFERENCE;
+        newval3.data.emplace<std::string>("referenceVal");
+        db.set("reference3", newval3);
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(123);
+        db.set("referenceVal", newval);
+    }
 }
 
 class DatabaseWithData : public ::testing::Test {
@@ -210,5 +228,21 @@ TEST_F(DatabaseWithData, GetNonExistentKey) {
 
 TEST_F(DatabaseWithData, GetExistingKeyWithWrongType) {
     auto test = get<std::string>(*db, "test");
+    ASSERT_FALSE(test.has_value());
+}
+
+
+TEST_F(DatabaseWithData, Follow) {
+    auto test = follow<int>(*db, "reference1", 999);
+    ASSERT_TRUE(test.has_value());
+}
+
+TEST_F(DatabaseWithData, FollowWithLimit) {
+    auto test = follow<int>(*db, "reference3", 1);
+    ASSERT_TRUE(test.has_value());
+}
+
+TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
+    auto test = follow<int>(*db, "reference2", 1);
     ASSERT_FALSE(test.has_value());
 }
