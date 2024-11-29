@@ -52,9 +52,9 @@ std::queue<std::string> split(const char* input) {
     return result;
 }
 
-std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
+std::optional<std::reference_wrapper<Value>> get_key(db_map& map, std::queue<std::string>& keys) {
     if (keys.empty())
-        return std::optional<CopiedValue>{};
+        return std::nullopt;
     auto key = keys.front();
     std::optional<std::reference_wrapper<Value>> res{};
     map.transaction([&](locked_db_map* map) {
@@ -65,7 +65,7 @@ std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
     if (!res.has_value())
         return std::nullopt;
     if (keys.size() == 1)
-        return std::make_optional(res->get());
+        return res;
     keys.pop();
     auto& newMap = *res;
     if (newMap.get().type != ValueType::MAP)
@@ -80,40 +80,31 @@ std::optional<CopiedValue> DB::get(const char *key) {
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
         auto val = get_key(*entrypoint, key_split);
         if (val.has_value())
-            res = std::move(val);
+            res.emplace(val.value().get());
     });
     return res;
 }
 
 std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_follows) {
-    if (max_chained_follows == 1) {
-        auto start = get(key); // TODO: it's inefficient to copy more than once.
-        if (!start.has_value()) return std::nullopt;
-        auto& start_val = start.value();
-        if (start_val.type != ValueType::REFERENCE) return start;
-        return get(std::get<std::string>(start_val.data).c_str());
-    }
-    if (max_chained_follows == 0) {
-        std::optional<CopiedValue> next;
-        std::string next_key{key};
-        while(true) {
-            next = get(next_key.c_str());
-            if (!next.has_value()) return std::nullopt;
-            auto& val = next.value();
-            if (val.type == ValueType::REFERENCE) {
-                next_key = std::get<std::string>(val.data);
+    auto entrypoint_p = get_entrypoint();
+    std::optional<CopiedValue> res{};
+    std::string next_key = std::string(key);
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        do {
+            auto split_keys = split(next_key.c_str());
+            auto nextNode = get_key(*entrypoint, split_keys);
+            if (!nextNode.has_value()) break;
+            auto nextVal = nextNode.value();
+            if (nextVal.get().type == ValueType::REFERENCE) {
+                auto& str = std::get<Value::shmem_string_t>(nextVal.get().data);
+                next_key = str.get();
             } else {
-                return next;
+                res.emplace(nextVal.get());
+                break;
             }
-        }
-    }
-    { // max_chained_follows > 1
-        auto start = get(key);
-        if (!start.has_value()) return std::nullopt;
-        auto& val = start.value();
-        if (val.type != ValueType::REFERENCE) return start;
-        return follow(std::get<std::string>(val.data).c_str(), max_chained_follows - 1);
-    }
+        } while(max_chained_follows-- > 0);
+    });
+    return res;
 }
 
 void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys, offset_ptr<Value>& new_value) {
