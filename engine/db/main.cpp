@@ -187,7 +187,7 @@ int main() {
             CopiedValue newval2{};
             newval2.type = ValueType::REFERENCE;
             newval2.data.emplace<std::string>("test3");
-            db.set("test9", newval2);
+            db.set("test9", std::move(newval2));
         }
 
         get_and_print(db, "test");
