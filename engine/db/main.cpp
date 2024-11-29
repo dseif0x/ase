@@ -50,8 +50,8 @@ int main() {
         DB db;
         db.destroy();
     }
-    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    int pid = 1;
+    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    //int pid = 1;
     stopwatch s;
     if (pid == 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -66,30 +66,34 @@ int main() {
             CopiedValue newval{};
             newval.type = ValueType::INT;
             newval.data.emplace<int>(42);
-            db.set("test", newval);
-            newval.data.emplace<int>(43);
-            db.set("test2", newval);
+            db.set("test", std::move(newval));
+
+
+            CopiedValue newval2{};
+            newval2.type = ValueType::INT;
+            newval2.data.emplace<int>(43);
+            db.set("test2", std::move(newval2));
         }
 
         { // String
             CopiedValue newval2{};
             newval2.type = ValueType::STRING;
             newval2.data.emplace<std::string>("Hello World!");
-            db.set("test3", newval2);
+            db.set("test3", std::move(newval2));
         }
 
         { // Boolean
             CopiedValue newval3{};
             newval3.type = ValueType::BOOLEAN;
             newval3.data.emplace<bool>(true);
-            db.set("test4", newval3);
+            db.set("test4", std::move(newval3));
         }
 
         { // Double
             CopiedValue newval4{};
             newval4.type = ValueType::DOUBLE;
             newval4.data.emplace<double>(1.2);
-            db.set("test5", newval4);
+            db.set("test5", std::move(newval4));
         }
 
         { // Array
@@ -107,7 +111,7 @@ int main() {
             vector.emplace_back(std::move(arrval1));
             vector.emplace_back(std::move(arrval2));
 
-            db.set("test6", newval5);
+            db.set("test6", std::move(newval5));
         }
 
         { // Pair
@@ -126,7 +130,7 @@ int main() {
             CopiedValue newval6{};
             newval6.type = ValueType::PAIR;
             newval6.data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
-            db.set("test7", newval6);
+            db.set("test7", std::move(newval6));
         }
 
         { // Map
@@ -144,10 +148,10 @@ int main() {
             CopiedValue newval6 {};
             newval6.type = ValueType::MAP;
             newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
-            db.set("test8", newval6);
+            db.set("test8", std::move(newval6));
 
-            db.set("test8.key1", map_val);
-            db.set("test8.key2", map_val2);
+            db.set("test8.key1", std::move(map_val));
+            db.set("test8.key2", std::move(map_val2));
         }
 
         get_and_print(db, "test");

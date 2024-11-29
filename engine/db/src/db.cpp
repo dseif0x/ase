@@ -30,8 +30,8 @@ offset_ptr<db_key_map> DB::get_entrypoint() {
     return {mem.get_management_offset()};
 }
 
-std::queue<std::string> split(const char* input) {
-    std::queue<std::string> result;
+std::deque<std::string> split(const char* input) {
+    std::deque<std::string> result;
     std::string str(input);
 
     // Remove leading dot, if present
@@ -45,14 +45,14 @@ std::queue<std::string> split(const char* input) {
     // Split by dot and store each part in the vector
     while (std::getline(ss, token, '.')) {
         if (!token.empty()) { // Ignore empty tokens
-            result.push(token);
+            result.push_back(token);
         }
     }
 
     return result;
 }
 
-std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
+std::optional<CopiedValue> get_key(db_map& map, std::deque<std::string>& keys) {
     if (keys.empty())
         return std::optional<CopiedValue>{};
     auto key = keys.front();
@@ -66,7 +66,7 @@ std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
         return std::nullopt;
     if (keys.size() == 1)
         return std::make_optional(res->get());
-    keys.pop();
+    keys.pop_front();
     auto& newMap = *res;
     if (newMap.get().type != ValueType::MAP)
         throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
@@ -85,16 +85,44 @@ std::optional<CopiedValue> DB::get(const char *key) {
     return res;
 }
 
-void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys, offset_ptr<Value>& new_value) {
+CopiedValue generate_subdomain(std::deque<std::string>& keys, CopiedValue&& new_value) {
+
+    std::unordered_map<std::string, std::unique_ptr<CopiedValue>> mep;
+    mep.emplace(keys.back(), std::make_unique<CopiedValue>(std::move(new_value)));
+
+    keys.pop_back();
+    while (!keys.empty()) {
+        auto key = keys.back();
+
+        auto new_map = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>();
+
+        CopiedValue new_val {};
+        new_val.type = ValueType::MAP;
+        new_val.data.emplace<CopiedValue::copied_map_t>(std::move(mep));
+
+        new_map.emplace(key, std::make_unique<CopiedValue>(std::move(new_val)));
+
+        mep = std::move(new_map);
+
+        keys.pop_back();
+    }
+
+    CopiedValue new_val {};
+    new_val.type = ValueType::MAP;
+    new_val.data.emplace<CopiedValue::copied_map_t>(std::move(mep));
+    return new_val;
+}
+
+void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value) {
     if (keys.empty())
         return;
     auto key = keys.front();
     if (keys.size() == 1) {
-        db_key_map::set(map, mem, key.c_str(), new_value);
+        db_key_map::set(map, mem, key.c_str(), Value::create_value(mem, new_value));
         return;
     }
     std::optional<std::reference_wrapper<Value>> res{};
-    keys.pop();
+    keys.pop_front();
     offset_ptr<db_map> ptr;
     map.atomic_access(mem, [&](db_key_map* entrypoint)
     {
@@ -110,14 +138,17 @@ void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys,
             throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
         ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.get().data));
     });
-    if (!res.has_value())
+    if (!res.has_value()) {
+        auto subdomain = generate_subdomain(keys, std::move(new_value));
+        db_key_map::set(map, mem, key.c_str(), Value::create_value(mem, subdomain));
         return;
-    return set_key(ptr, mem, keys, new_value);
+    }
+
+    return set_key(ptr, mem, keys, std::move(new_value));
 }
 
-void DB::set(const char *key, const CopiedValue& value) {
+void DB::set(const char *key, CopiedValue&& value) {
     auto entrypoint_p = get_entrypoint();
-    offset_ptr<Value> new_value = Value::create_value(mem, value);
-    auto keys = split(key);
-    set_key(entrypoint_p, mem, keys, new_value);
+    std::deque<std::string> keys = split(key);
+    set_key(entrypoint_p, mem, keys, std::move(value));
 }
