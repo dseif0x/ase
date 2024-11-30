@@ -273,3 +273,8 @@ TEST_F(DatabaseWithData, List) {
     ASSERT_EQ(std::get<double>(map["key2"].second), 1.2);
     ASSERT_EQ(std::get<int>(map["key1"].second), 1222);
 }
+
+TEST_F(DatabaseWithData, ListNonExistentKey) {
+    auto test = db->list("test_123");
+    ASSERT_FALSE(test.has_value());
+}
