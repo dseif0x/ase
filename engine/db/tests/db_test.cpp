@@ -118,6 +118,12 @@ void insert_test_data(DB& db) {
         newval.data.emplace<int>(123);
         db.set("referenceVal", std::move(newval));
     }
+    { // Delete
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(123);
+        db.set("toDelete", std::move(newval));
+    }
 }
 
 class DatabaseWithData : public ::testing::Test {
@@ -260,5 +266,13 @@ TEST_F(DatabaseWithData, FollowWithLimit) {
 
 TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
     auto test = follow<int>(*db, "reference2", 1);
+    ASSERT_FALSE(test.has_value());
+}
+
+TEST_F(DatabaseWithData, Delete) {
+    auto test = get<int>(*db, "toDelete");
+    ASSERT_TRUE(test.has_value());
+    db->remove("toDelete");
+    test = get<int>(*db, "toDelete");
     ASSERT_FALSE(test.has_value());
 }
