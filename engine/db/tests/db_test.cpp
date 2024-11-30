@@ -257,11 +257,13 @@ TEST_F(DatabaseWithData, GetExistingKeyWithWrongType) {
 TEST_F(DatabaseWithData, Follow) {
     auto test = follow<int>(*db, "reference1", 999);
     ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
 }
 
 TEST_F(DatabaseWithData, FollowWithLimit) {
     auto test = follow<int>(*db, "reference3", 1);
     ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
 }
 
 TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
@@ -274,5 +276,21 @@ TEST_F(DatabaseWithData, Delete) {
     ASSERT_TRUE(test.has_value());
     db->remove("toDelete");
     test = get<int>(*db, "toDelete");
+    ASSERT_FALSE(test.has_value());
+}
+
+TEST_F(DatabaseWithData, List) {
+    auto test = db->list("test8");
+    ASSERT_TRUE(test.has_value());
+    auto& map = test.value();
+    ASSERT_TRUE(map.contains("key1") && map.contains("key2"));
+    ASSERT_EQ(map["key2"].first, ValueType::DOUBLE);
+    ASSERT_EQ(map["key1"].first, ValueType::INT);
+    ASSERT_EQ(std::get<double>(map["key2"].second), 1.2);
+    ASSERT_EQ(std::get<int>(map["key1"].second), 1222);
+}
+
+TEST_F(DatabaseWithData, ListNonExistentKey) {
+    auto test = db->list("test_123");
     ASSERT_FALSE(test.has_value());
 }

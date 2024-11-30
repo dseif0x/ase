@@ -23,6 +23,7 @@ using db_key_map = db_map;
  */
 class DB {
 public:
+    using list_t = std::optional<std::unordered_map<std::string, std::pair<ValueType, std::variant<std::monostate, bool, int, std::string, double>>>>;
     DB();
     ~DB();
 
@@ -33,7 +34,7 @@ public:
     void set(const char* key, CopiedValue&& value); //!< SET command of the database, will set a key to a value
 
     std::optional<CopiedValue> follow(const char* key, uint16_t max_chained_follows = 1); //!< FOLLOW command of the database, will return a copy of the value a references is pointing to
-    std::vector<std::string> list(const char* key); //!< LIST command of the database, will return a list of first level sub keys in a map
+    list_t list(const char* key); //!< LIST command of the database, will return a list of first level sub keys in a map
     void remove(const char* key); //!< DELETE command of the database, will remove a key and its value from the database
 
     // Semaphore Commands

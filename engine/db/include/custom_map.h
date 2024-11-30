@@ -24,6 +24,7 @@ public:
     locked_db_map(db_map* map);
     relative_offset_ptr<Value> get(const char* key);
     bool has(const char* key);
+    std::vector<std::string> keys();
 };
 
 /**
@@ -44,15 +45,17 @@ public:
     ~db_map();
 
     //! @onlyInAtomicAccess
-    std::vector<std::string> keys();
+    //! atomic version of @ref db_map::keys
+    std::vector<std::string> atomic_keys();
 
     //! @onlyInAtomicAccess
     //! atomic version of @ref db_map::has
-    bool atomic_has(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    bool atomic_has(const char* key);
 
 
+    //! @onlyInAtomicAccess
     //! atomic version of @ref db_map::get
-    relative_offset_ptr<Value> atomic_get(const char* key); // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    relative_offset_ptr<Value> atomic_get(const char* key);
 
 
     /**
@@ -135,6 +138,13 @@ public:
 
 private:
     friend class locked_db_map;
+
+    /**
+     * Returns the keys directly following this node.
+     * @return list of keys
+     * @onlyInAtomicAccess
+     */
+    std::vector<std::string> keys();
 
     /**
      * Checks rather a key is contained in the map. This does not search recursively.

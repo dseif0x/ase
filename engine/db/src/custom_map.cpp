@@ -17,8 +17,18 @@ db_map::~db_map() {
 }
 
 //! @onlyInAtomicAccess
-std::vector<std::string> db_map::keys() {
+std::vector<std::string> db_map::atomic_keys() {
     std::shared_lock<shrwlock> lock_guard(lock);
+    std::vector<std::string> keys;
+    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    for (size_t i = 0; i < used_size; i++) {
+        keys.push_back(data[i].first.get(mem));
+    }
+    return keys;
+}
+
+//! @onlyInAtomicAccess
+std::vector<std::string> db_map::keys() {
     std::vector<std::string> keys;
     std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
@@ -83,4 +93,8 @@ relative_offset_ptr<Value> locked_db_map::get(const char* key) {
 
 bool locked_db_map::has(const char* key) {
     return map->has(key);
+}
+
+std::vector<std::string> locked_db_map::keys() {
+    return map->keys();
 }
