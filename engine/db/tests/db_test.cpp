@@ -14,30 +14,34 @@ void insert_test_data(DB& db) {
         CopiedValue newval{};
         newval.type = ValueType::INT;
         newval.data.emplace<int>(42);
-        db.set("test", newval);
-        newval.data.emplace<int>(43);
-        db.set("test2", newval);
+        db.set("test", std::move(newval));
+
+
+        CopiedValue newval2{};
+        newval2.type = ValueType::INT;
+        newval2.data.emplace<int>(43);
+        db.set("test2", std::move(newval2));
     }
 
     { // String
         CopiedValue newval2{};
         newval2.type = ValueType::STRING;
         newval2.data.emplace<std::string>("Hello World!");
-        db.set("test3", newval2);
+        db.set("test3", std::move(newval2));
     }
 
     { // Boolean
         CopiedValue newval3{};
         newval3.type = ValueType::BOOLEAN;
         newval3.data.emplace<bool>(true);
-        db.set("test4", newval3);
+        db.set("test4", std::move(newval3));
     }
 
     { // Double
         CopiedValue newval4{};
         newval4.type = ValueType::DOUBLE;
         newval4.data.emplace<double>(1.2);
-        db.set("test5", newval4);
+        db.set("test5", std::move(newval4));
     }
 
     { // Array
@@ -55,7 +59,7 @@ void insert_test_data(DB& db) {
         vector.emplace_back(std::move(arrval1));
         vector.emplace_back(std::move(arrval2));
 
-        db.set("test6", newval5);
+        db.set("test6", std::move(newval5));
     }
 
     { // Pair
@@ -74,7 +78,7 @@ void insert_test_data(DB& db) {
         CopiedValue newval6{};
         newval6.type = ValueType::PAIR;
         newval6.data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
-        db.set("test7", newval6);
+        db.set("test7", std::move(newval6));
     }
 
     { // Map
@@ -94,25 +98,25 @@ void insert_test_data(DB& db) {
         CopiedValue newval6{};
         newval6.type = ValueType::MAP;
         newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
-        db.set("test8", newval6);
+        db.set("test8", std::move(newval6));
     }
     { // Reference
         CopiedValue newval1{};
         newval1.type = ValueType::REFERENCE;
         newval1.data.emplace<std::string>("reference2");
-        db.set("reference1", newval1);
+        db.set("reference1", std::move(newval1));
         CopiedValue newval2{};
         newval2.type = ValueType::REFERENCE;
         newval2.data.emplace<std::string>("reference3");
-        db.set("reference2", newval2);
+        db.set("reference2", std::move(newval2));
         CopiedValue newval3{};
         newval3.type = ValueType::REFERENCE;
         newval3.data.emplace<std::string>("referenceVal");
-        db.set("reference3", newval3);
+        db.set("reference3", std::move(newval3));
         CopiedValue newval{};
         newval.type = ValueType::INT;
         newval.data.emplace<int>(123);
-        db.set("referenceVal", newval);
+        db.set("referenceVal", std::move(newval));
     }
 }
 
@@ -135,6 +139,18 @@ public:
     DB* db{nullptr};
 };
 
+TEST_F(DatabaseWithData, Subdomain) {
+    {
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data = 15;
+        db->set(".top.second.sub.leaf", std::move(newval));
+    }
+    {
+        auto temp = db->get(".top.second.sub.leaf");
+        ASSERT_EQ(get<int>(temp->data), 15);
+    }
+}
 
 TEST_F(DatabaseWithData, GetInt) {
     auto test = get<int>(*db, "test");
