@@ -44,6 +44,26 @@ void get_and_print(DB& db, const char* key) {
     }
 }
 
+void list_and_print(DB& db, const char* key) {
+    DB::list_t val = db.list(key);
+    if (val.has_value()) {
+        std::cout << "Listing values for " << key << std::endl;
+        for (auto& entry : val.value()) {
+            if (entry.second.first == ValueType::INT) {
+                std::cout << "--- Value found for key " << entry.first << ": " << get<int>(entry.second.second) << std::endl;
+            } else if (entry.second.first == ValueType::STRING) {
+                std::cout << "--- Value found for key " << entry.first << ": " << get<std::string>(entry.second.second) << std::endl;
+            } else if (entry.second.first == ValueType::DOUBLE) {
+                std::cout << "--- Value found for key " << entry.first << ": " << get<double>(entry.second.second) << std::endl;
+            } else {
+                std::cout << "--- Value found for key " << entry.first << ": -" << std::endl;
+            }
+        }
+    } else {
+        std::cout << "Value not found for key " << key << std::endl;
+    }
+}
+
 /**
  * @brief Retrieves a value from the database by key and prints it.
  *
@@ -197,9 +217,9 @@ int main() {
         get_and_print(db, "test5");
         get_and_print(db, "test6");
         get_and_print(db, "test7");
-        get_and_print(db, "test8");
         get_and_print(db, "test8.key1");
         get_and_print(db, "test8.key2");
+        list_and_print(db, "test8");
         follow_and_print(db, "test9");
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;

@@ -174,3 +174,41 @@ void DB::set(const char *key, CopiedValue&& value) {
     std::deque<std::string> keys = split(key);
     set_key(entrypoint_p, mem, keys, std::move(value));
 }
+
+using list_val_data_t = std::variant<std::monostate, bool, int, std::string, double>;
+using list_map_enty_t = std::pair<ValueType, list_val_data_t>;
+using list_map_t = std::unordered_map<std::string, list_map_enty_t>;
+DB::list_t DB::list(const char* key) {
+    auto entrypoint_p = get_entrypoint();
+    auto key_split = split(key);
+    list_t res {};
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        auto val = get_key(*entrypoint, key_split);
+        if (val.has_value()) {
+            auto& deref_val = val.value().get();
+            if (deref_val.type != ValueType::MAP)
+                return;
+            auto& cur_map = std::get<relative_offset_ptr<db_map>>(deref_val.data);
+            list_map_t res_map{};
+            cur_map->transaction([&](locked_db_map* locked_map) {
+               for(auto& key : locked_map->keys()) {
+                   auto original_entry = locked_map->get(key.c_str());
+                   list_map_enty_t entry{original_entry->type, std::monostate{}};
+                   if (entry.first == ValueType::INT) {
+                       entry.second.emplace<int>(std::get<int>(original_entry->data));
+                   } else if (entry.first == ValueType::BOOLEAN) {
+                       entry.second.emplace<bool>(std::get<bool>(original_entry->data));
+                   } else if (entry.first == ValueType::DOUBLE) {
+                       entry.second.emplace<double>(std::get<double>(original_entry->data));
+                   } else if (entry.first == ValueType::STRING) {
+                       auto& string_val = std::get<Value::shmem_string_t>(original_entry->data);
+                       entry.second.emplace<std::string>(string_val.get());
+                   }
+                   res_map.emplace(key, entry);
+               }
+            });
+            res.emplace(std::move(res_map));
+        }
+    });
+    return res;
+}
