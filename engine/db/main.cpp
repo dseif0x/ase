@@ -210,6 +210,15 @@ int main() {
             db.set("test9", std::move(newval2));
         }
 
+        { // Delete
+            CopiedValue newval{};
+            newval.type = ValueType::INT;
+            newval.data.emplace<int>(42);
+            db.set("test10", std::move(newval));
+
+            db.remove("test10");
+        }
+
         get_and_print(db, "test");
         get_and_print(db, "test2");
         get_and_print(db, "test3");
@@ -221,6 +230,7 @@ int main() {
         get_and_print(db, "test8.key2");
         list_and_print(db, "test8");
         follow_and_print(db, "test9");
+        get_and_print(db, "test10");
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
     return 0;

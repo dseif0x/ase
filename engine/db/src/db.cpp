@@ -212,3 +212,27 @@ DB::list_t DB::list(const char* key) {
     });
     return res;
 }
+
+void DB::remove(const char* key) {
+    auto entrypoint_p = get_entrypoint();
+    auto key_split = split(key);
+    auto last_key = key_split.back();
+    key_split.pop_back();
+    std::optional<offset_ptr<db_map>> res {};
+    if (key_split.empty()) { // top level key
+        res.emplace(entrypoint_p);
+    } else {
+        entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+            auto val = get_key(*entrypoint, key_split);
+            if (val.has_value()) {
+                auto extracted_val = val->get();
+                if (extracted_val.type == ValueType::MAP) {
+                    res.emplace(mem.relative_to_offset(std::get<Value::shmem_map_t>(extracted_val.data)));
+                }
+            }
+        });
+    }
+    if (res.has_value()) {
+        db_map::remove(res.value(), mem, last_key.c_str());
+    }
+}

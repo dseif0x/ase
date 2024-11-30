@@ -72,7 +72,7 @@ public:
     }
 
     //! @neverInAtomicAccess
-    static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, offset_ptr<Value> value) { // NEVER CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK (it will deadlock)
+    static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, offset_ptr<Value> value) {
         bool found = false;
         size_t used_size;
         size_t alloc_size;
@@ -115,6 +115,25 @@ public:
             map_p->used_size = used_size;
             map_p->lock.unlock();
         }, true);
+    }
+
+    //! @neverInAtomicAccess
+    static void remove(offset_ptr<db_map>& map, shmem& mem, const char* key) {
+        // Potentially shrink the shmem
+        map.atomic_access(mem, [&](db_map* map) {
+            map->lock.lock();
+            std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
+            for (size_t i = 0; i < map->used_size; i++) {
+                if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                    map->used_size--; // we don't delete anything, just invalidate it's memory
+                    if (i < map->used_size) { // swap values with last data entry
+                        std::swap(data[i], data[map->used_size]);
+                        break;
+                    }
+                }
+            }
+            map->lock.unlock();
+        });
     }
 
 private:
