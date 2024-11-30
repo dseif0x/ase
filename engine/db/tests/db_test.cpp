@@ -262,3 +262,14 @@ TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
     auto test = follow<int>(*db, "reference2", 1);
     ASSERT_FALSE(test.has_value());
 }
+
+TEST_F(DatabaseWithData, List) {
+    auto test = db->list("test8");
+    ASSERT_TRUE(test.has_value());
+    auto& map = test.value();
+    ASSERT_TRUE(map.contains("key1") && map.contains("key2"));
+    ASSERT_EQ(map["key2"].first, ValueType::DOUBLE);
+    ASSERT_EQ(map["key1"].first, ValueType::INT);
+    ASSERT_EQ(std::get<double>(map["key2"].second), 1.2);
+    ASSERT_EQ(std::get<int>(map["key1"].second), 1222);
+}
