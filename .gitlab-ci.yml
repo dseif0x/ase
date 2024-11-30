@@ -27,7 +27,8 @@ generate_docs:
 
 variables:
   BUILD_DIR: engine/build
-  TEST_DIRS: "core db"
+  GTEST_DIRS: "core db"
+  JUNIT_DIRS: "java-driver backend"
 
 build:
   stage: build
@@ -42,7 +43,7 @@ build:
     paths:
       - $BUILD_DIR
 
-test:
+gtest:
   stage: test
   dependencies:
     - build
@@ -51,7 +52,7 @@ test:
   script:
     - mkdir -p coverage_report
     - cd $BUILD_DIR
-    - for folder in $TEST_DIRS; do
+    - for folder in $GTEST_DIRS; do
         ctest --test-dir $folder;
         lcov --ignore-errors mismatch --directory $folder --capture --output-file $folder/coverage.info;
         lcov --remove $folder/coverage.info '/usr/*' '*googletest*' --output-file $folder/coverage.info;
@@ -61,3 +62,20 @@ test:
     paths:
       - coverage_report
 
+junit:
+  stage: test
+  before_script:
+    - apk add --no-cache openjdk17 maven
+  script:
+    - cd web
+    - mvn test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - web/java-driver/target/surefire-reports/*.xml
+        - web/backend/target/surefire-reports/*.xml
+    paths:
+      - web/java-driver/target/site/jacoco/
+      - web/backend/target/site/jacoco/
+    expire_in: 1 week
