@@ -251,11 +251,13 @@ TEST_F(DatabaseWithData, GetExistingKeyWithWrongType) {
 TEST_F(DatabaseWithData, Follow) {
     auto test = follow<int>(*db, "reference1", 999);
     ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
 }
 
 TEST_F(DatabaseWithData, FollowWithLimit) {
     auto test = follow<int>(*db, "reference3", 1);
     ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
 }
 
 TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
