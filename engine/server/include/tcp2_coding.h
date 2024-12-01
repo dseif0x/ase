@@ -15,6 +15,9 @@
 #include <vector>
 
 
+/**
+ * @brief Contains error codes and their corresponding messages for the protocol.
+ */
 namespace errors {
     constexpr uint16_t general_protocol_error       = 0xFFFF;
 
@@ -55,22 +58,47 @@ namespace info_block {
     constexpr unsigned char map_bit = 0x10;
     constexpr unsigned char basic_mask = 0x07;
 
+    /**
+     * @brief Checks if the byte represents an array.
+     * @param byte The byte to check.
+     * @return True if the byte represents an array; otherwise false.
+     */
     constexpr bool is_array(const unsigned char byte) {
         return (byte & array_bit) > 0;
     }
 
+    /**
+     * @brief Checks if the byte represents a pair.
+     * @param byte The byte to check.
+     * @return True if the byte represents a pair; otherwise false.
+     */
     constexpr bool is_pair(const unsigned char byte) {
         return (byte & pair_bit) > 0;
     }
 
+    /**
+     * @brief Checks if the byte represents a complex type.
+     * @param byte The byte to check.
+     * @return True if the byte represents a complex type; otherwise false.
+     */
     constexpr bool is_complex(const unsigned char byte) {
         return (byte & complex_bit) > 0;
     }
 
+    /**
+     * @brief Checks if the byte represents a map.
+     * @param byte The byte to check.
+     * @return True if the byte represents a map; otherwise false.
+     */
     constexpr bool is_map(const unsigned char byte) {
         return (byte & map_bit) > 0;
     }
 
+    /**
+     * @brief Retrieves the basic type from the given byte.
+     * @param byte The byte to evaluate.
+     * @return The corresponding ValueType.
+     */
     constexpr ValueType get_basic_type(const unsigned char byte) {
         switch (byte & basic_mask) {
             case 1:
@@ -90,6 +118,11 @@ namespace info_block {
         }
     }
 
+    /**
+     * @brief Retrieves the byte representation of the given ValueType.
+     * @param type The ValueType to encode.
+     * @return The corresponding byte.
+     */
     constexpr unsigned char get_basic_byte(const ValueType type) {
         switch (type) {
             case ValueType::BOOLEAN:
