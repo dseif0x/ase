@@ -24,9 +24,6 @@ public class DatabaseClient {
     /** Output stream for sending data to the server. */
     private final DataOutputStream writer;
 
-    /** Indicates whether a connection to the server has been established. */
-    private boolean isLoggedIn = false;
-
     /** Reader for reading data from the server based on server-provided size information. */
     private DynamicDataReader dataReader;
     private DynamicDataWriter dataWriter;
@@ -100,9 +97,7 @@ public class DatabaseClient {
             byte response = reader.readByte();
             if (response == Utility.NAK) {
                 this.dataReader.readServerError(true);
-            } else if (response == Utility.ACK) {
-                this.isLoggedIn = true;
-            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+            } else if (response != Utility.ACK) throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
         } catch (IOException e) {
             throw new TCPClientException("Failed to send user info packet.", e);
         }
@@ -353,7 +348,6 @@ public class DatabaseClient {
     public void disconnect() {
         try {
             writer.write(Utility.DISCONNECT_COMMAND);
-            this.isLoggedIn = false;
             this.socket.close();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
