@@ -10,9 +10,12 @@
 #include <mutex>
 #include <thread>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #include "shmem.h"
 #include "stopwatch.h"
+
+#include <sys/wait.h>
 
 struct value {
     int a;
@@ -26,12 +29,19 @@ int main() {
         test.destroy();
     }
     pid_t pid = fork();
+    //pid_t pid = 1;
     stopwatch s;
     if (pid == 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     shmem test;
     std::cout << "Attached" << std::endl;
+    for (int i : std::views::iota(0, 1024 * 1024)) {
+        auto ptr = test.construct<value>();
+        test.destroy(ptr);
+    }
+    std::cout << "Finished with dealloc test..." << std::endl;
+
     for (int i : std::views::iota(0, 1024 * 1024)) {
         auto ptr = test.construct<value>();
         ptr.atomic_access(test, [i](value* ptr) {
@@ -42,7 +52,7 @@ int main() {
         //std::cout << ptr->a << " " << ptr->b << std::endl;
     }
 
-    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()) << std::endl;
+    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
 
     if (pid == 0) {
     } else {

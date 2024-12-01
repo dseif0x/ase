@@ -4,15 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="79fa0403-2c7e-47d8-8a37-825d8416ac0d" name="Changes" comment="#30 Updates readDouble.">
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/ase/utility/WebReturn.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ase/driver/DatabaseClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ase/driver/DatabaseClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ase/utility/DynamicDataReader.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ase/utility/DynamicDataReader.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ase/utility/DynamicDataWriter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ase/utility/DynamicDataWriter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ase/utility/Utility.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ase/utility/Utility.java" afterDir="false" />
-    </list>
+    <list default="true" id="79fa0403-2c7e-47d8-8a37-825d8416ac0d" name="Changes" comment="#17 Add junit to java-driver." />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -22,13 +14,14 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Class" />
+        <option value="JUnit5 Test Class" />
       </list>
     </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$/../.." value="19-setup-java-backend" />
+        <entry key="$PROJECT_DIR$/../.." value="feature-tcp2-java-30" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
@@ -56,8 +49,11 @@
     "ASKED_ADD_EXTERNAL_FILES": "true",
     "Application.DynamicDataReader.executor": "Run",
     "Application.Utility.executor": "Run",
+    "JUnit.UtilityTest.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "feature-tcp2-java-30",
+    "com.intellij.testIntegration.createTest.CreateTestDialog.defaultLibrary": "JUnit5",
+    "com.intellij.testIntegration.createTest.CreateTestDialog.defaultLibrarySuperClass.JUnit5": "",
+    "git-widget-placeholder": "feature-junit-17",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/vladi/IdeaProjects/24ws-ase-pr-qse-06/web/java-driver",
     "node.js.detected.package.eslint": "true",
@@ -70,7 +66,16 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected="Application.Utility">
+  <component name="RecentsManager">
+    <key name="CreateTestDialog.Recents.Supers">
+      <recent name="" />
+    </key>
+    <key name="CreateTestDialog.RecentsKey">
+      <recent name="com.ase.utility" />
+      <recent name="com.ase.exception" />
+    </key>
+  </component>
+  <component name="RunManager" selected="JUnit.UtilityTest">
     <configuration name="DynamicDataReader" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="com.ase.utility.DynamicDataReader" />
       <module name="java-driver" />
@@ -97,8 +102,24 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="UtilityTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="java-driver" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ase.utility.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="com.ase.utility" />
+      <option name="MAIN_CLASS_NAME" value="com.ase.utility.UtilityTest" />
+      <option name="TEST_OBJECT" value="class" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="JUnit.UtilityTest" />
         <item itemvalue="Application.Utility" />
         <item itemvalue="Application.DynamicDataReader" />
       </list>
@@ -260,7 +281,15 @@
       <option name="project" value="LOCAL" />
       <updated>1732644555480</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="#17 Add junit to java-driver.">
+      <option name="closed" value="true" />
+      <created>1732791260578</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1732791260578</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -295,7 +324,8 @@
     <MESSAGE value="#30 Refactoring." />
     <MESSAGE value="#30 Adds DynamicDataWriter." />
     <MESSAGE value="#30 Updates readDouble." />
-    <option name="LAST_COMMIT_MESSAGE" value="#30 Updates readDouble." />
+    <MESSAGE value="#17 Add junit to java-driver." />
+    <option name="LAST_COMMIT_MESSAGE" value="#17 Add junit to java-driver." />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

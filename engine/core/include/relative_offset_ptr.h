@@ -13,6 +13,17 @@
 #include "types.h"
 
 class shmem;
+
+/**
+ * @onlyInAtomicAccess
+ * @brief A pointer-like class that stores an offset relative to another pointer.
+ *
+ * This template class represents a pointer with an offset relative to the current object.
+ * It provides methods for accessing the data and manipulating the offset, but must be used
+ * within an atomic access block to ensure thread safety.
+ *
+ * @tparam T The type of the object pointed to by the `relative_offset_ptr`.
+ */
 template <typename T>
 class relative_offset_ptr {
 private:
