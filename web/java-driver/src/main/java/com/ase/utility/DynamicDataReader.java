@@ -135,22 +135,6 @@ public class DynamicDataReader {
     }
 
     /**
-     * Reads a character value based on the server-provided size.
-     *
-     * @return the character value read from the stream
-     * @throws TCPClientReadException if reading the character fails
-     */
-    public char readChar() throws TCPClientException {
-        try {
-            byte[] bytes = new byte[serverInfo.getCharSize()];
-            dataInputStream.readFully(bytes);
-            return bytesToChar(bytes);
-        } catch (Exception e) {
-            throw new TCPClientReadException("Failed to read char.", e);
-        }
-    }
-
-    /**
      * Reads a double value based on the server-provided size.
      *
      * @return the double value read from the stream
