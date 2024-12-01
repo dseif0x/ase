@@ -4,7 +4,9 @@ import com.ase.exception.HandshakeException;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.utility.*;
+import com.ase.utility.tcp.SimpleType;
 import com.ase.utility.tcp.TcpErrorCode;
+import com.ase.utility.tcp.TcpGeneral;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.*;
@@ -104,6 +106,54 @@ public class DatabaseClient {
     }
 
     /**
+     * Sends a GET command to the server to retrieve the value associated with a specific key.
+     *
+     * @param key The key whose associated value is to be retrieved from the server. Must not be {@code null} or empty.
+     * @return A {@link WebReturn} object indicating the outcome of the GET operation:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} contains the {@link TcpGeneral} value associated with the key.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains the error description returned by the server.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     * @throws TCPClientException If the command fails to send, the connection is not established,
+     *                             the server responds with an unknown response, or an error occurs while processing the response.
+     * @throws IllegalArgumentException If the provided key is {@code null} or empty.
+     */
+    public WebReturn<TcpGeneral> get(String key) throws TCPClientException {
+        if (key == null || key.isEmpty()) {
+            throw new IllegalArgumentException("Key must not be null or empty.");
+        }
+
+        try {
+            writer.write(Utility.GET_COMMAND);
+            writer.flush();
+
+            dataWriter.writeString(key);
+
+            byte response = reader.readByte();
+            if (response == Utility.NAK) {
+                return readError();
+            } else if (response == Utility.ACK) {
+                TcpGeneral tcpGeneral = dataReader.readGeneral();
+                return WebReturn.success(tcpGeneral);
+            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+        } catch (IOException e) {
+            throw new TCPClientException("Failed to send delete command.", e);
+        }
+    }
+
+    /**
      * Sends a command to the server to delete a key-value pair.
      *
      * @param key The key of the value to be deleted from the server.
@@ -120,16 +170,19 @@ public class DatabaseClient {
      *                 <ul>
      *                     <li>{@code ok} is {@code false}.</li>
      *                     <li>{@code message} contains the error message.</li>
-     *                     <li>{@code data} contains the error code.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
      *                 </ul>
      *             </li>
      *         </ul>
      * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<Integer> delete(String key) throws TCPClientException {
+    public WebReturn<TcpGeneral> delete(String key) throws TCPClientException {
         try {
             writer.write(Utility.DELETE_COMMAND);
+            writer.flush();
+
             dataWriter.writeString(key);
+
 
             byte response = reader.readByte();
             if (response == Utility.NAK) {
@@ -166,15 +219,17 @@ public class DatabaseClient {
      *                 <ul>
      *                     <li>{@code ok} is {@code false}.</li>
      *                     <li>{@code message} contains the server's error message.</li>
-     *                     <li>{@code data} contains the server's error code.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
      *                 </ul>
      *             </li>
      *         </ul>
      * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<Integer> updateScope(String username, String key, byte options) throws TCPClientException {
+    public WebReturn<TcpGeneral> updateScope(String username, String key, byte options) throws TCPClientException {
         try {
             writer.write(Utility.UPDATE_SCOPE_COMMAND);
+
+            writer.flush();
 
             dataWriter.writeString(username);
             dataWriter.writeString(key);
@@ -199,7 +254,7 @@ public class DatabaseClient {
      *
      * @param username   The username of the user to be created.
      * @param password   The password of the user to be created.
-     * @param options    The permission options for the scope:
+     * @param options    The permission options:
      *                   <ul>
      *                       <li>0x01: new user will be administrator</li>
      *                   </ul>
@@ -216,20 +271,23 @@ public class DatabaseClient {
      *                 <ul>
      *                     <li>{@code ok} is {@code false}.</li>
      *                     <li>{@code message} contains the server's error message.</li>
-     *                     <li>{@code data} contains the server's error code.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
      *                 </ul>
      *             </li>
      *         </ul>
      * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<Integer> createUser(String username, String password, byte options) throws TCPClientException {
+    public WebReturn<TcpGeneral> createUser(String username, String password, byte options) throws TCPClientException {
         try {
             writer.write(Utility.CREATE_USER_COMMAND);
+
+            writer.flush();
 
             dataWriter.writeString(username);
             dataWriter.writeString(password);
 
             writer.write(options);
+
 
             byte response = reader.readByte();
 
@@ -261,15 +319,17 @@ public class DatabaseClient {
      *                 <ul>
      *                     <li>{@code ok} is {@code false}.</li>
      *                     <li>{@code message} contains an error description.</li>
-     *                     <li>{@code data} contains the error code.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
      *                 </ul>
      *             </li>
      *         </ul>
      * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<Integer> ping(long packageToSend) throws TCPClientException {
+    public WebReturn<TcpGeneral> ping(long packageToSend) throws TCPClientException {
         try {
             writer.write(Utility.PING_COMMAND);
+            writer.flush();
+
             dataWriter.writeUnsignedInt(packageToSend);
 
             byte response = reader.readByte();
@@ -301,14 +361,14 @@ public class DatabaseClient {
      *                 <ul>
      *                     <li>{@code ok} is {@code false}.</li>
      *                     <li>{@code message} contains an error description.</li>
-     *                     <li>{@code data} contains the error code.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
      *                 </ul>
      *             </li>
      *         </ul>
      * @throws TCPClientException If the command fails to send, the connection is not established,
      *                             an unexpected server response is received, or server never responds with ACK/NAK.
      */
-    public WebReturn<Integer> stop() throws TCPClientException {
+    public WebReturn<TcpGeneral> stop() throws TCPClientException {
         try {
             writer.writeByte(Utility.STOP_COMMAND);
             writer.flush();
@@ -321,9 +381,9 @@ public class DatabaseClient {
                     byte responseByte = reader.readByte();
                     bytesRead++;
 
-                    if (responseByte == Utility.ACK) { // 0xFF
+                    if (responseByte == Utility.ACK) {
                         return WebReturn.success();
-                    } else if (responseByte == Utility.NAK) { // 0x00
+                    } else if (responseByte == Utility.NAK) {
                         return readError();
                     }
                 } else {
@@ -348,6 +408,7 @@ public class DatabaseClient {
     public void disconnect() {
         try {
             writer.write(Utility.DISCONNECT_COMMAND);
+            writer.flush();
             this.socket.close();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -358,21 +419,20 @@ public class DatabaseClient {
      * Reads a server error package from the input stream.
      *
      * @return A {@link WebReturn} object containing the error details:
-     *         <ul>
-     *             <li>{@code ok}: {@code false}</li>
-     *             <li>{@code message}: The error message returned by the server.</li>
-     *             <li>{@code data}: The error code returned by the server.</li>
-     *         </ul>
+     *         - {@code ok}: {@code false}.
+     *         - {@code message}: The error message returned by the server.
+     *         - {@code data}: contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.
      * @throws TCPClientException If an error occurs while reading the server error string.
      * @throws IOException If an I/O error occurs while reading the server error.
      */
-    private WebReturn<Integer> readError() throws TCPClientException, IOException {
+    private WebReturn<TcpGeneral> readError() throws TCPClientException, IOException {
         Optional<Pair<String, Integer>> errorOpt = this.dataReader.readServerError(false);
         if (errorOpt.isPresent()) {
             Pair<String, Integer> error = errorOpt.get();
-            return WebReturn.error(error.getLeft(), error.getRight());
+            return WebReturn.error(error.getLeft(), TcpGeneral.ofSimple(SimpleType.INT, error.getRight()));
         } else {
             throw new TCPClientException("Received NAK but failed to read server error.");
         }
     }
+
 }

@@ -2,9 +2,7 @@ package com.ase.utility;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.exception.TCPClientReadException;
-import com.ase.utility.tcp.SimpleType;
-import com.ase.utility.tcp.TypeDefinition;
-import com.ase.utility.tcp.TypeFlag;
+import com.ase.utility.tcp.*;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.DataInputStream;
@@ -196,18 +194,18 @@ public class DynamicDataReader {
      * @return The Key-Value HashMap.
      * @throws TCPClientReadException if an I/O error occurs or the reading fails.
      */
-    public HashMap<String, Object> readKey() throws TCPClientException {
+    public TcpGeneral readKey() throws TCPClientException {
         long keyLength = readTCPEUI();
         int len = (int) keyLength;
 
-        HashMap<String, Object> key = new HashMap<>(len);
+        HashMap<String, TcpGeneral> key = new HashMap<>(len);
 
         for (int i = 0; i < len; i++) {
             String keyE = readString();
-            Object valueE = readGeneral();
+            TcpGeneral valueE = readGeneral();
             key.put(keyE, valueE);
         }
-        return key;
+        return TcpGeneral.ofKeyMap(key);
     }
 
     /**
@@ -216,7 +214,7 @@ public class DynamicDataReader {
      * @return A List containing the array elements.
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
-    public List<Object> readArray(boolean isComplex, SimpleType simpleType) throws TCPClientException {
+    public TcpGeneral readArray(boolean isComplex, SimpleType simpleType) throws TCPClientException {
         long arrayLength = readTCPEUI();
         if (arrayLength < 0 || arrayLength > serverInfo.getArraySize()) {
             throw new TCPClientReadException("Invalid array length: " + arrayLength);
@@ -224,21 +222,21 @@ public class DynamicDataReader {
 
         int len = (int) arrayLength;
 
-        List<Object> array = new ArrayList<>(len);
+        List<TcpGeneral> array = new ArrayList<>(len);
 
         if (!isComplex) {
             for (int i = 0; i < len; i++) {
-                Object element = readSimpleType(simpleType);
+                TcpGeneral element = TcpGeneral.ofSimple(simpleType, readSimpleType(simpleType));
                 array.add(element);
             }
         } else {
             for (int i = 0; i < len; i++) {
-                Object element = readGeneral();
+                TcpGeneral element = readGeneral();
                 array.add(element);
             }
         }
 
-        return array;
+        return TcpGeneral.ofArray(array);
     }
 
     /**
@@ -247,7 +245,7 @@ public class DynamicDataReader {
      * @return The decoded value as an Object.
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
-    public Object readGeneral() throws TCPClientException {
+    public TcpGeneral readGeneral() throws TCPClientException {
         TypeDefinition typeDef = readTypeDefinition();
 
         if (typeDef.isKey()) {
@@ -260,7 +258,7 @@ public class DynamicDataReader {
             if (typeDef.getSimpleType() == null) {
                 throw new TCPClientReadException("SimpleType is null for a non-complex, non-array, non-pair type.");
             }
-            return readSimpleType(typeDef.getSimpleType());
+            return TcpGeneral.ofSimple(typeDef.getSimpleType(), readSimpleType(typeDef.getSimpleType()));
         }
     }
 
@@ -299,14 +297,14 @@ public class DynamicDataReader {
      * @return A Pair object containing the key and value.
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
-    private Pair<Object, Object> readPair(boolean isComplex, SimpleType type) throws TCPClientException {
-        Object first, second;
+    private TcpGeneral readPair(boolean isComplex, SimpleType type) throws TCPClientException {
+        TcpGeneral first, second;
 
         if (isComplex) first = readGeneral();
-        else first = readSimpleType(type);
+        else first = TcpGeneral.ofSimple(type, readSimpleType(type));
 
         second = readGeneral();
-        return Pair.of(first, second);
+        return TcpGeneral.ofPair(first, second);
     }
 
     /**
