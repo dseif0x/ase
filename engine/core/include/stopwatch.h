@@ -29,8 +29,8 @@ public:
     stopwatch() : stopwatch{true} {};
     stopwatch(bool beginDirectly);
 
-    void start();
-    void reset();
-    duration stop();
-    duration peek();
+    void start(); //!< starts the timer
+    void reset(); //!< resets the timer
+    duration stop(); //!< stops the timer and returns it's last value
+    duration peek(); //!< return the timers current value
 };

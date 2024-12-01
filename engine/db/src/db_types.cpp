@@ -48,10 +48,6 @@ void CopiedValue::print() {
     CopiedValue::print(*this);
 }
 
-/**
- * Prints a python-style representation of the provided CopiedValue to stdout.
- * @param val CopiedValue to be printed.
- */
 void CopiedValue::print(CopiedValue &val) {
     if (val.type == ValueType::INT) {
         std::cout << std::get<int>(val.data);

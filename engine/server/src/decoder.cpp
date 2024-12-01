@@ -23,11 +23,6 @@ bool GenericDecoder::is_empty() {
     return this->buffer.empty();
 }
 
-/**
- * Clears the buffer. Waits for a defined time to see if new data arrives which will then be deleted also.
- * A time between 200ms and 500ms is advised.
- * @param delay_ms The time in ms which must pass without new data arriving for the function to return
- */
 void GenericDecoder::clear_buffer(int delay_ms) {
     while (!this->is_empty()) {
         {

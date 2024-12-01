@@ -17,13 +17,39 @@
 
 #include <cstring>
 
+/**
+ * @brief A smart-lock wrapper for @ref db_map.
+ *
+ * This class exposes some private methods of db_map, that are unsafe to be used without holding a lock.
+ * It's safe to use those methods through locked_db_map as this class handles lock management automatically.
+ */
 class locked_db_map {
     std::shared_lock<shrwlock> lock;
     db_map* map;
 public:
     locked_db_map(db_map* map);
+
+    /**
+     * Exposes @ref db_map::get
+     *
+     * @param key bottom level key to retrieve
+     * @return the Value corresponding to the key
+     */
     relative_offset_ptr<Value> get(const char* key);
+
+    /**
+     * Exposes @ref db_map::has
+     *
+     * @param key bottom level key to check for
+     * @return rather a value corresponding to the given key exists
+     */
     bool has(const char* key);
+
+    /**
+     * Exposes @ref db_map::keys
+     *
+     * @return a list of keys
+     */
     std::vector<std::string> keys();
 };
 
@@ -34,7 +60,7 @@ public:
  * support for atomic access to stored values. It allows checking for keys,
  * retrieving values, and inserting new key-value pairs into the map. The map
  * operates in shared memory and supports concurrent access through a read-write lock.
- *
+ * A single object of this type represents a node in the tree-structure of the DB.
  */
 class db_map {
 public:
@@ -44,17 +70,25 @@ public:
 
     ~db_map();
 
-    //! @onlyInAtomicAccess
-    //! atomic version of @ref db_map::keys
+    /**
+     * atomic version of @ref db_map::keys
+     *
+     * @onlyInAtomicAccess
+     */
     std::vector<std::string> atomic_keys();
 
-    //! @onlyInAtomicAccess
-    //! atomic version of @ref db_map::has
+    /**
+     * atomic version of @ref db_map::has
+     *
+     * @onlyInAtomicAccess
+     */
     bool atomic_has(const char* key);
 
-
-    //! @onlyInAtomicAccess
-    //! atomic version of @ref db_map::get
+    /**
+     * atomic version of @ref db_map::get
+     *
+     * @onlyInAtomicAccess
+     */
     relative_offset_ptr<Value> atomic_get(const char* key);
 
 
@@ -71,7 +105,15 @@ public:
         cb(&locked_map);
     }
 
-    //! @neverInAtomicAccess
+    /**
+     * This function inserts a value into the shmem.
+     *
+     * @param map the node the value should be attached to
+     * @param mem a reference to the shmem
+     * @param key the bottom level key
+     * @param value the value to insert
+     * @neverInAtomicAccess
+     */
     static void set(offset_ptr<db_map>& map, shmem& mem, const char* key, offset_ptr<Value> value) {
         bool found = false;
         size_t used_size;
@@ -117,7 +159,14 @@ public:
         }, true);
     }
 
-    //! @neverInAtomicAccess
+    /**
+     * Removes a value from the shmem
+     *
+     * @param map the node the value is attached to
+     * @param mem the shmem
+     * @param key the bottom level key to delete
+     * @neverInAtomicAccess
+     */
     static void remove(offset_ptr<db_map>& map, shmem& mem, const char* key) {
         // Potentially shrink the shmem
         map.atomic_access(mem, [&](db_map* map) {
@@ -163,7 +212,12 @@ private:
     relative_offset_ptr<Value> get(const char* key);
 
     shmem& mem;
-    //! @neverInAtomicAccess
+    /**
+     * resizes the space that is allocated for the given node.
+     * @param map the node that grows
+     * @param mem the shmem
+     * @neverInAtomicAccess
+     */
     static void resize(offset_ptr<db_map>& map, shmem& mem) {
         size_t alloc_size;
         offset_ptr<map_entry_type> old_data;

@@ -48,10 +48,10 @@ public:
         return *this;
     }
 
-    T& operator*() const { return *get(); } // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-    T* operator->() const { return get(); } // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    T& operator*() const { return *get(); } //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    T* operator->() const { return get(); } //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
 
-    T* get() const { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    T* get() const { //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
         return reinterpret_cast<T*>(reinterpret_cast<std::uintptr_t>(this) + offset);
     }
 
