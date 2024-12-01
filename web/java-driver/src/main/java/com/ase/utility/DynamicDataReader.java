@@ -296,7 +296,7 @@ public class DynamicDataReader {
      *
      * @param simpleType The SimpleType to read.
      * @return The decoded value as an Object.
-     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     * @throws TCPClientReadException if an I/O error occurs or the SimpleType is invalid.
      */
     private Object readSimpleType(SimpleType simpleType) throws TCPClientException {
         switch (simpleType) {
@@ -358,17 +358,6 @@ public class DynamicDataReader {
         buffer.flip();
 
         return buffer.getInt();
-    }
-
-    /**
-     * Converts a byte array to a character value.
-     * Assumes UTF-8 encoding.
-     *
-     * @param bytes the byte array to convert
-     * @return the character represented by the byte array
-     */
-    private char bytesToChar(byte[] bytes) {
-        return new String(bytes, StandardCharsets.UTF_8).charAt(0);
     }
 
     /**
