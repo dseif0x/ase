@@ -27,7 +27,7 @@ generate_docs:
 
 variables:
   BUILD_DIR: engine/build
-  TEST_DIRS: "core db"
+  TEST_DIRS: "core db server"
 
 build:
   stage: build
