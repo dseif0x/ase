@@ -107,6 +107,48 @@ public class TcpGeneral {
         return keyMap;
     }
 
+    public SimpleType getElementType() {
+        if (((array == null || array.isEmpty()) && pair == null) || !isComplex()) {
+            throw new IllegalStateException("Cannot get element type for empty array or pair.");
+        } else {
+            switch (type) {
+                case ARRAY:
+                    return array.get(0).getSimpleType();
+                case PAIR:
+                    return pair.getLeft().getSimpleType();
+                default:
+                    throw new IllegalStateException("Cannot get element type for non-array or non-pair TcpGeneral.");
+            }
+        }
+
+
+    }
+
+    public boolean isComplex() {
+        switch (type) {
+            case ARRAY:
+                return array.stream().anyMatch(TcpGeneral::_isComplex);
+            case PAIR:
+                return pair.getLeft()._isComplex();
+            case SIMPLE:
+            case KEY_MAP:
+            default:
+                return false;
+        }
+    }
+
+    private boolean _isComplex() {
+        switch (type) {
+            case ARRAY:
+            case KEY_MAP:
+            case PAIR:
+                return true;
+            case SIMPLE:
+            default:
+                return false;
+        }
+    }
+
     @Override
     public String toString() {
         switch (type) {
