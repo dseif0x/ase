@@ -2,6 +2,10 @@ package com.ase.utility;
 
 import com.ase.exception.TCPClientException;
 import com.ase.exception.TCPClientWriteException;
+import com.ase.utility.tcp.SimpleType;
+import com.ase.utility.tcp.TcpGeneral;
+import com.ase.utility.tcp.TcpGeneralType;
+import com.ase.utility.tcp.TypeFlag;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -10,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Dynamic reading of various data types from a DataInputStream based on server-provided size information.
@@ -33,6 +38,12 @@ public class DynamicDataWriter {
         this.dataOutputStream = new DataOutputStream(outputStream);
     }
 
+    /**
+     * Writes a string to the output stream using the TCP_EUI encoding scheme.
+     *
+     * @param string The string to write.
+     * @throws TCPClientWriteException If an I/O error occurs or the string length exceeds the server limit.
+     */
     public void writeString(String string) throws TCPClientWriteException {
         try {
             byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
@@ -57,7 +68,7 @@ public class DynamicDataWriter {
      * @param value the boolean value to write to the stream
      * @throws TCPClientWriteException if writing the boolean fails
      */
-    public void writeBoolean(boolean value) throws TCPClientException {
+    private void writeBoolean(boolean value) throws TCPClientException {
         try {
             byte[] bytes = new byte[serverInfo.getBooleanSize()];
             bytes[0] = (byte) (value ? 1 : 0);
@@ -73,7 +84,7 @@ public class DynamicDataWriter {
      * @param value the integer value to write to the stream
      * @throws TCPClientWriteException if writing the integer fails, or value is out of range
      */
-    public void writeInt(int value) throws TCPClientException {
+    private void writeInt(int value) throws TCPClientException {
         try {
             int targetSize = serverInfo.getIntSize();
             final int maxSize = Integer.BYTES;
@@ -112,7 +123,7 @@ public class DynamicDataWriter {
      * @param value the double value to write to the stream
      * @throws TCPClientWriteException if writing the double fails or if the value exceeds the server's byte size
      */
-    public void writeDouble(double value) throws TCPClientException {
+    private void writeDouble(double value) throws TCPClientException {
         try {
             int targetSize = serverInfo.getDoubleSize();
             final int maxSize = Double.BYTES;
@@ -153,6 +164,144 @@ public class DynamicDataWriter {
         buffer.order(ByteOrder.BIG_ENDIAN);
         buffer.putInt((int) value); // Only the lower 32 bits are used
         dataOutputStream.write(buffer.array());
+    }
+
+    private void writeKeyMap(TcpGeneral value) {
+
+    }
+
+    private void writePair(TcpGeneral value) {
+
+    }
+
+    /**
+     * Serializes and writes an array of {@link TcpGeneral} objects to the output stream.
+     *
+     *
+     * @param value The {@link TcpGeneral} object representing the array to serialize.
+     * @throws TCPClientException If an I/O error occurs or the array length is invalid.
+     * @throws IllegalArgumentException If the provided {@link TcpGeneral} is not of type {@link com.ase.utility.tcp.TcpGeneralType#ARRAY}.
+     */
+    private void writeArray(TcpGeneral value) throws TCPClientException {
+        if (value.getType() != TcpGeneralType.ARRAY) {
+            throw new IllegalArgumentException("Expected ARRAY TcpGeneral.");
+        }
+
+        try {
+            List<TcpGeneral> array = value.getArray();
+            int len = array.size();
+            if (len == 0 || len > serverInfo.getArraySize()) {
+                throw new TCPClientWriteException("Array length invalid.");
+            }
+
+            byte[] lengthBytes = Utility.createTCPEUIByteArray(len);
+            dataOutputStream.write(lengthBytes);
+
+
+            if (value.isComplex()) {
+                for (TcpGeneral element : array) {
+                    writeGeneral(element);
+                }
+            } else {
+                SimpleType elementType = value.getElementType();
+                for (TcpGeneral element : array) {
+                    writeSimpleType(elementType, element.getValue());
+                }
+            }
+        } catch (IOException e) {
+            throw new TCPClientWriteException("Failed to write array.", e);
+        }
+    }
+
+    /**
+     * Serializes and writes a {@link TcpGeneral} object to the output stream, including its Type Definition Block.
+     *
+     * @param value The {@link TcpGeneral} object to serialize and write.
+     * @throws TCPClientException if an I/O error occurs or the encoding is invalid.
+     */
+    public void writeGeneral(TcpGeneral value) throws TCPClientException {
+        writeTypeDefinition(value);
+
+        switch (value.getType()) {
+            case SIMPLE:
+                writeSimpleType(value.getSimpleType(), value.getValue());
+                break;
+            case ARRAY:
+                writeArray(value);
+                break;
+            case PAIR:
+                writePair(value);
+                break;
+            case KEY_MAP:
+                writeKeyMap(value);
+                break;
+        }
+    }
+
+    /**
+     * Writes the Type Definition Block (TDB) byte to the output stream based on the TcpGeneral's type.
+     *
+     * @param value The TcpGeneral object whose type definition is to be written.
+     * @throws TCPClientException If an I/O error occurs or getting the SimpelType failed.
+     */
+    public void writeTypeDefinition(TcpGeneral value) throws TCPClientException {
+        try {
+            SimpleType type = SimpleType.UNKNOWN;
+            int flags = 0;
+
+            switch (value.getType()) {
+                case SIMPLE:
+                    type = value.getSimpleType();
+                    break;
+                case ARRAY:
+                    if (value.isComplex()) {
+                        flags |= TypeFlag.COMPLEX.getBitmask();
+                        flags |= TypeFlag.ARRAY.getBitmask();
+                    } else {
+                        flags |= TypeFlag.ARRAY.getBitmask();
+                        type = value.getElementType();
+                    }
+                case PAIR:
+                    if (value.isComplex()) {
+                        flags |= TypeFlag.COMPLEX.getBitmask();
+                        flags |= TypeFlag.PAIR.getBitmask();
+                    } else {
+                        flags |= TypeFlag.PAIR.getBitmask();
+                        type = value.getElementType();
+                    }
+                case KEY_MAP:
+                    flags |= TypeFlag.KEY.getBitmask();
+                    break;
+            }
+
+            byte tdb = (byte) (type.getTypeId() | flags);
+            dataOutputStream.writeByte(tdb);
+        } catch (IOException e) {
+            throw new TCPClientWriteException("Failed to write Type-Definition-Block.", e);
+        } catch (IllegalStateException e) {
+            throw new TCPClientWriteException("Failed to get SimpleType for: \n " + value + "\nError:" + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Write a simple type value to the output stream.
+     *
+     * @param simpleType The SimpleType to write.
+     * @throws TCPClientWriteException if an I/O error occurs or the SimpleType is invalid.
+     */
+    private void writeSimpleType(SimpleType simpleType, Object value) throws TCPClientException {
+        switch (simpleType) {
+            case BOOLEAN:
+                writeBoolean((boolean) value);
+            case INT:
+                writeInt((int) value);
+            case STRING:
+                writeString((String) value);
+            case DOUBLE:
+                writeDouble((double) value);
+            default:
+                throw new TCPClientWriteException("Unsupported SimpleType: " + simpleType);
+        }
     }
 
     /**
