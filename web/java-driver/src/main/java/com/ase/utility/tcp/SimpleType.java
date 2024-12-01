@@ -4,6 +4,7 @@ package com.ase.utility.tcp;
  * Extend this enumeration based on your protocol's supported types.
  */
 public enum SimpleType {
+    UNKNOWN(0x00),
     BOOLEAN(0x01),
     INT(0x02),
     STRING(0x03),
@@ -18,6 +19,15 @@ public enum SimpleType {
 
     SimpleType(int typeId) {
         this.typeId = typeId;
+    }
+
+    /**
+     * Retrieves the type ID.
+     *
+     * @return The type ID.
+     */
+    public int getTypeId() {
+        return typeId;
     }
 
     /**
