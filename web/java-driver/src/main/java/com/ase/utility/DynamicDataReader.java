@@ -175,10 +175,10 @@ public class DynamicDataReader {
     /**
      * Reads a key from the input stream based on the Type-Definition-Block.
      *
-     * @return The Key-Value HashMap.
+     * @return A {@link TcpGeneral} instance representing the Key-Value Map.
      * @throws TCPClientReadException if an I/O error occurs or the reading fails.
      */
-    public TcpGeneral readKey() throws TCPClientException {
+    public TcpGeneral readKeyMap() throws TCPClientException {
         long keyLength = readTCPEUI();
         int len = (int) keyLength;
 
@@ -195,7 +195,7 @@ public class DynamicDataReader {
     /**
      * Reads an array from the input stream based on the Type-Definition-Block.
      *
-     * @return A List containing the array elements.
+     * @return A {@link TcpGeneral} instance representing the array.
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
     public TcpGeneral readArray(boolean isComplex, SimpleType simpleType) throws TCPClientException {
@@ -226,14 +226,14 @@ public class DynamicDataReader {
     /**
      * Reads a value from the input stream based on its Type-Definition-Block.
      *
-     * @return The decoded value as an Object.
+     * @return The decoded value as an {@link TcpGeneral} Object.
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
     public TcpGeneral readGeneral() throws TCPClientException {
         TypeDefinition typeDef = readTypeDefinition();
 
         if (typeDef.isKey()) {
-            return readKey();
+            return readKeyMap();
         } else if (typeDef.isArray()) {
             return readArray(typeDef.isComplex(), typeDef.getSimpleType());
         } else if (typeDef.isPair()) {
@@ -278,7 +278,8 @@ public class DynamicDataReader {
      * Reads a pair (key-value pair) from the input stream based on the Type-Definition-Block.
      *
      * @param isComplex Indicates whether the first value is a complex type requiring its own TDB.
-     * @return A Pair object containing the key and value.
+     * @param type      The SimpleType of the first value if not complex.
+     * @return A {@link TcpGeneral} instance representing the Key-Value Pair.
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
     private TcpGeneral readPair(boolean isComplex, SimpleType type) throws TCPClientException {
