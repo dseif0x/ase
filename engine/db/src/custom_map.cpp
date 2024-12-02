@@ -17,8 +17,18 @@ db_map::~db_map() {
 }
 
 //! @onlyInAtomicAccess
-std::vector<std::string> db_map::keys() {
+std::vector<std::string> db_map::atomic_keys() {
     std::shared_lock<shrwlock> lock_guard(lock);
+    std::vector<std::string> keys;
+    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    for (size_t i = 0; i < used_size; i++) {
+        keys.push_back(data[i].first.get(mem));
+    }
+    return keys;
+}
+
+//! @onlyInAtomicAccess
+std::vector<std::string> db_map::keys() {
     std::vector<std::string> keys;
     std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
@@ -39,8 +49,8 @@ bool db_map::atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOM
     return false;
 }
 
-
-relative_offset_ptr<Value> db_map::atomic_get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+//! @onlyInAtomicAccess
+relative_offset_ptr<Value> db_map::atomic_get(const char* key) {
     std::shared_lock<shrwlock> lock_guard(lock);
     std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
@@ -51,8 +61,8 @@ relative_offset_ptr<Value> db_map::atomic_get(const char* key) { // ONLY CALL TH
     throw std::runtime_error("Key not found");
 }
 
-
-bool db_map::has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+//! @onlyInAtomicAccess
+bool db_map::has(const char* key) {
     std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
         if (std::strcmp(data[i].first.get(mem), key) == 0) {
@@ -62,7 +72,8 @@ bool db_map::has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCE
     return false;
 }
 
-relative_offset_ptr<Value> db_map::get(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+//! @onlyInAtomicAccess
+relative_offset_ptr<Value> db_map::get(const char* key) {
     std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
         if (std::strcmp(data[i].first.get(mem), key) == 0) {
@@ -82,4 +93,8 @@ relative_offset_ptr<Value> locked_db_map::get(const char* key) {
 
 bool locked_db_map::has(const char* key) {
     return map->has(key);
+}
+
+std::vector<std::string> locked_db_map::keys() {
+    return map->keys();
 }

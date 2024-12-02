@@ -29,7 +29,7 @@ CopiedValue::CopiedValue(const Value &value) {
     } else if (type == ValueType::MAP) {
         auto& map = get<Value::shmem_map_t>(value.data);
         auto& local_map = data.emplace<CopiedValue::copied_map_t>();
-        for (auto& key : map->keys()) {
+        for (auto& key : map->atomic_keys()) {
             auto& val = *map->atomic_get(key.c_str());
             local_map.emplace(key, std::make_unique<CopiedValue>(val));
         }
@@ -48,10 +48,6 @@ void CopiedValue::print() {
     CopiedValue::print(*this);
 }
 
-/**
- * Prints a python-style representation of the provided CopiedValue to stdout.
- * @param val CopiedValue to be printed.
- */
 void CopiedValue::print(CopiedValue &val) {
     if (val.type == ValueType::INT) {
         std::cout << std::get<int>(val.data);

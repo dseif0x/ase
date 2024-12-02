@@ -30,8 +30,8 @@ offset_ptr<db_key_map> DB::get_entrypoint() {
     return {mem.get_management_offset()};
 }
 
-std::queue<std::string> split(const char* input) {
-    std::queue<std::string> result;
+std::deque<std::string> split(const char* input) {
+    std::deque<std::string> result;
     std::string str(input);
 
     // Remove leading dot, if present
@@ -45,16 +45,16 @@ std::queue<std::string> split(const char* input) {
     // Split by dot and store each part in the vector
     while (std::getline(ss, token, '.')) {
         if (!token.empty()) { // Ignore empty tokens
-            result.push(token);
+            result.push_back(token);
         }
     }
 
     return result;
 }
 
-std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
+std::optional<std::reference_wrapper<Value>> get_key(db_map& map, std::deque<std::string>& keys) {
     if (keys.empty())
-        return std::optional<CopiedValue>{};
+        return std::nullopt;
     auto key = keys.front();
     std::optional<std::reference_wrapper<Value>> res{};
     map.transaction([&](locked_db_map* map) {
@@ -65,8 +65,8 @@ std::optional<CopiedValue> get_key(db_map& map, std::queue<std::string>& keys) {
     if (!res.has_value())
         return std::nullopt;
     if (keys.size() == 1)
-        return std::make_optional(res->get());
-    keys.pop();
+        return res;
+    keys.pop_front();
     auto& newMap = *res;
     if (newMap.get().type != ValueType::MAP)
         throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
@@ -80,21 +80,71 @@ std::optional<CopiedValue> DB::get(const char *key) {
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
         auto val = get_key(*entrypoint, key_split);
         if (val.has_value())
-            res = std::move(val);
+            res.emplace(val.value().get());
     });
     return res;
 }
 
-void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys, offset_ptr<Value>& new_value) {
+std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_follows) {
+    auto entrypoint_p = get_entrypoint();
+    std::optional<CopiedValue> res{};
+    std::string next_key = std::string(key);
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        do {
+            auto split_keys = split(next_key.c_str());
+            auto nextNode = get_key(*entrypoint, split_keys);
+            if (!nextNode.has_value()) break;
+            auto nextVal = nextNode.value();
+            if (nextVal.get().type == ValueType::REFERENCE) {
+                auto& str = std::get<Value::shmem_string_t>(nextVal.get().data);
+                next_key = str.get();
+            } else {
+                res.emplace(nextVal.get());
+                break;
+            }
+        } while(max_chained_follows-- > 0);
+    });
+    return res;
+}
+
+CopiedValue generate_subdomain(std::deque<std::string>& keys, CopiedValue&& new_value) {
+
+    std::unordered_map<std::string, std::unique_ptr<CopiedValue>> mep;
+    mep.emplace(keys.back(), std::make_unique<CopiedValue>(std::move(new_value)));
+
+    keys.pop_back();
+    while (!keys.empty()) {
+        auto key = keys.back();
+
+        auto new_map = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>();
+
+        CopiedValue new_val {};
+        new_val.type = ValueType::MAP;
+        new_val.data.emplace<CopiedValue::copied_map_t>(std::move(mep));
+
+        new_map.emplace(key, std::make_unique<CopiedValue>(std::move(new_val)));
+
+        mep = std::move(new_map);
+
+        keys.pop_back();
+    }
+
+    CopiedValue new_val {};
+    new_val.type = ValueType::MAP;
+    new_val.data.emplace<CopiedValue::copied_map_t>(std::move(mep));
+    return new_val;
+}
+
+void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value) {
     if (keys.empty())
         return;
     auto key = keys.front();
     if (keys.size() == 1) {
-        db_key_map::set(map, mem, key.c_str(), new_value);
+        db_key_map::set(map, mem, key.c_str(), Value::create_value(mem, new_value));
         return;
     }
     std::optional<std::reference_wrapper<Value>> res{};
-    keys.pop();
+    keys.pop_front();
     offset_ptr<db_map> ptr;
     map.atomic_access(mem, [&](db_key_map* entrypoint)
     {
@@ -110,14 +160,79 @@ void set_key(offset_ptr<db_map>& map, shmem& mem, std::queue<std::string>& keys,
             throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
         ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.get().data));
     });
-    if (!res.has_value())
+    if (!res.has_value()) {
+        auto subdomain = generate_subdomain(keys, std::move(new_value));
+        db_key_map::set(map, mem, key.c_str(), Value::create_value(mem, subdomain));
         return;
-    return set_key(ptr, mem, keys, new_value);
+    }
+
+    return set_key(ptr, mem, keys, std::move(new_value));
 }
 
-void DB::set(const char *key, const CopiedValue& value) {
+void DB::set(const char *key, CopiedValue&& value) {
     auto entrypoint_p = get_entrypoint();
-    offset_ptr<Value> new_value = Value::create_value(mem, value);
-    auto keys = split(key);
-    set_key(entrypoint_p, mem, keys, new_value);
+    std::deque<std::string> keys = split(key);
+    set_key(entrypoint_p, mem, keys, std::move(value));
+}
+
+using list_val_data_t = std::variant<std::monostate, bool, int, std::string, double>;
+using list_map_enty_t = std::pair<ValueType, list_val_data_t>;
+using list_map_t = std::unordered_map<std::string, list_map_enty_t>;
+DB::list_t DB::list(const char* key) {
+    auto entrypoint_p = get_entrypoint();
+    auto key_split = split(key);
+    list_t res {};
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        auto val = get_key(*entrypoint, key_split);
+        if (val.has_value()) {
+            auto& deref_val = val.value().get();
+            if (deref_val.type != ValueType::MAP)
+                return;
+            auto& cur_map = std::get<relative_offset_ptr<db_map>>(deref_val.data);
+            list_map_t res_map{};
+            cur_map->transaction([&](locked_db_map* locked_map) {
+               for(auto& key : locked_map->keys()) {
+                   auto original_entry = locked_map->get(key.c_str());
+                   list_map_enty_t entry{original_entry->type, std::monostate{}};
+                   if (entry.first == ValueType::INT) {
+                       entry.second.emplace<int>(std::get<int>(original_entry->data));
+                   } else if (entry.first == ValueType::BOOLEAN) {
+                       entry.second.emplace<bool>(std::get<bool>(original_entry->data));
+                   } else if (entry.first == ValueType::DOUBLE) {
+                       entry.second.emplace<double>(std::get<double>(original_entry->data));
+                   } else if (entry.first == ValueType::STRING) {
+                       auto& string_val = std::get<Value::shmem_string_t>(original_entry->data);
+                       entry.second.emplace<std::string>(string_val.get());
+                   }
+                   res_map.emplace(key, entry);
+               }
+            });
+            res.emplace(std::move(res_map));
+        }
+    });
+    return res;
+}
+
+void DB::remove(const char* key) {
+    auto entrypoint_p = get_entrypoint();
+    auto key_split = split(key);
+    auto last_key = key_split.back();
+    key_split.pop_back();
+    std::optional<offset_ptr<db_map>> res {};
+    if (key_split.empty()) { // top level key
+        res.emplace(entrypoint_p);
+    } else {
+        entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+            auto val = get_key(*entrypoint, key_split);
+            if (val.has_value()) {
+                auto extracted_val = val->get();
+                if (extracted_val.type == ValueType::MAP) {
+                    res.emplace(mem.relative_to_offset(std::get<Value::shmem_map_t>(extracted_val.data)));
+                }
+            }
+        });
+    }
+    if (res.has_value()) {
+        db_map::remove(res.value(), mem, last_key.c_str());
+    }
 }

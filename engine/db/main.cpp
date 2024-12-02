@@ -34,8 +34,57 @@ void get_and_print(DB& db, const char* key) {
             std::cout << "Value found for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
         } else if (val->type == ValueType::DOUBLE) {
             std::cout << "Value found for key " << key << ": " << get<double>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::REFERENCE) {
+            std::cout << "Value found for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
         } else {
             std::cout << "Value found for key " << key << ", " <<  "but type not handeled" << std::endl;
+        }
+    } else {
+        std::cout << "Value not found for key " << key << std::endl;
+    }
+}
+
+void list_and_print(DB& db, const char* key) {
+    DB::list_t val = db.list(key);
+    if (val.has_value()) {
+        std::cout << "Listing values for " << key << std::endl;
+        for (auto& entry : val.value()) {
+            if (entry.second.first == ValueType::INT) {
+                std::cout << "--- Value found for key " << entry.first << ": " << get<int>(entry.second.second) << std::endl;
+            } else if (entry.second.first == ValueType::STRING) {
+                std::cout << "--- Value found for key " << entry.first << ": " << get<std::string>(entry.second.second) << std::endl;
+            } else if (entry.second.first == ValueType::DOUBLE) {
+                std::cout << "--- Value found for key " << entry.first << ": " << get<double>(entry.second.second) << std::endl;
+            } else {
+                std::cout << "--- Value found for key " << entry.first << ": -" << std::endl;
+            }
+        }
+    } else {
+        std::cout << "Value not found for key " << key << std::endl;
+    }
+}
+
+/**
+ * @brief Retrieves a value from the database by key and prints it.
+ *
+ * This function attempts to retrieve a value associated with the given reference from
+ * the database. If the value is found, it prints the integer value to the standard
+ * output. If not, it prints a "Value not found" message.
+ *
+ * @param db A reference to the `DB` object from which the value is retrieved.
+ * @param key A pointer to a C-string representing the key of the reference to retrieve.
+ */
+void follow_and_print(DB& db, const char* key) {
+    std::optional<CopiedValue> val = db.follow(key);
+    if (val.has_value()) {
+        if (val->type == ValueType::INT) {
+            std::cout << "Reference followed for key " << key << ": " << get<int>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::STRING) {
+            std::cout << "Reference followed for key " << key << ": " << get<std::string>(val.value().data) << std::endl;
+        } else if (val->type == ValueType::DOUBLE) {
+            std::cout << "Reference followed for key " << key << ": " << get<double>(val.value().data) << std::endl;
+        } else {
+            std::cout << "Reference followed for key " << key << ", " <<  "but type not handeled" << std::endl;
         }
     } else {
         std::cout << "Value not found for key " << key << std::endl;
@@ -50,8 +99,8 @@ int main() {
         DB db;
         db.destroy();
     }
-    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    int pid = 1;
+    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    //int pid = 1;
     stopwatch s;
     if (pid == 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -66,30 +115,34 @@ int main() {
             CopiedValue newval{};
             newval.type = ValueType::INT;
             newval.data.emplace<int>(42);
-            db.set("test", newval);
-            newval.data.emplace<int>(43);
-            db.set("test2", newval);
+            db.set("test", std::move(newval));
+
+
+            CopiedValue newval2{};
+            newval2.type = ValueType::INT;
+            newval2.data.emplace<int>(43);
+            db.set("test2", std::move(newval2));
         }
 
         { // String
             CopiedValue newval2{};
             newval2.type = ValueType::STRING;
             newval2.data.emplace<std::string>("Hello World!");
-            db.set("test3", newval2);
+            db.set("test3", std::move(newval2));
         }
 
         { // Boolean
             CopiedValue newval3{};
             newval3.type = ValueType::BOOLEAN;
             newval3.data.emplace<bool>(true);
-            db.set("test4", newval3);
+            db.set("test4", std::move(newval3));
         }
 
         { // Double
             CopiedValue newval4{};
             newval4.type = ValueType::DOUBLE;
             newval4.data.emplace<double>(1.2);
-            db.set("test5", newval4);
+            db.set("test5", std::move(newval4));
         }
 
         { // Array
@@ -107,7 +160,7 @@ int main() {
             vector.emplace_back(std::move(arrval1));
             vector.emplace_back(std::move(arrval2));
 
-            db.set("test6", newval5);
+            db.set("test6", std::move(newval5));
         }
 
         { // Pair
@@ -126,7 +179,7 @@ int main() {
             CopiedValue newval6{};
             newval6.type = ValueType::PAIR;
             newval6.data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
-            db.set("test7", newval6);
+            db.set("test7", std::move(newval6));
         }
 
         { // Map
@@ -144,10 +197,26 @@ int main() {
             CopiedValue newval6 {};
             newval6.type = ValueType::MAP;
             newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
-            db.set("test8", newval6);
+            db.set("test8", std::move(newval6));
 
-            db.set("test8.key1", map_val);
-            db.set("test8.key2", map_val2);
+            db.set("test8.key1", std::move(map_val));
+            db.set("test8.key2", std::move(map_val2));
+        }
+
+        { // Reference
+            CopiedValue newval2{};
+            newval2.type = ValueType::REFERENCE;
+            newval2.data.emplace<std::string>("test3");
+            db.set("test9", std::move(newval2));
+        }
+
+        { // Delete
+            CopiedValue newval{};
+            newval.type = ValueType::INT;
+            newval.data.emplace<int>(42);
+            db.set("test10", std::move(newval));
+
+            db.remove("test10");
         }
 
         get_and_print(db, "test");
@@ -157,9 +226,11 @@ int main() {
         get_and_print(db, "test5");
         get_and_print(db, "test6");
         get_and_print(db, "test7");
-        get_and_print(db, "test8");
         get_and_print(db, "test8.key1");
         get_and_print(db, "test8.key2");
+        list_and_print(db, "test8");
+        follow_and_print(db, "test9");
+        get_and_print(db, "test10");
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
     return 0;

@@ -18,7 +18,7 @@ int main() {
         db.destroy();
     }
     DB db{};
-
+/*
     {
         CopiedValue val{};
         val.type = ValueType::INT;
@@ -55,7 +55,7 @@ int main() {
         newval2.data.emplace<std::string>("This is sport.");
         db.set("at.orf.sport", newval2);
     }
-
+*/
     std::cout << "after db" << std::endl;
 
     ACL acl{};
