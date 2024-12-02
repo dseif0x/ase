@@ -69,7 +69,7 @@ public:
      * A time between 200ms and 500ms is advised.
      * @param delay_ms The time in ms which must pass without new data arriving for the function to return
      */
-    void clear_buffer(int delay_ms);
+    void clear_buffer(int delay_ms = 250);
 
     /**
      * @brief Decodes the buffer content as a string.
@@ -187,6 +187,19 @@ public:
      * @return The error message.
      */
     std::string get_error();
+};
+
+/**
+* Specialized decoder for decoding from files.
+*/
+class FileDecoder : public GenericDecoder {
+    std::string file_path;
+
+public:
+    FileDecoder(std::string &file_path);
+
+    std::vector<unsigned char> get_bytes(size_t bytes) override;
+    void read_data() override;
 };
 
 

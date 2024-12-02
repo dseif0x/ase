@@ -20,6 +20,7 @@
  */
 namespace errors {
     constexpr uint16_t general_protocol_error       = 0xFFFF;
+    constexpr uint16_t general_server_error         = 0xFFFE;
 
     constexpr uint16_t permission_denied_self       = 0xFFF0;
     constexpr uint16_t permission_denied            = 0xFF00;
@@ -48,6 +49,7 @@ namespace errors {
         {key_already_exists, "Key already exists."},
         {username_already_exists, "The provided username already exists."},
         {unknown_command, "The provided command code is unknown."},
+        {general_server_error, "An unexpected error occurred."}
     };
 }
 
