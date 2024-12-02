@@ -44,8 +44,9 @@ public:
      *
      * @param key the key to retrieve
      * @param value the value to be inserted
+     * @param force force set
      */
-    void set(const char* key, CopiedValue&& value);
+    void set(const char* key, CopiedValue&& value, bool force = false);
 
     /**
      * FOLLOW command of the database
