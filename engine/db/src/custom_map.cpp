@@ -20,9 +20,9 @@ db_map::~db_map() {
 std::vector<std::string> db_map::atomic_keys() {
     std::shared_lock<shrwlock> lock_guard(lock);
     std::vector<std::string> keys;
-    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    map_entry_type* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
-        keys.push_back(data[i].first.get(mem));
+        keys.push_back(std::get<0>(data[i]).get(mem));
     }
     return keys;
 }
@@ -30,9 +30,9 @@ std::vector<std::string> db_map::atomic_keys() {
 //! @onlyInAtomicAccess
 std::vector<std::string> db_map::keys() {
     std::vector<std::string> keys;
-    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    map_entry_type* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
-        keys.push_back(data[i].first.get(mem));
+        keys.push_back(std::get<0>(data[i]).get(mem));
     }
     return keys;
 }
@@ -40,9 +40,9 @@ std::vector<std::string> db_map::keys() {
 //! @onlyInAtomicAccess
 bool db_map::atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     std::shared_lock<shrwlock> lock_guard(lock);
-    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    map_entry_type* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(data[i].first.get(mem), key) == 0) {
+        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
             return true;
         }
     }
@@ -52,10 +52,10 @@ bool db_map::atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOM
 //! @onlyInAtomicAccess
 relative_offset_ptr<Value> db_map::atomic_get(const char* key) {
     std::shared_lock<shrwlock> lock_guard(lock);
-    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    map_entry_type* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(data[i].first.get(mem), key) == 0) {
-            return data[i].second.get_relative(mem);
+        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
+            return std::get<1>(data[i]).get_relative(mem);
         }
     }
     throw std::runtime_error("Key not found");
@@ -63,9 +63,9 @@ relative_offset_ptr<Value> db_map::atomic_get(const char* key) {
 
 //! @onlyInAtomicAccess
 bool db_map::has(const char* key) {
-    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    map_entry_type* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(data[i].first.get(mem), key) == 0) {
+        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
             return true;
         }
     }
@@ -74,10 +74,10 @@ bool db_map::has(const char* key) {
 
 //! @onlyInAtomicAccess
 relative_offset_ptr<Value> db_map::get(const char* key) {
-    std::pair<offset_ptr<char>, offset_ptr<Value>>* data = this->data.get(mem);
+    map_entry_type* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(data[i].first.get(mem), key) == 0) {
-            return data[i].second.get_relative(mem);
+        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
+            return std::get<1>(data[i]).get_relative(mem);
         }
     }
     throw std::runtime_error("Key not found");

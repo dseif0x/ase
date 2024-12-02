@@ -64,7 +64,7 @@ public:
  */
 class db_map {
 public:
-    using map_entry_type = std::pair<offset_ptr<char>, offset_ptr<Value>>;
+    using map_entry_type = std::tuple<offset_ptr<char>, offset_ptr<Value>, offset_t>;
 
     db_map(shmem& mem);
 
@@ -123,11 +123,11 @@ public:
 
         map.atomic_access(mem, [&](db_map* map) {
             map->lock.lock();
-            std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
+            map_entry_type* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
-                if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                    old_value = data[i].second;
-                    data[i].second = value;
+                if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
+                    old_value = std::get<0>(data[i]);
+                    std::get<1>(data[i]) = value;
                     found = true;
                     map->lock.unlock();
                     return;
@@ -153,7 +153,7 @@ public:
             auto* data_p = map_p->data.get(mem);
             strncpy(ptr, key, str_len);
             ptr[str_len] = '\0';
-            data_p[used_size++] = std::make_pair(new_key, value);
+            data_p[used_size++] = std::make_tuple(new_key, value, -1);
             map_p->used_size = used_size;
             map_p->lock.unlock();
         }, true);
@@ -171,9 +171,9 @@ public:
         // Potentially shrink the shmem
         map.atomic_access(mem, [&](db_map* map) {
             map->lock.lock();
-            std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
+            map_entry_type* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
-                if (std::strcmp(data[i].first.get(mem), key) == 0) {
+                if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
                     map->used_size--; // we don't delete anything, just invalidate it's memory
                     if (i < map->used_size) { // swap values with last data entry
                         std::swap(data[i], data[map->used_size]);
