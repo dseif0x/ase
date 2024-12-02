@@ -1,11 +1,13 @@
 package com.ase.utility;
 
 import com.ase.exception.TCPClientException;
+import com.ase.exception.TCPClientReadException;
 import com.ase.exception.TCPClientWriteException;
 import com.ase.utility.tcp.SimpleType;
 import com.ase.utility.tcp.TcpGeneral;
 import com.ase.utility.tcp.TcpGeneralType;
 import com.ase.utility.tcp.TypeFlag;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -14,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -166,17 +169,59 @@ public class DynamicDataWriter {
         dataOutputStream.write(buffer.array());
     }
 
-    private void writeKeyMap(TcpGeneral value) {
+    /**
+     * Serializes and wirte a Key-Value map of type {@link TcpGeneral} to the output stream.
+     *
+     * @throws TCPClientReadException if an I/O error occurs or the Key-Value Map length is invalid.
+     * @throws IllegalArgumentException if the provided {@link TcpGeneral} is not of type {@link TcpGeneralType#KEY_MAP}.
+     */
+    private void writeKeyMap(TcpGeneral value) throws TCPClientException {
+        if (value.getType() != TcpGeneralType.KEY_MAP) {
+            throw new IllegalArgumentException("Expected KEY_MAP TcpGeneral.");
+        }
 
+        try {
+            HashMap<String, TcpGeneral> keyMap = value.getKeyMap();
+            int len = keyMap.size();
+            if (len == 0) {
+                throw new TCPClientWriteException("KeyMap length invalid.");
+            }
+
+            byte[] lengthBytes = Utility.createTCPEUIByteArray(len);
+            dataOutputStream.write(lengthBytes);
+
+            for (String key : keyMap.keySet()) {
+                writeString(key);
+                writeGeneral(keyMap.get(key));
+            }
+        } catch (IOException e) {
+            throw new TCPClientWriteException("Failed to write key map.", e);
+        }
     }
 
-    private void writePair(TcpGeneral value) {
+    /**
+     * Serializes and writes a pair of {@link TcpGeneral} objects to the output stream.
+     *
+     * @param value The {@link TcpGeneral} object representing the pair to serialize.
+     * @throws TCPClientException If an I/O error occurs or the pair is invalid.
+     * @throws IllegalArgumentException If the provided {@link TcpGeneral} is not of type {@link TcpGeneralType#PAIR}.
+     */
+    private void writePair(TcpGeneral value) throws TCPClientException {
+        if (value.getType() != TcpGeneralType.PAIR) {
+            throw new IllegalArgumentException("Expected PAIR TcpGeneral.");
+        }
 
+        try {
+            Pair<TcpGeneral, TcpGeneral> pair = value.getPair();
+            writeGeneral(pair.getLeft());
+            writeGeneral(pair.getRight());
+        } catch (TCPClientException e) {
+            throw new TCPClientWriteException("Failed to write pair.", e);
+        }
     }
 
     /**
      * Serializes and writes an array of {@link TcpGeneral} objects to the output stream.
-     *
      *
      * @param value The {@link TcpGeneral} object representing the array to serialize.
      * @throws TCPClientException If an I/O error occurs or the array length is invalid.

@@ -173,7 +173,7 @@ public class DynamicDataReader {
     }
 
     /**
-     * Reads a key from the input stream based on the Type-Definition-Block.
+     * Reads a key-value map from the input stream based on the Type-Definition-Block.
      *
      * @return A {@link TcpGeneral} instance representing the Key-Value Map.
      * @throws TCPClientReadException if an I/O error occurs or the reading fails.
@@ -221,6 +221,24 @@ public class DynamicDataReader {
         }
 
         return TcpGeneral.ofArray(array);
+    }
+
+    /**
+     * Reads a pair (key-value pair) from the input stream based on the Type-Definition-Block.
+     *
+     * @param isComplex Indicates whether the first value is a complex type requiring its own TDB.
+     * @param type      The SimpleType of the first value if not complex.
+     * @return A {@link TcpGeneral} instance representing the Key-Value Pair.
+     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
+     */
+    private TcpGeneral readPair(boolean isComplex, SimpleType type) throws TCPClientException {
+        TcpGeneral first, second;
+
+        if (isComplex) first = readGeneral();
+        else first = TcpGeneral.ofSimple(type, readSimpleType(type));
+
+        second = readGeneral();
+        return TcpGeneral.ofPair(first, second);
     }
 
     /**
@@ -272,24 +290,6 @@ public class DynamicDataReader {
         } catch (IllegalArgumentException e) {
             throw new TCPClientReadException("Unknown SimpleType in Type-Definition-Block.", e);
         }
-    }
-
-    /**
-     * Reads a pair (key-value pair) from the input stream based on the Type-Definition-Block.
-     *
-     * @param isComplex Indicates whether the first value is a complex type requiring its own TDB.
-     * @param type      The SimpleType of the first value if not complex.
-     * @return A {@link TcpGeneral} instance representing the Key-Value Pair.
-     * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
-     */
-    private TcpGeneral readPair(boolean isComplex, SimpleType type) throws TCPClientException {
-        TcpGeneral first, second;
-
-        if (isComplex) first = readGeneral();
-        else first = TcpGeneral.ofSimple(type, readSimpleType(type));
-
-        second = readGeneral();
-        return TcpGeneral.ofPair(first, second);
     }
 
     /**
