@@ -13,7 +13,7 @@ db_map::db_map(shmem& mem) : mem{mem} {
 }
 
 db_map::~db_map() {
-    mem.destroy_array(data);
+    mem.destroy_array(data, alloc_size);
 }
 
 //! @onlyInAtomicAccess

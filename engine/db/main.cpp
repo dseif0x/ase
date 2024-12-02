@@ -99,8 +99,8 @@ int main() {
         DB db;
         db.destroy();
     }
-    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    //int pid = 1;
+    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    int pid = 1;
     stopwatch s;
     if (pid == 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -217,6 +217,41 @@ int main() {
             db.set("test10", std::move(newval));
 
             db.remove("test10");
+
+            CopiedValue newval2{};
+            CopiedValue newval3{};
+
+            auto pair_val = std::make_unique<CopiedValue>();
+            pair_val->type = ValueType::INT;
+            pair_val->data.emplace<int>(182);
+
+            auto pair_val2 = std::make_unique<CopiedValue>();
+            pair_val2->type = ValueType::DOUBLE;
+            pair_val2->data.emplace<double>(1.7);
+
+            std::pair<std::unique_ptr<CopiedValue>, std::unique_ptr<CopiedValue>> pair;
+            pair.first = std::move(pair_val);
+            pair.second = std::move(pair_val2);
+
+            newval2.type = ValueType::PAIR;
+            newval2.data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
+            newval3.type = ValueType::ARRAY;
+            auto& vector = newval3.data.emplace<CopiedValue::copied_array_t>();
+
+            CopiedValue arrval1{};
+            arrval1.type = ValueType::INT;
+            arrval1.data.emplace<int>(13);
+            CopiedValue arrval2{};
+            arrval2.type = ValueType::INT;
+            arrval2.data.emplace<int>(12);
+
+            vector.emplace_back(std::move(arrval1));
+            vector.emplace_back(std::move(arrval2));
+
+            db.set("delete.me.1", std::move(newval2));
+            db.set("delete.me.2", std::move(newval3));
+
+            db.remove("delete.me");
         }
 
         get_and_print(db, "test");

@@ -9,6 +9,8 @@
 
 #include "shrwlock.h"
 #include <functional>
+#include <mutex>
+
 #include "offset_ptr.h"
 
 struct shmem_meta {
@@ -101,12 +103,18 @@ public:
 
     //! @neverInAtomicAccess
     template<typename T>
-    void destroy_array(offset_ptr<T> ptr, bool locks_held = false) { // Using this inside an atomic_access lambda will cause a deadlock
-        // TODO get count and call destructors
-        atomic_access(ptr.offset, [](void *ptr) {
-            reinterpret_cast<T*>(ptr)->~T();
-        }, locks_held);
-        deallocate(ptr.offset, locks_held);
+    void destroy_array(offset_ptr<T> ptr, size_t size, bool locks_held = false) { // Using this inside an atomic_access lambda will cause a deadlock
+        std::unique_lock<shrwlock> lk2(metadata->meta_mutex, std::defer_lock);
+        if (!locks_held) {
+            lk2.lock();
+        }
+        atomic_access(ptr.offset, [&size](void *ptr) {
+            for (size_t i = 0; size < 1; i++)
+                reinterpret_cast<T*>(ptr)[i].~T();
+        }, true);
+
+        for (size_t i = 0; i < 1; i++) // TODO i think this should be i < size, but this is causing a deadlock
+            deallocate(ptr.offset + i * sizeof(T), true);
     }
 
     template<typename T>

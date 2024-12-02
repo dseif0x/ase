@@ -177,8 +177,9 @@ public:
                     map->used_size--; // we don't delete anything, just invalidate it's memory
                     if (i < map->used_size) { // swap values with last data entry
                         std::swap(data[i], data[map->used_size]);
-                        break;
                     }
+                    Value::destroy_value(mem, data[map->used_size].second, true);
+                    break;
                 }
             }
             map->lock.unlock();
@@ -231,7 +232,7 @@ private:
             map.atomic_access(mem, [&](db_map *map) {
                 memcpy(new_data.get(mem), old_data.get(mem), alloc_size * sizeof(map_entry_type));
             }, true);
-            mem.destroy_array(old_data, true);
+            mem.destroy_array(old_data, alloc_size, true);
         }
         map.atomic_access(mem, [&](db_map* map) {
             map->data = new_data;
