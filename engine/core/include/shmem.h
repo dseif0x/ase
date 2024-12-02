@@ -64,7 +64,7 @@ public:
 
     //! @neverInAtomicAccess
     template <typename T>
-    offset_ptr<T> construct_array(size_t count) { // Using this inside an atomic_access lambda will cause a deadlock
+    offset_ptr<T> construct_array(size_t count) {
         auto storage = allocate(sizeof(T) * count);
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [count](void *ptr) {
@@ -79,7 +79,7 @@ public:
      * Only call this function if you have a unique_lock on the meta_mutex
      */
     template <typename T>
-    offset_ptr<T> construct_array_unsafe(size_t count) { // Using this inside an atomic_access lambda will cause a deadlock
+    offset_ptr<T> construct_array_unsafe(size_t count) {
         auto storage = allocate(sizeof(T) * count, true);
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [count](void *ptr) {
