@@ -60,11 +60,10 @@ int main() {
 
     ACL acl{};
 
-    if (acl.load_from_disk("../../../test.bin")) {
+    if (acl.load_from_disk("test.bin")) {
         std::cout << "acl loaded from disk" << std::endl;
     } else {
         std::cout << "could not load from disk" << std::endl;
-        return -1;
     }
 
 
@@ -76,7 +75,8 @@ int main() {
     std::string temp;
     std::cin >> temp;
 
-    acl.save_to_disk("../../../test2.bin");
     server.stop();
+    acl.save_to_disk("test.bin");
+
     return 0;
 }
