@@ -12,64 +12,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "db_types.h"
 
-/**
- * @brief Represents a node in the permission hierarchy.
- */
-struct ACLNode {
-    // permissions:
-    // 0x4: delete
-    // 0x2: write
-    // 0x1: read
-    unsigned char permissions;
-    std::unordered_map<std::string, ACLNode> subs;
-
-    /**
-     * @brief Checks if a node has the required permissions.
-     *
-     * @param perms The permissions to check.
-     * @return True if the node has all the required permissions, otherwise false.
-     */
-    constexpr bool has_perms(unsigned char perms) const;
-};
-
-/**
- * @brief Represents a user in the ACL system with specific permissions and attributes.
- */
-class ACLUser {
-    std::string pwd;
-    bool is_admin;
-
-    ACLNode scope;
-
-public:
-    ACLUser(const std::string& password, bool isAdmin);
-    ACLUser();
-
-    /**
-     * @brief Checks if a user has the required permissions for a given key.
-     *
-     * @param key A vector of strings representing the key in the permission hierarchy.
-     * @param permissions The required permissions to check.
-     * @return True if the user has the required permissions, otherwise false.
-     */
-    bool has_permission(std::vector<std::string> key, unsigned char permissions);
-
-    /**
-     * @brief Verifies the user's password.
-     *
-     * @param pwd The password to verify.
-     * @return True if the password matches the stored password, otherwise false.
-     */
-    bool check_pwd(const std::string& pwd);
-
-    /**
-     * @brief Generates a string representation of the user's data.
-     *
-     * @return A string containing the password and admin status of the user.
-     */
-    std::string print_user_data();
-};
+class ACLUser;
 
 
 /**
@@ -80,11 +25,12 @@ class ACL {
     std::set<std::string> open_connections;
 
     std::mutex general_lock; // todo think about locking individual users
-    // todo or transfer the ability to search for permissions into the ACLUser and just transfer the struct back if changes were made to the scope
-
+    
 public:
     ACL(); // create default with one admin
-    explicit ACL(std::string path); // load acl from disk
+
+    bool load_from_disk(std::string path); // load acl from disk
+    bool save_to_disk(std::string path);
 
     /**
      * @brief Attempts to log in a user.
@@ -112,10 +58,62 @@ public:
      */
     void disconnect(const std::string &user);
 
+    bool has_user(std::string &username);
+
+    bool update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions);
+
     /**
      * @brief Prints detailed information about all users.
      */
     void print_full_info();
+};
+
+/**
+ * @brief Represents a user in the ACL system with specific permissions and attributes.
+ */
+class ACLUser {
+    //todo might have to add a lock for access of userdata
+    std::string pwd;
+    bool admin;
+
+    // Tree representation of permissions
+    // All elements except for the leafs are of type MAP
+    // each map contains one key "$" which points to a CopiedValue of type int storing the actual permission
+    CopiedValue permissions;
+
+public:
+    ACLUser(const std::string& password, bool isAdmin);
+    ACLUser();
+
+    /**
+     * @brief Checks if a user has the required permissions for a given key.
+     *
+     * @param key A vector of strings representing the key in the permission hierarchy.
+     * @param permissions The required permissions to check.
+     * @return True if the user has the required permissions, otherwise false.
+     */
+    bool has_permission(std::vector<std::string> key, unsigned char permissions);
+
+    /**
+     * @brief Verifies the user's password.
+     *
+     * @param pwd The password to verify.
+     * @return True if the password matches the stored password, otherwise false.
+     */
+    bool check_pwd(const std::string& pwd);
+    bool is_admin();
+
+    void set_permissions(CopiedValue &value);
+    void serialize_user(std::vector<CopiedValue> &value);
+
+    /**
+     * @brief Generates a string representation of the user's data.
+     *
+     * @return A string containing the password and admin status of the user.
+     */
+    std::string print_user_data();
+
+    void update_key_permission(std::vector<std::string> key, unsigned char permissions);
 };
 
 

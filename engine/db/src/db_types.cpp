@@ -84,7 +84,7 @@ void CopiedValue::print(CopiedValue &val) {
         }
         std::cout << "}";
     } else {
-        std::cout << "Value found, but type not handeled" << std::endl;
+        std::cout << "Value found, but type (" << (int)val.type << ") not handeled" << std::endl;
     }
 }
 
