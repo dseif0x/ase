@@ -34,7 +34,19 @@ class TCP2Server {
 public:
     TCP2Server(ACL &acl, DB &db, int port, int max_clients);
     ~TCP2Server();
+
+    /**
+    * @brief Loads an acl from file.
+    *
+    * @param path The path of the file.
+    */
     bool load_acl_from_disk(std::string path);
+
+    /**
+    * @brief Saves the acl to a file.
+    *
+    * @param path The path of the file.
+    */
     bool save_acl_to_disk(std::string path);
     /**
      * @brief Starts the TCP server and begins accepting client connections.

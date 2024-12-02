@@ -53,14 +53,15 @@ namespace tcp2_utils {
      * @param decoder Reference to the TCP2Decoder instance for decoding client data.
      * @param encoder Reference to the TCP2Encoder instance for encoding responses.
      * @param acl Reference to the ACL (Access Control List) managing user authentication and permissions.
+     * @param db Reference to the db do access the actual data.
      */
     void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
     /**
      * @brief Processes client commands and executes the appropriate function based on the command code.
      *
-     * @param user Pointer to the authenticated user.
      * @param decoder Reference to the TCP2Decoder instance for decoding client data.
      * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+     * @param ci Reference to the CommandInfo struct containing additional information for the function.
      * @param self_perms Permissions associated with the client connection.
      * @return int Status code indicating the result:
      *         - -1: Non-critical error occurred, command not executed, decoder cleared.
@@ -70,47 +71,70 @@ namespace tcp2_utils {
      */
     int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, unsigned char self_perms);
 
+    /**
+    * @brief splits the key into the domain parts.
+    *
+    * @param key String of the key
+    * @return optional<vector<string>> Returns the key split into parts or nothing on incorrect key.
+    */
     std::optional<std::vector<std::string>> check_and_create_key(std::string &key);
 
     namespace command {
         /**
          * @brief Executes the STOP command, signaling no errors.
          *
-         * @param user Pointer to the authenticated user.
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
          * @return int Always returns 0.
          */
         int stop(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
         /**
          * @brief Executes the PING command, echoing back a provided value.
          *
-         * @param user Pointer to the authenticated user.
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
          * @return int Always returns 0.
          */
         int ping(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
         /**
          * @brief Executes the DISCONNECT command, sending a goodbye message.
          *
-         * @param user Pointer to the authenticated user.
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
          * @return int Always returns 1 to signal a soft shutdown.
          */
         int disconnect(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
+        /**
+         * @brief Executes the get command, returning the looked for data.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 1 to signal a soft shutdown.
+        */
         int get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Updates the access permissions of a user.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 1 to signal a soft shutdown.
+*/
         int update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
          * @brief Executes a test command for debugging and verification purposes.
          *
-         * @param user Pointer to the authenticated user.
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
-         * @return int Always returns 0.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 1 to signal a soft shutdown.
          */
         int testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }

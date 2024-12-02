@@ -189,6 +189,9 @@ public:
     std::string get_error();
 };
 
+/**
+* Specialized decoder for decoding from files.
+*/
 class FileDecoder : public GenericDecoder {
     std::string file_path;
 
