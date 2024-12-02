@@ -18,6 +18,24 @@ int main() {
         db.destroy();
     }
     DB db{};
+
+    {
+        CopiedValue val{};
+        val.type = ValueType::INT;
+        val.data = 15;
+        db.set(".top.second.sub.leaf", val);
+    }
+    {
+        auto temp = db.get(".top.second.sub.leaf");
+        if (temp) {
+            std::cout << "value:";
+            temp->print();
+            std::cout << std::endl;
+        } else {
+            std::cout << "value not found" << std::endl;
+        }
+    }
+
     { // Integer
         CopiedValue newval{};
         newval.type = ValueType::INT;
@@ -48,6 +66,9 @@ int main() {
         std::cout << "could not load from disk" << std::endl;
         return -1;
     }
+
+
+
     TCP2Server server{acl, db, 42069, 10};
 
     server.start();
@@ -55,6 +76,7 @@ int main() {
     std::string temp;
     std::cin >> temp;
 
+    acl.save_to_disk("../../../test2.bin");
     server.stop();
     return 0;
 }

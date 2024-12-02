@@ -14,12 +14,13 @@
 // returns 0: command executed fine
 // returns 1: soft shutdown
 // returns 2: hard shutdown
-int tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db, unsigned char self_perms) {
-    int (*func)(ACLUser*, TCP2Decoder&, TCP2Encoder&, DB&);
+int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, unsigned char self_perms) {
+    int (*func)(TCP2Decoder&, TCP2Encoder&, CommandInfo&);
     unsigned char perms{};
     uint16_t error = 0;
 
     switch (decoder.to_unsigned(1)) {
+        // CONTROL COMMANDS
         case 0xFE: //STOP
             func = command::stop;
             perms = permissions::none;
@@ -32,9 +33,15 @@ int tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2E
             func = command::disconnect;
             perms = permissions::none;
             break;
+        // DB Commands
         case 0x01: //GET
             func = command::get;
             perms = permissions::read;
+            break;
+        // ACL Commands
+        case 0x81: // Update Scope
+            func = command::update_scope;
+            perms = permissions::admin;
             break;
         case 0xAA: //test, to be deleted
             func = command::testing;
@@ -50,12 +57,14 @@ int tcp2_utils::client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2E
             error = errors::permission_denied_self;
         } else if ((perms & permissions::admin) > 0) {
             // check admin permission
-            error = errors::permission_denied;
+            if (!ci.user->is_admin()) {
+                error = errors::permission_denied;
+            }
         }
     }
 
     if (error == 0) {
-        return func(user, decoder, encoder, db);
+        return func(decoder, encoder, ci);
     } else {
         encoder.from_nak();
         encoder.encode_error(error);
@@ -87,26 +96,26 @@ std::optional<std::vector<std::string>> tcp2_utils::check_and_create_key(std::st
     return res;
 }
 
-int tcp2_utils::command::stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db) {
+int tcp2_utils::command::stop(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     encoder.clear_buffer();
     encoder.from_ack();
     return 0;
 }
 
-int tcp2_utils::command::ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db) {
+int tcp2_utils::command::ping(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     encoder.from_ack();
     unsigned long long data = decoder.to_unsigned(4);
     encoder.from_unsigned(4, data);
     return 0;
 }
 
-int tcp2_utils::command::disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db) {
+int tcp2_utils::command::disconnect(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     encoder.from_ack();
     encoder.from_string("Goodbye!");
     return 1;
 }
 
-int tcp2_utils::command::get(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db) {
+int tcp2_utils::command::get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     std::cout << "in get" << std::endl;
     std::string key_str = decoder.to_string();
     std::cout << "key:" << key_str << std::endl;
@@ -121,15 +130,15 @@ int tcp2_utils::command::get(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &e
     std::cout << "sep key:";
     for (auto &x : *key) std::cout << x << ", ";
     std::cout << std::endl;
-    if (!user->has_permission(*key, permissions::read)) {
+    if (!info.user->has_permission(*key, permissions::read)) {
         std::cout << "errror 2" << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::permission_denied);
         return -1;
     }
-    auto res = db.get(key_str.c_str());
+    auto res = info.db.get(key_str.c_str());
     if (!res) {
-        std::cout << "errror 3" << std::endl;
+        std::cout << "errror 3, key:" << key_str.c_str() << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::key_not_found);
         return -1;
@@ -147,7 +156,39 @@ int tcp2_utils::command::get(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &e
     return 0;
 }
 
-int tcp2_utils::command::testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db) {
+int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string username = decoder.to_string();
+    std::string key_str = decoder.to_string();
+    unsigned char permission = decoder.to_unsigned(1);
+    auto key = tcp2_utils::check_and_create_key(key_str);
+
+    if (!key) {
+        std::cout << "errror 1" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+
+    if (!info.acl.has_user(username)) {
+        std::cout << "errror 2" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::user_not_found);
+        return -1;
+    }
+
+    if (!info.acl.update_key_permission(username, *key, permission)) {
+        // this should never happen
+        std::cout << "errror 3" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+    encoder.from_ack();
+
+    return 0;
+}
+
+int tcp2_utils::command::testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     std::cout << "starting to_general" << std::endl;
 
     if (auto val = decoder.to_general()) {
@@ -171,6 +212,8 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
     std::string username;
     ACLUser *user{nullptr};
     unsigned char self_perms{};
+
+    std::unique_ptr<CommandInfo> ci;
 
     int state = 0;
     while (decoder.is_healthy()) {
@@ -225,9 +268,10 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             user = acl.get_user(username);
             encoder.from_ack();
             state = 2;
+            ci = std::make_unique<CommandInfo>(user, acl, db);
         } else if (state == 2) {
             // logged in and ready for commands
-            switch (client_command_switch(user, decoder, encoder, db, self_perms)) {
+            switch (client_command_switch(decoder, encoder, *ci, self_perms)) {
                 case -1: // error, but recovered
                 case 0: // executed fine
                     break;

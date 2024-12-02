@@ -19,6 +19,15 @@
 // todo replace symbol with correct one
 #define UNIX
 
+struct CommandInfo {
+    ACLUser *user;
+    ACL &acl;
+    DB &db;
+
+    CommandInfo(ACLUser *userPtr, ACL &aclRef, DB &dbRef)
+        : user(userPtr), acl(aclRef), db(dbRef) {}
+};
+
 namespace tcp2_utils {
     // client_acceptor needs a system dependent implementation but keeps the same signature
     void client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients);
@@ -31,17 +40,18 @@ namespace tcp2_utils {
     // following functions are system independent
     void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
     void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
-    int client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db, unsigned char self_perms);
+    int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, unsigned char self_perms);
 
     std::optional<std::vector<std::string>> check_and_create_key(std::string &key);
 
     namespace command {
-        int stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
-        int ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
-        int disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
-        int get(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
+        int stop(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        int ping(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        int disconnect(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        int get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        int update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
-        int testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, DB &db);
+        int testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {

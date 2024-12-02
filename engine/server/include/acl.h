@@ -14,41 +14,7 @@
 #include <vector>
 #include "db_types.h"
 
-struct ACLNode {
-    // permissions:
-    // 0x4: delete
-    // 0x2: write
-    // 0x1: read
-    unsigned char permissions;
-    std::unordered_map<std::string, ACLNode> subs;
-
-    constexpr bool has_perms(unsigned char perms) const;
-};
-
-
-class ACLUser {
-    std::string pwd;
-    bool is_admin;
-
-    // Tree representation of permissions
-    // All elements except for the leafs are of type MAP
-    // each map contains one key "$" which points to a CopiedValue of type int storing the actual permission
-    CopiedValue permissions;
-
-public:
-    ACLUser(const std::string& password, bool isAdmin);
-    ACLUser();
-
-    bool has_permission(std::vector<std::string> key, unsigned char permissions);
-    bool check_pwd(const std::string& pwd);
-
-    void set_permissions(CopiedValue &value);
-    void serialize_user(std::vector<CopiedValue> &value);
-
-    std::string print_user_data();
-};
-
-
+class ACLUser;
 
 class ACL {
     std::unordered_map<std::string, ACLUser> users;
@@ -67,7 +33,37 @@ public:
     ACLUser *get_user(const std::string &user);
     void disconnect(const std::string &user);
 
+    bool has_user(std::string &username);
+
+    bool update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions);
+
     void print_full_info();
+};
+
+class ACLUser {
+    //todo might have to add a lock for access of userdata
+    std::string pwd;
+    bool admin;
+
+    // Tree representation of permissions
+    // All elements except for the leafs are of type MAP
+    // each map contains one key "$" which points to a CopiedValue of type int storing the actual permission
+    CopiedValue permissions;
+
+public:
+    ACLUser(const std::string& password, bool isAdmin);
+    ACLUser();
+
+    bool has_permission(std::vector<std::string> key, unsigned char permissions);
+    bool check_pwd(const std::string& pwd);
+    bool is_admin();
+
+    void set_permissions(CopiedValue &value);
+    void serialize_user(std::vector<CopiedValue> &value);
+
+    std::string print_user_data();
+
+    void update_key_permission(std::vector<std::string> key, unsigned char permissions);
 };
 
 
