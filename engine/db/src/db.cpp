@@ -90,19 +90,19 @@ std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_foll
     std::optional<CopiedValue> res{};
     std::string next_key = std::string(key);
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        do {
+        while(true) {
             auto split_keys = split(next_key.c_str());
             auto nextNode = get_key(*entrypoint, split_keys);
             if (!nextNode.has_value()) break;
             auto nextVal = nextNode.value();
-            if (nextVal.get().type == ValueType::REFERENCE) {
+            if (nextVal.get().type == ValueType::REFERENCE && max_chained_follows-- > 0) {
                 auto& str = std::get<Value::shmem_string_t>(nextVal.get().data);
                 next_key = str.get();
             } else {
                 res.emplace(nextVal.get());
                 break;
             }
-        } while(max_chained_follows-- > 0);
+        }
     });
     return res;
 }
