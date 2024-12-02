@@ -66,6 +66,8 @@ class db_map {
 public:
     using map_entry_type = std::tuple<offset_ptr<char>, offset_ptr<Value>, offset_t>;
 
+    static inline std::hash<std::string> hash_fn;
+
     db_map(shmem& mem);
 
     ~db_map();
@@ -119,22 +121,27 @@ public:
         size_t used_size;
         size_t alloc_size;
         offset_ptr<Value> old_value;
+
+        auto hash = hash_fn(std::string(key));
+
         std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
 
         map.atomic_access(mem, [&](db_map* map) {
             map->lock.lock();
             map_entry_type* data = map->data.get(mem);
-            for (size_t i = 0; i < map->used_size; i++) {
-                if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
-                    old_value = std::get<0>(data[i]);
-                    std::get<1>(data[i]) = value;
-                    found = true;
-                    map->lock.unlock();
-                    return;
-                }
-            }
+            offset_t* lookup = map->lookup.get(mem);
             used_size = map->used_size;
             alloc_size = map->alloc_size;
+            if (alloc_size == 0) return;
+            auto idx = lookup[hash % alloc_size];
+            if (idx >= 0) {
+                // TODO check for collision
+                auto& ll_node = data[idx];
+                found = true;
+                old_value = std::get<1>(ll_node);
+                std::get<1>(data[1]) = value;
+                map->lock.unlock();
+            }
         }, true);
 
         if (found) {
@@ -151,8 +158,10 @@ public:
         new_key.atomic_access(mem, [&](char* ptr) {
             auto* map_p = map.get(mem);
             auto* data_p = map_p->data.get(mem);
+            auto* lookup_p = map_p->lookup.get(mem);
             strncpy(ptr, key, str_len);
             ptr[str_len] = '\0';
+            lookup_p[hash % map_p->alloc_size] = used_size;
             data_p[used_size++] = std::make_tuple(new_key, value, -1);
             map_p->used_size = used_size;
             map_p->lock.unlock();
@@ -172,13 +181,17 @@ public:
         map.atomic_access(mem, [&](db_map* map) {
             map->lock.lock();
             map_entry_type* data = map->data.get(mem);
-            for (size_t i = 0; i < map->used_size; i++) {
-                if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
-                    map->used_size--; // we don't delete anything, just invalidate it's memory
-                    if (i < map->used_size) { // swap values with last data entry
-                        std::swap(data[i], data[map->used_size]);
-                        break;
-                    }
+
+            offset_t removed_idx = hash_fn(std::string(key)) % map->alloc_size;
+            auto* lookup = map->lookup.get(mem);
+            if (lookup[removed_idx] >= 0) {
+                map->used_size--; // we don't delete anything, just invalidate it's memory
+                if (lookup[removed_idx] < map->used_size) { // swap values with last data entry
+                    std::swap(data[lookup[removed_idx]], data[map->used_size]);
+                    // adjust reference to moved value
+                    auto moved_idx = hash_fn(std::string(std::get<0>(data[lookup[removed_idx]]).get(mem)));
+                    lookup[moved_idx] = lookup[removed_idx];
+                    lookup[removed_idx] = -1;
                 }
             }
             map->lock.unlock();
@@ -221,24 +234,33 @@ private:
     static void resize(offset_ptr<db_map>& map, shmem& mem) {
         size_t alloc_size;
         offset_ptr<map_entry_type> old_data;
+        offset_ptr<offset_t> old_lookup;
         map.atomic_access(mem, [&](db_map* map) {
             alloc_size = map->alloc_size;
             old_data = map->data;
+            old_lookup = map->lookup;
         }, true);
         size_t new_size = std::max(16ul, alloc_size) * 2;
+        auto new_lookup = mem.construct_array_unsafe<offset_t>(new_size);
         auto new_data = mem.construct_array_unsafe<map_entry_type>(new_size);
         if (alloc_size > 0) {
             map.atomic_access(mem, [&](db_map *map) {
+                // We have to adjust for new hashes
+                std::fill(new_lookup.get(mem), new_lookup.get(mem) + new_size * sizeof(offset_t), -1);
+                memcpy(new_lookup.get(mem), old_lookup.get(mem), alloc_size * sizeof(offset_t));
                 memcpy(new_data.get(mem), old_data.get(mem), alloc_size * sizeof(map_entry_type));
             }, true);
             mem.destroy_array(old_data, true);
+            mem.destroy_array(old_lookup, true);
         }
         map.atomic_access(mem, [&](db_map* map) {
             map->data = new_data;
+            map->lookup = new_lookup;
             map->alloc_size = new_size;
         }, true);
     }
 
+    offset_ptr<offset_t> lookup{-1};
     offset_ptr<map_entry_type> data{-1};
     size_t used_size;
     size_t alloc_size;

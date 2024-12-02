@@ -13,18 +13,14 @@ db_map::db_map(shmem& mem) : mem{mem} {
 }
 
 db_map::~db_map() {
+    mem.destroy_array(lookup);
     mem.destroy_array(data);
 }
 
 //! @onlyInAtomicAccess
 std::vector<std::string> db_map::atomic_keys() {
     std::shared_lock<shrwlock> lock_guard(lock);
-    std::vector<std::string> keys;
-    map_entry_type* data = this->data.get(mem);
-    for (size_t i = 0; i < used_size; i++) {
-        keys.push_back(std::get<0>(data[i]).get(mem));
-    }
-    return keys;
+    return keys();
 }
 
 //! @onlyInAtomicAccess
@@ -40,25 +36,13 @@ std::vector<std::string> db_map::keys() {
 //! @onlyInAtomicAccess
 bool db_map::atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     std::shared_lock<shrwlock> lock_guard(lock);
-    map_entry_type* data = this->data.get(mem);
-    for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
-            return true;
-        }
-    }
-    return false;
+    return has(key);
 }
 
 //! @onlyInAtomicAccess
 relative_offset_ptr<Value> db_map::atomic_get(const char* key) {
     std::shared_lock<shrwlock> lock_guard(lock);
-    map_entry_type* data = this->data.get(mem);
-    for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
-            return std::get<1>(data[i]).get_relative(mem);
-        }
-    }
-    throw std::runtime_error("Key not found");
+    return get(key);
 }
 
 //! @onlyInAtomicAccess
@@ -75,10 +59,12 @@ bool db_map::has(const char* key) {
 //! @onlyInAtomicAccess
 relative_offset_ptr<Value> db_map::get(const char* key) {
     map_entry_type* data = this->data.get(mem);
-    for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
-            return std::get<1>(data[i]).get_relative(mem);
-        }
+    offset_t* lookup = this->lookup.get(mem);
+    size_t hash = db_map::hash_fn(std::string(key));
+    auto idx = lookup[hash % this->alloc_size];
+    if (idx >= 0) {
+        // TODO check for collision
+        return std::get<1>(data[idx]).get_relative(mem);
     }
     throw std::runtime_error("Key not found");
 }
