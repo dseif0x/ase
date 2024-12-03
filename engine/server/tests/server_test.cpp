@@ -109,8 +109,8 @@ int main(int argc, char** argv) {
 
 // dummy test to check if the communication between the server and the client works
 TEST(TCPServerTest, SimpleClientCommunication) {
-    // makes sure that the server has started before the tests run
-    usleep(1000000);
+    // the test needs to await the start of the server to pass, but with sleep the pipeline may get 'locked'
+    //usleep(1000000);
 
     DumbTCPClient client("127.0.0.1", 12345);
 
