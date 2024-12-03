@@ -27,7 +27,7 @@ generate_docs:
 
 variables:
   BUILD_DIR: engine/build
-  TEST_DIRS: "core db"
+  TEST_DIRS: "core db server"
 
 build:
   stage: build
@@ -52,7 +52,7 @@ test:
     - mkdir -p coverage_report
     - cd $BUILD_DIR
     - for folder in $TEST_DIRS; do
-        ctest --test-dir $folder;
+        ctest --output-on-failure --test-dir $folder;
         lcov --ignore-errors mismatch --directory $folder --capture --output-file $folder/coverage.info;
         lcov --remove $folder/coverage.info '/usr/*' '*googletest*' --output-file $folder/coverage.info;
         genhtml $folder/coverage.info --output-directory ../../coverage_report/$folder;
