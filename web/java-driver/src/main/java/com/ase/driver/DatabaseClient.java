@@ -153,7 +153,55 @@ public class DatabaseClient {
         }
     }
 
+    /**
+     * Sends a command to the server to set a key-value pair.
+     *
+     * @param key   The key of the key-value pair to be set. Must not be {@code null} or empty.
+     * @param value The value of the key-value pair to be set. Must not be {@code null}.
+     * @return A {@link WebReturn} object indicating the outcome of the SET operation:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains the error description, possibly returned by server.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object, if there is any returned by server.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     */
+    public WebReturn<Integer> set(String key, TcpGeneral value, boolean force) {
+        if (key == null || key.isEmpty()) {
+            return WebReturn.error("Key must not be null or empty.");
+        }
 
+        try {
+            if (force) writer.write(Utility.FORCED_SET_COMMAND);
+            else writer.write(Utility.SET_COMMAND);
+
+            writer.flush();
+
+            dataWriter.writeString(key);
+            dataWriter.writeGeneral(value);
+
+            byte response = reader.readByte();
+            if (response == Utility.NAK) {
+                return readError();
+            } else if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else return WebReturn.error("Server responded with unknown response.", (int) response);
+        } catch (IOException e) {
+            return WebReturn.error("Failed to send set command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
+        }
+    }
 
     /**
      * Sends a command to the server to delete a key-value pair.
