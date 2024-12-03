@@ -170,24 +170,24 @@ public:
     static void remove(offset_ptr<db_map>& map, shmem& mem, const char* key) {
         // Potentially shrink the shmem
         map.atomic_access(mem, [&](db_map* map) {
-            map->lock.lock();
+            auto lock = std::unique_lock(map->lock);
             std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
                 if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                    map->used_size--; // we don't delete anything, just invalidate it's memory
-                    if (i < map->used_size) { // swap values with last data entry
+                    map->used_size--;
+                    if (i < map->used_size) {
                         std::swap(data[i], data[map->used_size]);
                     }
                     Value::destroy_value(mem, data[map->used_size].second, true);
                     break;
                 }
             }
-            map->lock.unlock();
         });
     }
 
 private:
     friend class locked_db_map;
+    friend void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held);
 
     /**
      * Returns the keys directly following this node.

@@ -370,7 +370,7 @@ void shmem::deallocate(offset_t ptr, bool lock_held) {
         curr = currblock->next_offset;
     }
 
-    free_coalescence(*metadata, base, prev, newblock);
+    // free_coalescence(*metadata, base, prev, newblock);
 }
 
 void shmem::atomic_access(offset_t offset, std::function<void(void *)>&& lambda, bool locks_held) {
