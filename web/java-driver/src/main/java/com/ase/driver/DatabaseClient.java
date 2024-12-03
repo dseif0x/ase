@@ -121,18 +121,15 @@ public class DatabaseClient {
      *             <li><strong>Failure:</strong>
      *                 <ul>
      *                     <li>{@code ok} is {@code false}.</li>
-     *                     <li>{@code message} contains the error description returned by the server.</li>
-     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
+     *                     <li>{@code message} contains the error description, possibly returned by server.</li>
+     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object, if there is any returned by server.</li>
      *                 </ul>
      *             </li>
      *         </ul>
-     * @throws TCPClientException If the command fails to send, the connection is not established,
-     *                             the server responds with an unknown response, or an error occurs while processing the response.
-     * @throws IllegalArgumentException If the provided key is {@code null} or empty.
      */
-    public WebReturn<TcpGeneral> get(String key) throws TCPClientException {
+    public WebReturn<TcpGeneral> get(String key) {
         if (key == null || key.isEmpty()) {
-            throw new IllegalArgumentException("Key must not be null or empty.");
+            return WebReturn.error("Key must not be null or empty.");
         }
 
         try {
@@ -143,15 +140,20 @@ public class DatabaseClient {
 
             byte response = reader.readByte();
             if (response == Utility.NAK) {
-                return readError();
+                WebReturn<Integer> error = readError();
+                return WebReturn.error("Server responded with NAK.", TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
             } else if (response == Utility.ACK) {
                 TcpGeneral tcpGeneral = dataReader.readGeneral();
                 return WebReturn.success(tcpGeneral);
-            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+            } else return WebReturn.error("Server responded with unknown response: " + String.format("0x%02X", response));
         } catch (IOException e) {
-            throw new TCPClientException("Failed to send delete command.", e);
+            return WebReturn.error("Failed to send get command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
         }
     }
+
+
 
     /**
      * Sends a command to the server to delete a key-value pair.
@@ -159,24 +161,21 @@ public class DatabaseClient {
      * @param key The key of the value to be deleted from the server.
      * @return A {@link WebReturn} object indicating the outcome:
      *         <ul>
-     *             <li>If deletion is successful:
+     *             <li>Success:
      *                 <ul>
      *                     <li>{@code ok} is {@code true}.</li>
      *                     <li>{@code message} is {@code null}.</li>
      *                     <li>{@code data} is {@code null}.</li>
      *                 </ul>
      *             </li>
-     *             <li>If deletion fails:
-     *                 <ul>
-     *                     <li>{@code ok} is {@code false}.</li>
-     *                     <li>{@code message} contains the error message.</li>
-     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
-     *                 </ul>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
      *             </li>
      *         </ul>
-     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<TcpGeneral> delete(String key) throws TCPClientException {
+    public WebReturn<Integer> delete(String key) {
         try {
             writer.write(Utility.DELETE_COMMAND);
             writer.flush();
@@ -189,9 +188,11 @@ public class DatabaseClient {
                 return readError();
             } else if (response == Utility.ACK) {
                 return WebReturn.success();
-            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+            } else return WebReturn.error("Server responded with unknown response.", (int) response);
         } catch (IOException e) {
-            throw new TCPClientException("Failed to send delete command.", e);
+            return WebReturn.error("Failed to send delete command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
         }
     }
 
@@ -215,17 +216,14 @@ public class DatabaseClient {
      *                     <li>{@code data} is {@code null}.</li>
      *                 </ul>
      *             </li>
-     *             <li><strong>Failure:</strong>
-     *                 <ul>
-     *                     <li>{@code ok} is {@code false}.</li>
-     *                     <li>{@code message} contains the server's error message.</li>
-     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
-     *                 </ul>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
      *             </li>
      *         </ul>
-     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<TcpGeneral> updateScope(String username, String key, byte options) throws TCPClientException {
+    public WebReturn<Integer> updateScope(String username, String key, byte options) {
         try {
             writer.write(Utility.UPDATE_SCOPE_COMMAND);
 
@@ -242,10 +240,12 @@ public class DatabaseClient {
                 return WebReturn.success();
             } else if (response == Utility.NAK) {
                 return readError();
-            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+            } else return WebReturn.error("Server responded with unknown response", (int) response);
 
         } catch (IOException e) {
-            throw new TCPClientException("Failed to send update scope command.", e);
+            return WebReturn.error("Failed to send update scope command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
         }
     }
 
@@ -267,17 +267,14 @@ public class DatabaseClient {
      *                     <li>{@code data} is {@code null}.</li>
      *                 </ul>
      *             </li>
-     *             <li><strong>Failure:</strong>
-     *                 <ul>
-     *                     <li>{@code ok} is {@code false}.</li>
-     *                     <li>{@code message} contains the server's error message.</li>
-     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
-     *                 </ul>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
      *             </li>
      *         </ul>
-     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<TcpGeneral> createUser(String username, String password, byte options) throws TCPClientException {
+    public WebReturn<Integer> createUser(String username, String password, byte options) {
         try {
             writer.write(Utility.CREATE_USER_COMMAND);
 
@@ -295,10 +292,11 @@ public class DatabaseClient {
                 return WebReturn.success();
             } else if (response == Utility.NAK) {
                 return readError();
-            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
-
+            } else return WebReturn.error("Server responded with unknown response", (int) response);
         } catch (IOException e) {
-            throw new TCPClientException("Failed to send update scope command.", e);
+            return WebReturn.error("Failed to send update scope command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
         }
     }
 
@@ -315,17 +313,14 @@ public class DatabaseClient {
      *                     <li>{@code data} is {@code null}.</li>
      *                 </ul>
      *             </li>
-     *             <li><strong>Failure:</strong>
-     *                 <ul>
-     *                     <li>{@code ok} is {@code false}.</li>
-     *                     <li>{@code message} contains an error description.</li>
-     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
-     *                 </ul>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
      *             </li>
      *         </ul>
-     * @throws TCPClientException If the command fails to send, the connection is not established, or an unexpected server response is received.
      */
-    public WebReturn<TcpGeneral> ping(long packageToSend) throws TCPClientException {
+    public WebReturn<Integer> ping(long packageToSend) {
         try {
             writer.write(Utility.PING_COMMAND);
             writer.flush();
@@ -339,9 +334,11 @@ public class DatabaseClient {
                 else return WebReturn.error("Server responded with " + responsePackage + " which is not equal to " + packageToSend + ".");
             } else if (response == Utility.NAK) {
                 return readError();
-            } else throw new TCPClientException("Server responded with unknown response: " + String.format("0x%02X", response));
+            } else return WebReturn.error("Server responded with unknown response", (int) response);
         } catch (IOException e) {
-            throw new TCPClientException("Failed to send ping command.", e);
+            return WebReturn.error("Failed to send ping command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
         }
     }
 
@@ -357,18 +354,14 @@ public class DatabaseClient {
      *                     <li>{@code data} is {@code null}.</li>
      *                 </ul>
      *             </li>
-     *             <li><strong>Failure:</strong>
-     *                 <ul>
-     *                     <li>{@code ok} is {@code false}.</li>
-     *                     <li>{@code message} contains an error description.</li>
-     *                     <li>{@code data} contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.</li>
-     *                 </ul>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
      *             </li>
      *         </ul>
-     * @throws TCPClientException If the command fails to send, the connection is not established,
-     *                             an unexpected server response is received, or server never responds with ACK/NAK.
      */
-    public WebReturn<TcpGeneral> stop() throws TCPClientException {
+    public WebReturn<Integer> stop() {
         try {
             writer.writeByte(Utility.STOP_COMMAND);
             writer.flush();
@@ -388,17 +381,19 @@ public class DatabaseClient {
                     }
                 } else {
                     try {
-                        Thread.sleep(10);
+                        Thread.sleep(100);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        throw new TCPClientException("Thread interrupted while waiting for STOP response.", e);
+                        return WebReturn.error("Thread interrupted while waiting for STOP response.");
                     }
                 }
             }
 
-            throw new TCPClientException("ACK/NAK not received after sending STOP command.");
+            return WebReturn.error("ACK/NAK not received after sending STOP command.");
         } catch (IOException e) {
-            throw new TCPClientException("Failed to send STOP command.", e);
+            return WebReturn.error("Failed to send STOP command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
         }
     }
 
@@ -421,15 +416,15 @@ public class DatabaseClient {
      * @return A {@link WebReturn} object containing the error details:
      *         - {@code ok}: {@code false}.
      *         - {@code message}: The error message returned by the server.
-     *         - {@code data}: contains the error code returned by the server encapsulated in a {@link TcpGeneral} Object.
+     *         - {@code data}: contains the error code returned by the server.
      * @throws TCPClientException If an error occurs while reading the server error string.
      * @throws IOException If an I/O error occurs while reading the server error.
      */
-    private WebReturn<TcpGeneral> readError() throws TCPClientException, IOException {
+    private WebReturn<Integer> readError() throws TCPClientException, IOException {
         Optional<Pair<String, Integer>> errorOpt = this.dataReader.readServerError(false);
         if (errorOpt.isPresent()) {
             Pair<String, Integer> error = errorOpt.get();
-            return WebReturn.error(error.getLeft(), TcpGeneral.ofSimple(SimpleType.INT, error.getRight()));
+            return WebReturn.error(error.getLeft(), error.getRight());
         } else {
             throw new TCPClientException("Received NAK but failed to read server error.");
         }

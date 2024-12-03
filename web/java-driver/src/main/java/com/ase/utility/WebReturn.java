@@ -110,15 +110,6 @@ public class WebReturn<T> {
     }
 
     /**
-     * Sets the ok status of the response.
-     *
-     * @param ok the status to set
-     */
-    public void setOk(boolean ok) {
-        this.ok = ok;
-    }
-
-    /**
      * @return the message of the response
      */
     public String getMessage() {
@@ -126,28 +117,10 @@ public class WebReturn<T> {
     }
 
     /**
-     * Sets the message of the response.
-     *
-     * @param message the message to set
-     */
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    /**
      * @return the data of the response
      */
     public T getData() {
         return data;
-    }
-
-    /**
-     * Sets the data of the response.
-     *
-     * @param data the data to set
-     */
-    public void setData(T data) {
-        this.data = data;
     }
 
     /**
@@ -163,7 +136,4 @@ public class WebReturn<T> {
             ", data=" + data +
             '}';
     }
-
-    // Optionally, override equals() and hashCode() if needed
-
 }
