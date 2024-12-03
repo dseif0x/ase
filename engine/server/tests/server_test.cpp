@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     // sets one global tcp server for all tests
     ::testing::AddGlobalTestEnvironment(new TCPServerEnvironment(12345, 10));
     // makes sure that the server has started before the tests run
-    usleep(1000000);
+    usleep(100000);
     return RUN_ALL_TESTS();
 }
 
