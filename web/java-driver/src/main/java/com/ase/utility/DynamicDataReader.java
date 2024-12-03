@@ -58,7 +58,7 @@ public class DynamicDataReader {
             byte[] bytes = new byte[(int) length];
             dataInputStream.readFully(bytes);
 
-            return new String(bytes, StandardCharsets.UTF_8);
+            return new String(bytes, StandardCharsets.ISO_8859_1);
         } catch (IOException e) {
             throw new TCPClientReadException("Failed to read string.", e);
         }

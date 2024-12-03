@@ -82,9 +82,9 @@ public class Utility {
             byte[] passwordLength = createTCPEUIByteArray(password.length());
 
             outputStream.write(usernameLength);
-            outputStream.write(username.getBytes(StandardCharsets.UTF_8));
+            outputStream.write(username.getBytes(StandardCharsets.ISO_8859_1));
             outputStream.write(passwordLength);
-            outputStream.write(password.getBytes(StandardCharsets.UTF_8));
+            outputStream.write(password.getBytes(StandardCharsets.ISO_8859_1));
 
             return outputStream.toByteArray();
         } catch (IOException e) {

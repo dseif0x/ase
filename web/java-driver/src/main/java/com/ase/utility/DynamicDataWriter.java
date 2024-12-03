@@ -49,7 +49,7 @@ public class DynamicDataWriter {
      */
     public void writeString(String string) throws TCPClientWriteException {
         try {
-            byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
+            byte[] bytes = string.getBytes(StandardCharsets.ISO_8859_1);
 
             if (bytes.length > serverInfo.getStringSize()) {
                 throw new TCPClientWriteException("String length exceeds server limit.");
@@ -192,7 +192,7 @@ public class DynamicDataWriter {
 
             for (String key : keyMap.keySet()) {
                 writeString(key);
-                writeGeneral(keyMap.get(key), true);
+                writeGeneral(keyMap.get(key));
             }
         } catch (IOException e) {
             throw new TCPClientWriteException("Failed to write key map.", e);
@@ -214,8 +214,11 @@ public class DynamicDataWriter {
         try {
             Pair<TcpGeneral, TcpGeneral> pair = value.getPair();
             TcpGeneral left = pair.getLeft();
-            writeGeneral(pair.getLeft(), false);
-            writeGeneral(pair.getRight(), true);
+
+            if (left.isComplex()) writeGeneral(pair.getLeft());
+            else writeSimpleType(left.getSimpleType(), left.getValue());
+
+            writeGeneral(pair.getRight());
         } catch (TCPClientException e) {
             throw new TCPClientWriteException("Failed to write pair.", e);
         }
@@ -265,8 +268,8 @@ public class DynamicDataWriter {
      * @param value The {@link TcpGeneral} object to serialize and write.
      * @throws TCPClientException if an I/O error occurs or the encoding is invalid.
      */
-    public void writeGeneral(TcpGeneral value, boolean writeTBD) throws TCPClientException {
-        if (writeTBD) writeTypeDefinition(value);
+    public void writeGeneral(TcpGeneral value) throws TCPClientException {
+        writeTypeDefinition(value);
 
         switch (value.getType()) {
             case SIMPLE:
