@@ -38,13 +38,19 @@ public class DatabaseClient {
      * @throws IOException If there is an error creating the socket or streams
      */
     public DatabaseClient(String host, int port) throws IOException {
-        this.socket = new Socket(host, port);
-        try {
-            reader = new DataInputStream(this.socket.getInputStream());
-            writer =  new DataOutputStream(this.socket.getOutputStream());
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        this(new Socket(host, port));
+    }
+
+    /**
+     * Constructs a new DatabaseClient using an existing socket connection.
+     *
+     * @param socket The socket connection to the database server
+     * @throws IOException If there is an error creating the streams
+     */
+    DatabaseClient(Socket socket) throws IOException {
+        this.socket = socket;
+        this.reader = new DataInputStream(socket.getInputStream());
+        this.writer = new DataOutputStream(socket.getOutputStream());
     }
 
     /**
