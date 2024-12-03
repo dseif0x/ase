@@ -108,6 +108,8 @@ int main(int argc, char** argv) {
 }
 
 TEST(TCPServerTest, SimpleClientCommunication) {
+    // to make sure that the server has started
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     DumbTCPClient client("127.0.0.1", 12345);
 
     ASSERT_TRUE(client.connect_to_server());
