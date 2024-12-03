@@ -192,7 +192,7 @@ public class DynamicDataWriter {
 
             for (String key : keyMap.keySet()) {
                 writeString(key);
-                writeGeneral(keyMap.get(key));
+                writeGeneral(keyMap.get(key), true);
             }
         } catch (IOException e) {
             throw new TCPClientWriteException("Failed to write key map.", e);
@@ -213,8 +213,9 @@ public class DynamicDataWriter {
 
         try {
             Pair<TcpGeneral, TcpGeneral> pair = value.getPair();
-            writeGeneral(pair.getLeft());
-            writeGeneral(pair.getRight());
+            TcpGeneral left = pair.getLeft();
+            writeGeneral(pair.getLeft(), false);
+            writeGeneral(pair.getRight(), true);
         } catch (TCPClientException e) {
             throw new TCPClientWriteException("Failed to write pair.", e);
         }
@@ -264,8 +265,8 @@ public class DynamicDataWriter {
      * @param value The {@link TcpGeneral} object to serialize and write.
      * @throws TCPClientException if an I/O error occurs or the encoding is invalid.
      */
-    public void writeGeneral(TcpGeneral value) throws TCPClientException {
-        writeTypeDefinition(value);
+    public void writeGeneral(TcpGeneral value, boolean writeTBD) throws TCPClientException {
+        if (writeTBD) writeTypeDefinition(value);
 
         switch (value.getType()) {
             case SIMPLE:
