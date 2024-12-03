@@ -17,8 +17,10 @@
 
 class TCPServerEnvironment final : public ::testing::Environment {
 public:
+
+    // TODO add acl and db to constructor
     TCPServerEnvironment(const int port, const int max_clients) : port { port }, max_clients { max_clients } {
-        this->server = new TCP2Server {port, max_clients};
+        this->server = new TCP2Server {acl, db, port, max_clients};
     }
 
     void SetUp() override {
@@ -30,6 +32,8 @@ public:
     }
 
 private:
+    ACL acl{};
+    DB db;
     int port;
     int max_clients;
     TCP2Server *server;
