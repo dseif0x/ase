@@ -38,10 +38,10 @@ public:
     offset_t get_offset() const {
         return offset;
     }
-    T* get(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-    relative_offset_ptr<T> get_relative(shmem& mem) const; // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    T* get(shmem& mem) const; //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    relative_offset_ptr<T> get_relative(shmem& mem) const; //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     template <typename Lambda>
-    void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); // Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
+    void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); //!< Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
 
     template <typename U>
     friend class offset_ptr;

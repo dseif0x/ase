@@ -20,7 +20,7 @@
 #include "encoder.h"
 
 
-void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, int port, int max_clients) {
+void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients) {
     // Create server socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
@@ -88,7 +88,7 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, int port, int
                           << ":" << ntohs(clientAddress.sin_port) << "\n";
 
                 // start thread for the connection
-                clientThreads.emplace_back(std::thread(tcp2_utils::client_coding_setup, std::ref(kill_all), clientSocket, std::ref(acl)));
+                clientThreads.emplace_back(std::thread(tcp2_utils::client_coding_setup, std::ref(kill_all), clientSocket, std::ref(acl), std::ref(db)));
             }
         }
     }
@@ -98,10 +98,10 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, int port, int
     close(serverSocket);
 }
 
-void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl) {
+void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db) {
     std::mutex pipe_lock;
     TCP2Decoder decoder{client_socket, &pipe_lock};
     TCP2Encoder encoder{client_socket, &pipe_lock};
-    client_main_thread(kys, decoder, encoder, acl);
+    client_main_thread(kys, decoder, encoder, acl, db);
     close(client_socket);
 }

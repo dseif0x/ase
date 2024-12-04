@@ -18,9 +18,6 @@
 #include "tcp2_utils.h"
 #include "tcp2_server.h"
 
-
-
-
 TCP2Decoder::TCP2Decoder(const int client_socket, std::mutex *pipe_lock): GenericDecoder(),
 client_socket(client_socket), pipe_lock(pipe_lock), kys(false) {
     timeout.tv_sec = 0;

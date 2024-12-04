@@ -10,6 +10,8 @@
 #define TCP2_UTILS_H
 #include "acl.h"
 #include <atomic>
+#include <db.h>
+
 #include "tcp2_coding.h"
 #include "decoder.h"
 #include "encoder.h"
@@ -17,24 +19,124 @@
 // todo replace symbol with correct one
 #define UNIX
 
+struct CommandInfo {
+    ACLUser *user;
+    ACL &acl;
+    DB &db;
+
+    CommandInfo(ACLUser *userPtr, ACL &aclRef, DB &dbRef)
+        : user(userPtr), acl(aclRef), db(dbRef) {}
+};
+
 namespace tcp2_utils {
-    // following functions are system dependent
+    // client_acceptor needs a system dependent implementation but keeps the same signature
+    void client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients);
 #ifdef UNIX
-    void client_acceptor(std::atomic<bool> &kys, ACL &acl, int port, int max_clients);
-    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl);
+    // following function needs system dependent implementation as well as possibly different signatures
+    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db);
 #elifdef WIN32
 #endif
 
     // following functions are system independent
-    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
-    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl);
-    int client_command_switch(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder, unsigned char self_perms);
+    /**
+     * @brief Main thread managing a single client connection.
+     *
+     * @param kys Atomic boolean signaling termination.
+     * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+     * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+     * @param acl Reference to the ACL managing user authentication and permissions.
+     */
+    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
+    /**
+     * @brief Manages the client state machine, handling authentication and client commands.
+     *
+     * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+     * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+     * @param acl Reference to the ACL (Access Control List) managing user authentication and permissions.
+     * @param db Reference to the db do access the actual data.
+     */
+    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
+    /**
+     * @brief Processes client commands and executes the appropriate function based on the command code.
+     *
+     * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+     * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+     * @param ci Reference to the CommandInfo struct containing additional information for the function.
+     * @param self_perms Permissions associated with the client connection.
+     * @return int Status code indicating the result:
+     *         - -1: Non-critical error occurred, command not executed, decoder cleared.
+     *         -  0: Command executed successfully.
+     *         -  1: Soft shutdown.
+     *         -  2: Hard shutdown.
+     */
+    int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, unsigned char self_perms);
+
+    /**
+    * @brief splits the key into the domain parts.
+    *
+    * @param key String of the key
+    * @return optional<vector<string>> Returns the key split into parts or nothing on incorrect key.
+    */
+    std::optional<std::vector<std::string>> check_and_create_key(std::string &key);
 
     namespace command {
-        int stop(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        int ping(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        int disconnect(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
-        int testing(ACLUser *user, TCP2Decoder &decoder, TCP2Encoder &encoder);
+        /**
+         * @brief Executes the STOP command, signaling no errors.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 0.
+         */
+        int stop(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        /**
+         * @brief Executes the PING command, echoing back a provided value.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 0.
+         */
+        int ping(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        /**
+         * @brief Executes the DISCONNECT command, sending a goodbye message.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 1 to signal a soft shutdown.
+         */
+        int disconnect(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Executes the get command, returning the looked for data.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 1 to signal a soft shutdown.
+        */
+        int get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Updates the access permissions of a user.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 1 to signal a soft shutdown.
+*/
+        int update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Executes a test command for debugging and verification purposes.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int Always returns 1 to signal a soft shutdown.
+         */
+        int testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {
@@ -45,6 +147,7 @@ namespace tcp2_utils {
         constexpr unsigned char admin = 0x08;
         constexpr unsigned char read_write = read | write;
         constexpr unsigned char read_write_del = read_write | del;
+        constexpr unsigned char all = read | write | del;
     }
 }
 

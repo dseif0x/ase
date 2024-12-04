@@ -60,3 +60,16 @@ std::optional<T> get(DB& db, const char* key) {
         return std::nullopt;
     }
 }
+
+template <typename T>
+std::optional<T> follow(DB& db, const char* key, uint16_t max_chains) {
+    std::optional<CopiedValue> val = db.follow(key, max_chains);
+    if (!val.has_value()) return std::nullopt;
+    auto type = get_type<T>();
+    if (val->type == type) {
+        return {std::move(get<T>(val->data))};
+    } else {
+        // Found but with wrong type
+        return std::nullopt;
+    }
+}

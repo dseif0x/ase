@@ -14,30 +14,34 @@ void insert_test_data(DB& db) {
         CopiedValue newval{};
         newval.type = ValueType::INT;
         newval.data.emplace<int>(42);
-        db.set("test", newval);
-        newval.data.emplace<int>(43);
-        db.set("test2", newval);
+        db.set("test", std::move(newval));
+
+
+        CopiedValue newval2{};
+        newval2.type = ValueType::INT;
+        newval2.data.emplace<int>(43);
+        db.set("test2", std::move(newval2));
     }
 
     { // String
         CopiedValue newval2{};
         newval2.type = ValueType::STRING;
         newval2.data.emplace<std::string>("Hello World!");
-        db.set("test3", newval2);
+        db.set("test3", std::move(newval2));
     }
 
     { // Boolean
         CopiedValue newval3{};
         newval3.type = ValueType::BOOLEAN;
         newval3.data.emplace<bool>(true);
-        db.set("test4", newval3);
+        db.set("test4", std::move(newval3));
     }
 
     { // Double
         CopiedValue newval4{};
         newval4.type = ValueType::DOUBLE;
         newval4.data.emplace<double>(1.2);
-        db.set("test5", newval4);
+        db.set("test5", std::move(newval4));
     }
 
     { // Array
@@ -55,7 +59,7 @@ void insert_test_data(DB& db) {
         vector.emplace_back(std::move(arrval1));
         vector.emplace_back(std::move(arrval2));
 
-        db.set("test6", newval5);
+        db.set("test6", std::move(newval5));
     }
 
     { // Pair
@@ -74,7 +78,7 @@ void insert_test_data(DB& db) {
         CopiedValue newval6{};
         newval6.type = ValueType::PAIR;
         newval6.data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
-        db.set("test7", newval6);
+        db.set("test7", std::move(newval6));
     }
 
     { // Map
@@ -94,7 +98,31 @@ void insert_test_data(DB& db) {
         CopiedValue newval6{};
         newval6.type = ValueType::MAP;
         newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
-        db.set("test8", newval6);
+        db.set("test8", std::move(newval6));
+    }
+    { // Reference
+        CopiedValue newval1{};
+        newval1.type = ValueType::REFERENCE;
+        newval1.data.emplace<std::string>("reference2");
+        db.set("reference1", std::move(newval1));
+        CopiedValue newval2{};
+        newval2.type = ValueType::REFERENCE;
+        newval2.data.emplace<std::string>("reference3");
+        db.set("reference2", std::move(newval2));
+        CopiedValue newval3{};
+        newval3.type = ValueType::REFERENCE;
+        newval3.data.emplace<std::string>("referenceVal");
+        db.set("reference3", std::move(newval3));
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(123);
+        db.set("referenceVal", std::move(newval));
+    }
+    { // Delete
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(123);
+        db.set("toDelete", std::move(newval));
     }
 }
 
@@ -117,6 +145,18 @@ public:
     DB* db{nullptr};
 };
 
+TEST_F(DatabaseWithData, Subdomain) {
+    {
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data = 15;
+        db->set(".top.second.sub.leaf", std::move(newval));
+    }
+    {
+        auto temp = db->get(".top.second.sub.leaf");
+        ASSERT_EQ(get<int>(temp->data), 15);
+    }
+}
 
 TEST_F(DatabaseWithData, GetInt) {
     auto test = get<int>(*db, "test");
@@ -210,5 +250,62 @@ TEST_F(DatabaseWithData, GetNonExistentKey) {
 
 TEST_F(DatabaseWithData, GetExistingKeyWithWrongType) {
     auto test = get<std::string>(*db, "test");
+    ASSERT_FALSE(test.has_value());
+}
+
+
+TEST_F(DatabaseWithData, Follow) {
+    auto test = follow<int>(*db, "reference1", 999);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
+}
+
+TEST_F(DatabaseWithData, FollowWithLimit) {
+    auto test = follow<int>(*db, "reference3", 1);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
+}
+
+TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
+    auto test = db->follow("reference2", 1);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value().type, ValueType::REFERENCE);
+    ASSERT_EQ(std::get<std::string>(test.value().data), "referenceVal");
+}
+
+TEST_F(DatabaseWithData, FollowInt) {
+    auto test = follow<int>(*db, "referenceVal", 99);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
+}
+
+TEST_F(DatabaseWithData, Follow0) {
+    auto test = db->follow("reference1", 0);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value().type, ValueType::REFERENCE);
+    ASSERT_EQ(std::get<std::string>(test.value().data), "reference2");
+}
+
+TEST_F(DatabaseWithData, Delete) {
+    auto test = get<int>(*db, "toDelete");
+    ASSERT_TRUE(test.has_value());
+    db->remove("toDelete");
+    test = get<int>(*db, "toDelete");
+    ASSERT_FALSE(test.has_value());
+}
+
+TEST_F(DatabaseWithData, List) {
+    auto test = db->list("test8");
+    ASSERT_TRUE(test.has_value());
+    auto& map = test.value();
+    ASSERT_TRUE(map.contains("key1") && map.contains("key2"));
+    ASSERT_EQ(map["key2"].first, ValueType::DOUBLE);
+    ASSERT_EQ(map["key1"].first, ValueType::INT);
+    ASSERT_EQ(std::get<double>(map["key2"].second), 1.2);
+    ASSERT_EQ(std::get<int>(map["key1"].second), 1222);
+}
+
+TEST_F(DatabaseWithData, ListNonExistentKey) {
+    auto test = db->list("test_123");
     ASSERT_FALSE(test.has_value());
 }

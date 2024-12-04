@@ -13,7 +13,7 @@ else ()
 endif()
 
 
-add_library(core_static ${SOURCES} ${SOURCES_PLATFORM})
+add_library(core_static STATIC ${SOURCES} ${SOURCES_PLATFORM})
 target_include_directories(core_static PUBLIC include)
 add_executable(core_test main.cpp)
 target_link_libraries(core_test core_static)

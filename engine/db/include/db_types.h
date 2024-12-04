@@ -54,6 +54,8 @@ struct ArrayType {
  *
  * This structure is a union that can store various types of values such as
  * booleans, integers, strings, arrays, pairs, or maps.
+ *
+ * See @brief CopiedValue
  */
 struct Value {
     Value() = default;
@@ -66,6 +68,13 @@ struct Value {
      * This also requires you to have a unique lock on the meta mutex before calling construct_unsafe
      */
     static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
+
+    /**
+     * @brief Construct a new Value object
+     * @param mem The shared memory
+     * @param value The value to destroy
+     * @param locks_held Indicates if locks have to be acquired
+     */
     static void destroy_value(shmem& mem, offset_ptr<Value> value, bool locks_held = false);
 
     using shmem_pair_t = std::pair<relative_offset_ptr<Value>, relative_offset_ptr<Value>>;
@@ -73,8 +82,10 @@ struct Value {
     using shmem_map_t = relative_offset_ptr<shmem_map>;
     using shmem_string_t = relative_offset_ptr<char>;
 
+    //! The type of the value
     ValueType type = ValueType::UNKNOWN;
     // TODO semaphore sem_value
+    //! The data of the value
     std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
 };
 
@@ -82,6 +93,8 @@ struct Value {
  * @brief Represents a copied version of a value for returning from the database.
  *
  * This structure is used to return a copy of a value from the database, as views are not supported.
+ *
+ * See @ref Value
  */
 struct CopiedValue {
     CopiedValue() = default;
@@ -95,7 +108,14 @@ struct CopiedValue {
     //! @onlyInAtomicAccess
     CopiedValue(const Value& value);
 
+    /**
+     * Prints a python-style representation of the provided CopiedValue to stdout.
+     */
     void print();
+    /**
+     * Prints a python-style representation of the provided CopiedValue to stdout.
+     * @param val CopiedValue to be printed.
+     */
     static void print(CopiedValue &val);
 
     using copied_map_t = std::unordered_map<std::string, std::unique_ptr<CopiedValue>>;
