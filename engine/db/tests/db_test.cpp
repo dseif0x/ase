@@ -291,8 +291,23 @@ TEST_F(DatabaseWithData, FollowWithLimit) {
 }
 
 TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
-    auto test = follow<int>(*db, "reference2", 1);
-    ASSERT_FALSE(test.has_value());
+    auto test = db->follow("reference2", 1);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value().type, ValueType::REFERENCE);
+    ASSERT_EQ(std::get<std::string>(test.value().data), "referenceVal");
+}
+
+TEST_F(DatabaseWithData, FollowInt) {
+    auto test = follow<int>(*db, "referenceVal", 99);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
+}
+
+TEST_F(DatabaseWithData, Follow0) {
+    auto test = db->follow("reference1", 0);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value().type, ValueType::REFERENCE);
+    ASSERT_EQ(std::get<std::string>(test.value().data), "reference2");
 }
 
 TEST_F(DatabaseWithData, Delete) {
