@@ -168,6 +168,30 @@ TEST_F(DatabaseWithData, GetInt) {
     ASSERT_EQ(test.value(), 43);
 }
 
+TEST_F(DatabaseWithData, GetIntSetForce) {
+    auto test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 42);
+
+    CopiedValue newval{};
+    newval.type = ValueType::INT;
+    newval.data = 15;
+    db->set("test", std::move(newval), false);
+
+    test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 42);
+
+    CopiedValue newval2{};
+    newval2.type = ValueType::INT;
+    newval2.data = 15;
+    db->set("test", std::move(newval2), true);
+
+    test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 15);
+}
+
 TEST_F(DatabaseWithData, GetString) {
     auto test_string = get<std::string>(*db, "test3");
     ASSERT_TRUE(test_string.has_value());
