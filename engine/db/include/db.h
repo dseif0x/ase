@@ -30,12 +30,48 @@ public:
     void destroy();
 
     // Core Commands
-    std::optional<CopiedValue> get(const char* key); //!< GET command of the database, will return a copy of the value
-    void set(const char* key, CopiedValue&& value); //!< SET command of the database, will set a key to a value
 
-    std::optional<CopiedValue> follow(const char* key, uint16_t max_chained_follows = 1); //!< FOLLOW command of the database, will return a copy of the value a references is pointing to
-    list_t list(const char* key); //!< LIST command of the database, will return a list of first level sub keys in a map
-    void remove(const char* key); //!< DELETE command of the database, will remove a key and its value from the database
+    /**
+     * GET command of the database
+     *
+     * @param key the key to retrieve
+     * @return a copy of the value
+     */
+    std::optional<CopiedValue> get(const char* key);
+
+    /**
+     * SET command of the database
+     *
+     * @param key the key to retrieve
+     * @param value the value to be inserted
+     * @param force force set
+     */
+    void set(const char* key, CopiedValue&& value, bool force = false);
+
+    /**
+     * FOLLOW command of the database. If max_chained_follows is 0 it behaves the same as GET.
+     * The same is true if it is called on a key *not* containing a reference.
+     *
+     * @param key the key of the reference
+     * @param max_chained_follows The maximum of jumps that should be done when following a chain of references
+     * @return a copy of the value a references is pointing to
+     */
+    std::optional<CopiedValue> follow(const char* key, uint16_t max_chained_follows = 1);
+
+    /**
+     * LIST command of the database
+     *
+     * @param key the key of the node of which the sub keys should be listed
+     * @return a list of first level sub keys in a map
+     */
+    list_t list(const char* key);
+
+    /**
+     * DELETE command of the database, will remove a key and its value from the database
+     *
+     * @param key the key of the value that should be removed
+     */
+    void remove(const char* key);
 
     // Semaphore Commands
     void create_lock(const char* key, uint16_t max_locks); //!< CREATE_LOCK command of the database, will create a lock on a key

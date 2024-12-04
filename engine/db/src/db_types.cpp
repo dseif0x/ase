@@ -48,10 +48,6 @@ void CopiedValue::print() {
     CopiedValue::print(*this);
 }
 
-/**
- * Prints a python-style representation of the provided CopiedValue to stdout.
- * @param val CopiedValue to be printed.
- */
 void CopiedValue::print(CopiedValue &val) {
     if (val.type == ValueType::INT) {
         std::cout << std::get<int>(val.data);
@@ -88,7 +84,7 @@ void CopiedValue::print(CopiedValue &val) {
         }
         std::cout << "}";
     } else {
-        std::cout << "Value found, but type not handeled" << std::endl;
+        std::cout << "Value found, but type (" << (int)val.type << ") not handeled" << std::endl;
     }
 }
 

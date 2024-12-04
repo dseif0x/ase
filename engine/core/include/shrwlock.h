@@ -27,13 +27,13 @@ public:
     shrwlock(shrwlock&&) = delete;
     shrwlock& operator=(shrwlock&&) = delete;*/
 
-    void lock();
-    void unlock();
-    bool try_lock();
+    void lock(); //!< acquires an unique lock
+    void unlock(); //!< releases an unique lock
+    bool try_lock(); //!< tries to acquire an unique lock
 
-    void lock_shared();
-    void unlock_shared();
-    bool try_lock_shared();
+    void lock_shared(); //!< acquires a shared lock
+    void unlock_shared(); //!< releasea a shared lock
+    bool try_lock_shared(); //!< tries to acquire a shared lock
 
 private:
 #ifdef _WIN32

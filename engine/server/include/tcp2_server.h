@@ -9,6 +9,7 @@
 #define TCP_SERVER_H
 #include "acl.h"
 #include <atomic>
+#include <db.h>
 #include <thread>
 #include "tcp2_coding.h"
 
@@ -16,20 +17,49 @@
 constexpr int BUFFER_SIZE = 8;
 
 
-
+/**
+ * @brief Represents a TCP server capable of handling multiple clients concurrently.
+ */
 class TCP2Server {
     int port;
     int max_clients;
-    ACL acl{};
+    ACL &acl;
+    DB &db;
     std::atomic<bool> kill_acceptor{false};
     std::atomic<int> socket_error{0};
 
     std::thread client_acceptor;
+    bool running = false;
 
 public:
-    TCP2Server(int port, int max_clients);
+    TCP2Server(ACL &acl, DB &db, int port, int max_clients);
+    ~TCP2Server();
+
+    /**
+    * @brief Loads an acl from file.
+    *
+    * @param path The path of the file.
+    */
     bool load_acl_from_disk(std::string path);
+
+    /**
+    * @brief Saves the acl to a file.
+    *
+    * @param path The path of the file.
+    */
+    bool save_acl_to_disk(std::string path);
+    /**
+     * @brief Starts the TCP server and begins accepting client connections.
+     *
+     * Spawns a separate thread to handle client connections using the
+     * `tcp2_utils::client_acceptor` utility function.
+     */
     void start();
+    /**
+     * @brief Stops the TCP server.
+     *
+     * Signals the client acceptor thread to terminate and waits for it to join.
+     */
     void stop();
 
 };

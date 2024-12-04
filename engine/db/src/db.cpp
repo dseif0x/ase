@@ -90,19 +90,19 @@ std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_foll
     std::optional<CopiedValue> res{};
     std::string next_key = std::string(key);
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        do {
+        while(true) {
             auto split_keys = split(next_key.c_str());
             auto nextNode = get_key(*entrypoint, split_keys);
             if (!nextNode.has_value()) break;
             auto nextVal = nextNode.value();
-            if (nextVal.get().type == ValueType::REFERENCE) {
+            if (nextVal.get().type == ValueType::REFERENCE && max_chained_follows-- > 0) {
                 auto& str = std::get<Value::shmem_string_t>(nextVal.get().data);
                 next_key = str.get();
             } else {
                 res.emplace(nextVal.get());
                 break;
             }
-        } while(max_chained_follows-- > 0);
+        }
     });
     return res;
 }
@@ -135,12 +135,23 @@ CopiedValue generate_subdomain(std::deque<std::string>& keys, CopiedValue&& new_
     return new_val;
 }
 
-void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value) {
+void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value, const bool force) {
     if (keys.empty())
         return;
     auto key = keys.front();
+    bool exists = false;
     if (keys.size() == 1) {
-        db_key_map::set(map, mem, key.c_str(), Value::create_value(mem, new_value));
+        if (!force) {
+            map.atomic_access(mem, [&](db_key_map* entrypoint) {
+                if (entrypoint->atomic_has(key.c_str())) {
+                    exists = true;
+                }
+            });
+        }
+        // no force check needed, the condition only does not hold when force is false
+        if (!exists) {
+            db_key_map::set(map, mem, key.c_str(), Value::create_value(mem, new_value));
+        }
         return;
     }
     std::optional<std::reference_wrapper<Value>> res{};
@@ -166,13 +177,13 @@ void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys,
         return;
     }
 
-    return set_key(ptr, mem, keys, std::move(new_value));
+    return set_key(ptr, mem, keys, std::move(new_value), force);
 }
 
-void DB::set(const char *key, CopiedValue&& value) {
+void DB::set(const char *key, CopiedValue&& value, const bool force) {
     auto entrypoint_p = get_entrypoint();
     std::deque<std::string> keys = split(key);
-    set_key(entrypoint_p, mem, keys, std::move(value));
+    set_key(entrypoint_p, mem, keys, std::move(value), force);
 }
 
 using list_val_data_t = std::variant<std::monostate, bool, int, std::string, double>;

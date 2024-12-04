@@ -30,14 +30,25 @@ public:
     shared_wrapped_mutex(Mutex& mtx) : mtx{mtx} {}
     shared_wrapped_mutex(const shared_wrapped_mutex&) = delete;
     shared_wrapped_mutex(shared_wrapped_mutex&&) = delete;
+
+    /**
+     * acquires a shared lock
+     */
     void lock() {
         mtx.lock_shared();
     }
 
+    /**
+     * releases the shared lock
+     */
     void unlock() {
         mtx.unlock_shared();
     }
 
+    /**
+     * tries to acquire a lock
+     * @return rather the lock was successfully acquired
+     */
     bool try_lock() {
         return mtx.try_lock_shared();
     }
