@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <utils.h>
 
 class TCPServerEnvironment final : public ::testing::Environment {
 public:
@@ -73,22 +74,61 @@ public:
         return true;
     }
 
-    bool send_message(const std::string& message) const {
-        if (send(sock_fd_, message.c_str(), message.size(), 0) == -1) {
+    bool send_message(const std::vector<unsigned char>& message) const {
+        if (send(sock_fd_, message.data(), message.size(), 0) == -1) {
             perror("Send failed");
             return false;
         }
         return true;
     }
 
-    std::string receive_message() const {
-        char buffer[1024] = {0};
-        int bytes_received = recv(sock_fd_, buffer, sizeof(buffer) - 1, 0);
-        if (bytes_received < 0) {
-            perror("Receive failed");
-            return "";
+    std::vector<unsigned char> receive_message(int timeout_ms) const {
+        std::vector<unsigned char> buffer;
+        const int chunk_size = 1024; // Size of each read
+        auto start_time = std::chrono::steady_clock::now();
+
+        while (true) {
+            // Calculate remaining time
+            auto elapsed_time = std::chrono::steady_clock::now() - start_time;
+            int remaining_time_ms = timeout_ms - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
+            if (remaining_time_ms <= 0) {
+                break; // Timeout expired
+            }
+
+            // Set up select with the remaining time
+            fd_set read_fds;
+            FD_ZERO(&read_fds);
+            FD_SET(sock_fd_, &read_fds);
+
+            struct timeval timeout;
+            timeout.tv_sec = remaining_time_ms / 1000;
+            timeout.tv_usec = (remaining_time_ms % 1000) * 1000;
+
+            int activity = select(sock_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
+
+            if (activity == -1) {
+                perror("Select failed");
+                return {};
+            } else if (activity == 0) {
+                // No data ready, but time still remains
+                continue;
+            }
+
+            // Socket is ready to read
+            std::vector<unsigned char> temp_buffer(chunk_size, 0);
+            int bytes_received = recv(sock_fd_, temp_buffer.data(), temp_buffer.size(), 0);
+            if (bytes_received < 0) {
+                perror("Receive failed");
+                return {};
+            } else if (bytes_received == 0) {
+                break; // Socket was closed by the peer
+            }
+
+            // Append received data to the main buffer
+            buffer.insert(buffer.end(), temp_buffer.begin(), temp_buffer.begin() + bytes_received);
         }
-        return std::string(buffer, bytes_received);
+
+        return buffer;
     }
 
     void close_connection() {
@@ -112,7 +152,7 @@ int main(int argc, char** argv) {
 }
 
 // dummy test to check if the communication between the server and the client works
-TEST(TCPServerTest, SimpleClientCommunication) {
+TEST(IntegrationTests_TCPServer, login_admin) {
     // the test needs to await the start of the server to pass, but with sleep the pipeline may get 'locked'
     //usleep(1000000);
 
@@ -120,16 +160,26 @@ TEST(TCPServerTest, SimpleClientCommunication) {
 
     ASSERT_TRUE(client.connect_to_server());
 
-    ASSERT_TRUE(client.send_message("Test"));
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
 
-    std::string response = client.receive_message();
-    ASSERT_FALSE(response.empty());
+    ASSERT_TRUE(client.send_message(client_information_package));
 
-    const std::string anotherMessage = "Test 2";
-    ASSERT_TRUE(client.send_message(anotherMessage));
+    auto server_information_package = client.receive_message(100);
+    ASSERT_TRUE(server_information_package.size() == 10);
 
-    response = client.receive_message();
-    ASSERT_FALSE(response.empty());
+    // check actual data: ack + server information package
+    std::vector<unsigned char> expected_server_info_pack{0xFF, 0x01, 0x04, 0x01, 0x08, 0x04, 0x40, 0x00, 0x40, 0x00};
+
+    print_vec(expected_server_info_pack);
+    print_vec(server_information_package);
+
+    ASSERT_TRUE(vec_equ(expected_server_info_pack, server_information_package));
+
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+    ASSERT_TRUE(client.send_message(user_info_pack));
+
+    auto logged_in = client.receive_message(100);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     client.close_connection();
 }
