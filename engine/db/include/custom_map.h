@@ -128,18 +128,20 @@ public:
 
         map.atomic_access(mem, [&](db_map* map) {
             map->lock.lock();
-            std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
-            for (size_t i = 0; i < map->used_size; i++) {
-                if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                    old_value = data[i].second;
-                    data[i].second = value;
-                    found = true;
-                    map->lock.unlock();
-                    return;
-                }
-            }
+            map_entry_type* data = map->data.get(mem);
+            offset_t* lookup = map->lookup.get(mem);
             used_size = map->used_size;
             alloc_size = map->alloc_size;
+            if (alloc_size == 0) return;
+            auto idx = lookup[hash % alloc_size];
+            if (idx >= 0) {
+                // TODO check for collision
+                auto& ll_node = data[idx];
+                found = true;
+                old_value = std::get<1>(ll_node);
+                std::get<1>(data[1]) = value;
+                map->lock.unlock();
+            }
         }, true);
 
         if (found) {
@@ -186,8 +188,8 @@ public:
             if (lookup[removed_idx] >= 0) {
                map->used_size--; // we don't delete anything, just invalidate it's memory
                if (lookup[removed_idx] < map->used_size) { // swap values with last data entry
-                   auto tmpfirst = std::get<0>(data[i]);
-                   auto tmpsecond = std:.get<1>(data[i]);
+                   auto tmpfirst = std::get<0>(data[removed_idx]);
+                   auto tmpsecond = std::get<1>(data[removed_idx]);
                    std::swap(data[lookup[removed_idx]], data[map->used_size]);
                    // adjust reference to moved value
                    auto moved_idx = hash_fn(std::string(std::get<0>(data[map->used_size]).get(mem))) % map->alloc_size;
