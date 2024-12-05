@@ -61,8 +61,8 @@
 				<version>0.8.12</version>
 				<configuration>
 					<excludes>
-						<exclude>src/main/java/com/ase/utility/tcp/*</exclude>
-						<exclude>src/main/java/com/ase/exception/*</exclude>
+						<exclude>com/ase/utility/tcp/**</exclude>
+						<exclude>com/ase/exception/**</exclude>
 					</excludes>
 				</configuration>
 				<executions>
