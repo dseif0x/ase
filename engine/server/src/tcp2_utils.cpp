@@ -303,6 +303,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
     }
     acl.disconnect(username);
     std::cout << "state machine end" << std::endl;
+    decoder.set_kys();
 }
 
 
