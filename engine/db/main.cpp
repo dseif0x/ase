@@ -121,34 +121,34 @@ int main() {
             CopiedValue newval{};
             newval.type = ValueType::INT;
             newval.data.emplace<int>(42);
-            db.set("test", std::move(newval));
+            db.set("test", std::move(newval), true);
 
 
             CopiedValue newval2{};
             newval2.type = ValueType::INT;
             newval2.data.emplace<int>(43);
-            db.set("test2", std::move(newval2));
+            db.set("test2", std::move(newval2), true);
         }
 
         { // String
             CopiedValue newval2{};
             newval2.type = ValueType::STRING;
             newval2.data.emplace<std::string>("Hello World!");
-            db.set("test3", std::move(newval2));
+            db.set("test3", std::move(newval2), true);
         }
 
         { // Boolean
             CopiedValue newval3{};
             newval3.type = ValueType::BOOLEAN;
             newval3.data.emplace<bool>(true);
-            db.set("test4", std::move(newval3));
+            db.set("test4", std::move(newval3), true);
         }
 
         { // Double
             CopiedValue newval4{};
             newval4.type = ValueType::DOUBLE;
             newval4.data.emplace<double>(1.2);
-            db.set("test5", std::move(newval4));
+            db.set("test5", std::move(newval4), true);
         }
 
         { // Array
@@ -166,7 +166,7 @@ int main() {
             vector.emplace_back(std::move(arrval1));
             vector.emplace_back(std::move(arrval2));
 
-            db.set("test6", std::move(newval5));
+            db.set("test6", std::move(newval5), true);
         }
 
         { // Pair
@@ -185,7 +185,7 @@ int main() {
             CopiedValue newval6{};
             newval6.type = ValueType::PAIR;
             newval6.data.emplace<CopiedValue::copied_pair_t>(std::move(pair));
-            db.set("test7", std::move(newval6));
+            db.set("test7", std::move(newval6), true);
         }
 
         { // Map
@@ -203,24 +203,24 @@ int main() {
             CopiedValue newval6 {};
             newval6.type = ValueType::MAP;
             newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
-            db.set("test8", std::move(newval6));
+            db.set("test8", std::move(newval6), true);
 
-            db.set("test8.key1", std::move(map_val));
-            db.set("test8.key2", std::move(map_val2));
+            db.set("test8.key1", std::move(map_val), true);
+            db.set("test8.key2", std::move(map_val2), true);
         }
 
         { // Reference
             CopiedValue newval2{};
             newval2.type = ValueType::REFERENCE;
             newval2.data.emplace<std::string>("test3");
-            db.set("test9", std::move(newval2));
+            db.set("test9", std::move(newval2), true);
         }
 
         { // Delete
             CopiedValue newval{};
             newval.type = ValueType::INT;
             newval.data.emplace<int>(42);
-            db.set("test10", std::move(newval));
+            db.set("test10", std::move(newval), true);
 
             db.remove("test10");
         }

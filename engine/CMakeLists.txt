@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(ase)
 
 set(CMAKE_CXX_STANDARD 23)
+option(ASE_BUILD_DEMO "Build demos" OFF)
 
 # gTest
 include(FetchContent)
@@ -17,3 +18,8 @@ FetchContent_MakeAvailable(googletest)
 add_subdirectory(core)
 add_subdirectory(db)
 add_subdirectory(server)
+
+
+if (ASE_BUILD_DEMO)
+    add_subdirectory(demo)
+endif()

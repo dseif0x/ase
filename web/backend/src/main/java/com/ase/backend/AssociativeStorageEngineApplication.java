@@ -10,4 +10,8 @@ public class AssociativeStorageEngineApplication {
 		SpringApplication.run(AssociativeStorageEngineApplication.class, args);
 	}
 
+	// this is just an example function for the junit integration
+	public static int testMul(int a, int b) {
+		return a * b;
+	}
 }

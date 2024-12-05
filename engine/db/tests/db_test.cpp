@@ -168,6 +168,30 @@ TEST_F(DatabaseWithData, GetInt) {
     ASSERT_EQ(test.value(), 43);
 }
 
+TEST_F(DatabaseWithData, GetIntSetForce) {
+    auto test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 42);
+
+    CopiedValue newval{};
+    newval.type = ValueType::INT;
+    newval.data = 15;
+    db->set("test", std::move(newval), false);
+
+    test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 42);
+
+    CopiedValue newval2{};
+    newval2.type = ValueType::INT;
+    newval2.data = 15;
+    db->set("test", std::move(newval2), true);
+
+    test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 15);
+}
+
 TEST_F(DatabaseWithData, GetString) {
     auto test_string = get<std::string>(*db, "test3");
     ASSERT_TRUE(test_string.has_value());
@@ -267,8 +291,23 @@ TEST_F(DatabaseWithData, FollowWithLimit) {
 }
 
 TEST_F(DatabaseWithData, FollowWithUnderestimatedLimit) {
-    auto test = follow<int>(*db, "reference2", 1);
-    ASSERT_FALSE(test.has_value());
+    auto test = db->follow("reference2", 1);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value().type, ValueType::REFERENCE);
+    ASSERT_EQ(std::get<std::string>(test.value().data), "referenceVal");
+}
+
+TEST_F(DatabaseWithData, FollowInt) {
+    auto test = follow<int>(*db, "referenceVal", 99);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 123);
+}
+
+TEST_F(DatabaseWithData, Follow0) {
+    auto test = db->follow("reference1", 0);
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value().type, ValueType::REFERENCE);
+    ASSERT_EQ(std::get<std::string>(test.value().data), "reference2");
 }
 
 TEST_F(DatabaseWithData, Delete) {
