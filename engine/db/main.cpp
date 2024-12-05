@@ -215,11 +215,10 @@ int main() { {
             newval6.type = ValueType::MAP;
             newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
 
-            // TODO There is still an error in here somewhere (probably a race condition where when 2 processes write different maps to the same value it causes invalid std::variants)
-            /*db.set("test8", std::move(newval6), true);
+            db.set("test8", std::move(newval6), true);
 
             db.set("test8.key1", std::move(map_val), true);
-            db.set("test8.key2", std::move(map_val2), true);*/
+            db.set("test8.key2", std::move(map_val2), true);
         }
 
         if (doReference) {
