@@ -54,6 +54,22 @@ public class DatabaseClient {
     }
 
     /**
+     * Constructs a new DatabaseClient with custom reader and writer.
+     * This constructor is primarily used for testing purposes.
+     *
+     * @param dataReader The {@link DynamicDataReader} to read data from.
+     * @param dataWriter The {@link DynamicDataWriter} to write data to.
+     */
+    public DatabaseClient(DynamicDataReader dataReader, DynamicDataWriter dataWriter) {
+        socket = null;
+        reader = null;
+        writer = null;
+
+        this.dataReader = dataReader;
+        this.dataWriter = dataWriter;
+    }
+
+    /**
      * Initiates connection with the server through a handshake process.
      *
      * @param version The client version to be sent during handshake
@@ -70,7 +86,7 @@ public class DatabaseClient {
             if (response == Utility.NAK) {
                 int errorCode = reader.readUnsignedShort();
                 TcpErrorCode errorCodeEnum = TcpErrorCode.fromCode(errorCode);
-                throw new ServerErrorException(errorCodeEnum.toString());
+                throw new ServerErrorException(errorCodeEnum.getCode(), errorCodeEnum.getDescription());
             } else if (response == Utility.ACK) {
                 ServerInformation serverInfo = ServerInformation.readServerInformation(reader);
                 if (!serverInfo.validate()) {

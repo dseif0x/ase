@@ -61,8 +61,8 @@ public class Utility {
     public static byte[] createClientInfoPacket(int version, byte flags) {
         byte[] ret = new byte[3];
 
-        ret[0] = (byte)(version & 0xFF);
-        ret[1] = (byte)((version >> 8) & 0xFF);
+        ret[0] = (byte)((version >> 8) & 0xFF);
+        ret[1] = (byte)(version & 0xFF);
         ret[2] = flags;
 
         return ret;
