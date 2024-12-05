@@ -46,6 +46,7 @@
 
 table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
 }
 
@@ -66,8 +67,22 @@ th {
     padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
+    margin-right: 5px;
 }
 
 .edit-button:hover {
     background-color: #0b7dda;
+}
+
+.list-button {
+    background-color: #da7d0b;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.list-button:hover {
+    background-color: #ab610b;
 }
