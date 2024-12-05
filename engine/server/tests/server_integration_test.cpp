@@ -51,6 +51,7 @@ public:
     }
 
     bool connect_to_server() {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
         sock_fd_ = socket(AF_INET, SOCK_STREAM, 0);
         if (sock_fd_ == -1) {
             perror("Socket creation failed");
@@ -147,16 +148,14 @@ private:
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     // sets one global tcp server for all tests
-    ::testing::AddGlobalTestEnvironment(new TCPServerEnvironment(12345, 10));
+    ::testing::AddGlobalTestEnvironment(new TCPServerEnvironment(42069, 10));
     return RUN_ALL_TESTS();
 }
 
 // dummy test to check if the communication between the server and the client works
 TEST(IntegrationTests_TCPServer, login_admin) {
-    // the test needs to await the start of the server to pass, but with sleep the pipeline may get 'locked'
-    //usleep(1000000);
+    DumbTCPClient client("127.0.0.1", 42069);
 
-    DumbTCPClient client("127.0.0.1", 12345);
 
     ASSERT_TRUE(client.connect_to_server());
 
@@ -180,6 +179,4 @@ TEST(IntegrationTests_TCPServer, login_admin) {
 
     auto logged_in = client.receive_message(100);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
-
-    client.close_connection();
 }
