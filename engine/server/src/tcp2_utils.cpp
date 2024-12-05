@@ -43,10 +43,6 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::update_scope;
             perms = permissions::admin;
             break;
-        case 0xAA: //test, to be deleted
-            func = command::testing;
-            perms = permissions::none;
-            break;
         default:
             error = errors::unknown_command;
             break;
@@ -185,26 +181,6 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
     }
     encoder.from_ack();
 
-    return 0;
-}
-
-int tcp2_utils::command::testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
-    std::cout << "starting to_general" << std::endl;
-
-    if (auto val = decoder.to_general()) {
-        std::cout << "decoding success!" << std::endl;
-        std::cout << "starting printing" << std::endl;
-        val->print();
-        encoder.from_ack();
-        std::cout << "start from_general" << std::endl;
-        encoder.from_general(*val);
-        std::cout << "starting printing" << std::endl;
-        val->print();
-    } else {
-        encoder.from_nak();
-    }
-
-    std::cout << std::endl << "all done testing" << std::endl;
     return 0;
 }
 

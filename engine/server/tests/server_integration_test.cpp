@@ -199,6 +199,57 @@ TEST(IntegrationTests_TCPServer, login_admin) {
 
     auto logged_in = client.receive_message(100);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    client.close_connection();
+}
+
+TEST(IntegrationTests_TCPServer, login_unknown) {
+    DumbTCPClient client("127.0.0.1", 42069);
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 04 616D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(100);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto res = client.receive_message(100);
+    ASSERT_TRUE(res.size() >= 3);
+    print_vec(res);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // already connected
+}
+
+TEST(IntegrationTests_TCPServer, login_invalid_passwd) {
+    DumbTCPClient client("127.0.0.1", 42069);
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 06 726F6F707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(100);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto res = client.receive_message(100);
+    ASSERT_TRUE(res.size() >= 3);
+    print_vec(res);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x03); // already connected
+}
+
+TEST(IntegrationTests_TCPServer, login_invalid_version) {
+    DumbTCPClient client("127.0.0.1", 42069);
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0xFF, 0xFF, 0x0F};
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto res = client.receive_message(100);
+    ASSERT_TRUE(res.size() >= 3);
+    print_vec(res);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x01); // already connected
 }
 
 TEST(IntegrationTests_TCPServer, login_admin_and_stop) {
@@ -221,6 +272,7 @@ TEST(IntegrationTests_TCPServer, login_admin_and_stop) {
     ASSERT_TRUE(client.send_message({0xFE}));
     auto res = client.receive_message(100);
     ASSERT_TRUE(vec_equ(res, {0xFF}));
+    client.close_connection();
 }
 
 TEST(IntegrationTests_TCPServer, login_admin_and_ping) {
@@ -243,6 +295,7 @@ TEST(IntegrationTests_TCPServer, login_admin_and_ping) {
     ASSERT_TRUE(client.send_message({0xFD, 0x01, 0x02, 0x03, 0x04}));
     auto res = client.receive_message(100);
     ASSERT_TRUE(vec_equ(res, {0xFF, 0x01, 0x02, 0x03, 0x04}));
+    client.close_connection();
 }
 
 TEST(IntegrationTests_TCPServer, login_admin_and_disconnect) {
@@ -266,4 +319,37 @@ TEST(IntegrationTests_TCPServer, login_admin_and_disconnect) {
     auto res = client.receive_message(100);
     ASSERT_TRUE(vec_equ(res, {0xFF, 0x08, 'G', 'o', 'o', 'd', 'b', 'y', 'e', '!'}));
     ASSERT_FALSE(client.is_connection_open());
+    client.close_connection();
 }
+
+TEST(IntegrationTests_TCPServer, login_admin_twice) {
+    DumbTCPClient client("127.0.0.1", 42069);
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(100);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(100);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    DumbTCPClient client2("127.0.0.1", 42069);
+    ASSERT_TRUE(client2.connect_to_server());
+
+    ASSERT_TRUE(client2.send_message(client_information_package));
+    auto server_information_package2 = client2.receive_message(100);
+    ASSERT_TRUE(server_information_package2.size() == 10);
+    ASSERT_TRUE(server_information_package2[0] == 0xFF);
+    ASSERT_TRUE(client2.send_message(user_info_pack));
+    auto res = client2.receive_message(100);
+    ASSERT_TRUE(res.size() >= 3);
+    print_vec(res);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x04); // already connected
+}
+
