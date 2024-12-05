@@ -172,27 +172,22 @@ public class Utility {
         return value;
     }
 
-    public static void main(String[] args) {
-        /*long[] testValues = {0, 1, 127, 128, 255, 256, 65535, 65536, 16777215, 16777216, 4294967295L, 4294967296L, 1099511627775L, 1099511627776L, 281474976710655L, 281474976710656L, 72057594037927935L, 72057594037927936L, 9223372036854775807L};
-        for (long value : testValues) {
-            byte[] encoded = createTCPEUIByteArray(value);
-            long decoded = decodeTCPEUIByteArray(encoded);
-            System.out.println("Value: " + value + " Encoded: " + bytesToBinary(encoded) + " Decoded: " + decoded);
-        }*/
-    }
-
-    public static String bytesToBinary(byte[] bytes) {
-        StringBuilder binaryString = new StringBuilder();
-        for (byte b : bytes) {
-            binaryString.append(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0'));
-        }
-        return binaryString.toString();
-    }
-
+    /**
+     * Retrieves the minimum value that can be represented by a signed integer of the specified size.
+     *
+     * @param targetSize The size of the integer in bytes.
+     * @return The minimum value that can be represented by a signed integer of the specified size.
+     */
     public static long getMinValue(int targetSize) {
         return -(1L << (8 * targetSize - 1));
     }
 
+    /**
+     * Retrieves the maximum value that can be represented by a signed integer of the specified size.
+     *
+     * @param targetSize The size of the integer in bytes.
+     * @return The maximum value that can be represented by a signed integer of the specified size.
+     */
     public static long getMaxValue(int targetSize) {
         return (1L << (8 * targetSize - 1)) - 1;
     }
