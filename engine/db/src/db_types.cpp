@@ -8,6 +8,7 @@
 #include "db_types.h"
 
 #include <iostream>
+#include <cassert>
 
 CopiedValue::CopiedValue(const Value &value) {
     type = value.type;
@@ -160,6 +161,7 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
 }
 
 void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) {
+    assert(locks_held && "LOCKS MUST BE HELD");
     // TODO FIX THIS
     /*if (value.get(mem)->type == ValueType::MAP) {
         auto& data = std::get<shmem_map_t>(value.get(mem)->data);
