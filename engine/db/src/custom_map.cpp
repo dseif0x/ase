@@ -47,13 +47,12 @@ relative_offset_ptr<Value> db_map::atomic_get(const char* key) {
 
 //! @onlyInAtomicAccess
 bool db_map::has(const char* key) {
-    map_entry_type* data = this->data.get(mem);
-    for (size_t i = 0; i < used_size; i++) {
-        if (std::strcmp(std::get<0>(data[i]).get(mem), key) == 0) {
-            return true;
-        }
+    if (this->alloc_size == 0) {
+        return false;
     }
-    return false;
+    offset_t removed_idx = hash_fn(std::string(key)) % this->alloc_size;
+    auto* lookup = this->lookup.get(mem);
+    return lookup[removed_idx] >= 0;
 }
 
 //! @onlyInAtomicAccess

@@ -145,7 +145,7 @@ public:
         }, true);
 
         if (found) {
-            Value::destroy_value(mem, old_value, true);
+            //TODO Value::destroy_value(mem, old_value, true);
             return;
         }
 
@@ -189,7 +189,7 @@ public:
                 if (lookup[removed_idx] < map->used_size) { // swap values with last data entry
                     std::swap(data[lookup[removed_idx]], data[map->used_size]);
                     // adjust reference to moved value
-                    auto moved_idx = hash_fn(std::string(std::get<0>(data[lookup[removed_idx]]).get(mem)));
+                    auto moved_idx = hash_fn(std::string(std::get<0>(data[map->used_size]).get(mem))) % map->alloc_size;
                     lookup[moved_idx] = lookup[removed_idx];
                     lookup[removed_idx] = -1;
                 }
@@ -240,13 +240,15 @@ private:
             old_data = map->data;
             old_lookup = map->lookup;
         }, true);
-        size_t new_size = std::max(16ul, alloc_size) * 2;
+        size_t new_size = std::max(128ul, alloc_size) * 2;
         auto new_lookup = mem.construct_array_unsafe<offset_t>(new_size);
+        map.atomic_access(mem, [&](db_map *map) {
+            std::memset(new_lookup.get(mem), -1, new_size * sizeof(offset_t));
+        }, true);
         auto new_data = mem.construct_array_unsafe<map_entry_type>(new_size);
         if (alloc_size > 0) {
             map.atomic_access(mem, [&](db_map *map) {
                 // We have to adjust for new hashes
-                std::fill(new_lookup.get(mem), new_lookup.get(mem) + new_size * sizeof(offset_t), -1);
                 memcpy(new_lookup.get(mem), old_lookup.get(mem), alloc_size * sizeof(offset_t));
                 memcpy(new_data.get(mem), old_data.get(mem), alloc_size * sizeof(map_entry_type));
             }, true);
