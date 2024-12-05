@@ -34,6 +34,9 @@ struct FreeBlock {
 };
 
 struct AllocationHeader {
+#ifdef MEM_DEBUG
+    char magic[4] = {'A', 'L', 'H', 'R'};
+#endif
     size_t size;
 };
 
@@ -323,6 +326,12 @@ offset_t shmem::allocate(std::size_t size, bool lock_held) {
     }
 
     auto* newblockptr = get_free_block(base, newblock);
+#ifdef MEM_DEBUG
+    if (strncmp(newblockptr->magic, "FREE", 4) != 0) {
+        throw std::runtime_error("Invalid free block magic in allocate");
+    }
+#endif
+
     size_t required_space = size;
     size_t remaining = newblockptr->size - required_space;
     if (remaining > sizeof(FreeBlock)) {
@@ -338,6 +347,9 @@ offset_t shmem::allocate(std::size_t size, bool lock_held) {
     free_block_remove(*metadata, base, prev, newblockptr);
 
     auto* header_ptr = reinterpret_cast<AllocationHeader*>(newblockptr);
+#ifdef MEM_DEBUG
+    new (header_ptr) AllocationHeader();
+#endif
     header_ptr->size = required_space;
     return newblock + sizeof(AllocationHeader);
 }
@@ -350,6 +362,11 @@ void shmem::deallocate(offset_t ptr, bool lock_held) {
     ensure_mounted();
 
     auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr - sizeof(AllocationHeader));
+#ifdef MEM_DEBUG
+    if (strncmp(header_ptr->magic, "ALHR", 4) != 0) {
+        throw std::runtime_error("Invalid header magic in deallocate");
+    }
+#endif
     size_t size = header_ptr->size;
 
     auto* newblock = reinterpret_cast<FreeBlock*>(header_ptr);
