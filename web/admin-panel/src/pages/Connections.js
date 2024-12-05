@@ -1,28 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
-import {useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function App() {
-    const [connections, setConnections] = useState([
-        { id: 1, address: "127.0.0.1:658369" },
-    ]);
-    const [data, setData] = useState([
-        { key: "Key1", value: "12" },
-        { key: "Key2", value: "Hello" },
-        { key: "KeyC", value: "12,3" },
-        { key: "KeyD", value: "World" },
-    ]);
+    const connectionsDataStructure = [
+        { ip: "127.0.0.1", port: "65836", username: "user1" },
+        { ip: "192.168.1.100", port: "12345", username: "user2" },
+        { ip: "10.0.0.1", port: "45678", username: "user3" },
+    ];
+
+    const keyDataStructure = {
+        Key1: "12",
+        Key2: "Hello",
+        Key3: "42",
+        Key4: "World",
+    };
+
+    const [connections, setConnections] = useState([]);
+    const [data, setData] = useState([]);
 
     const navigate = useNavigate();
 
+    useEffect(() => {
+        const loadedConnections = connectionsDataStructure.map((connection, index) => ({
+            id: index + 1,
+            ...connection,
+        }));
+        setConnections(loadedConnections);
+
+        const extractedData = Object.entries(keyDataStructure).map(([key, value]) => ({ key, value }));
+        setData(extractedData);
+    }, []);
+
     const handleEdit = (index) => {
-        navigate(`/edit/Key1`);
+        navigate(`/edit/${data[index].key}`);
     };
 
     const addConnection = () => {
-        const newConnection = prompt("Enter new connection address:");
-        if (newConnection) {
-            setConnections([...connections, { id: connections.length + 1, address: newConnection }]);
+        const newIp = prompt("Enter IP Address:");
+        const newPort = prompt("Enter Port:");
+        const newUsername = prompt("Enter Username:");
+        if (newIp && newPort && newUsername) {
+            setConnections([
+                ...connections,
+                { id: connections.length + 1, ip: newIp, port: newPort, username: newUsername },
+            ]);
         }
     };
 
