@@ -169,20 +169,24 @@ public:
      */
     static void remove(offset_ptr<db_map>& map, shmem& mem, const char* key) {
         // Potentially shrink the shmem
+        std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
         map.atomic_access(mem, [&](db_map* map) {
-            auto lock = std::unique_lock(map->lock);
+            std::unique_lock lock(map->lock);
             std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
                 if (std::strcmp(data[i].first.get(mem), key) == 0) {
                     map->used_size--;
+                    auto tmpfirst = data[i].first;
+                    auto tmpsecond = data[i].second;
                     if (i < map->used_size) {
                         std::swap(data[i], data[map->used_size]);
                     }
-                    Value::destroy_value(mem, data[map->used_size].second, true);
+                    Value::destroy_value(mem, tmpsecond, true);
+                    mem.destroy_array(tmpfirst, std::strlen(tmpfirst.get(mem)) + 1, true);
                     break;
                 }
             }
-        });
+        }, true);
     }
 
 private:

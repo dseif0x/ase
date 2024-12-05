@@ -162,11 +162,11 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
 void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) {
     if (value.get(mem)->type == ValueType::MAP) {
         auto& data = std::get<shmem_map_t>(value.get(mem)->data);
-        auto lock = std::unique_lock(data->lock);
         for(auto& key : data->keys()) {
             auto child = data->get(key.c_str());
             destroy_value(mem, mem.relative_to_offset(child), locks_held);
         }
+        data->~db_map();
     } else if (value.get(mem)->type == ValueType::ARRAY) {
         auto& data = std::get<ArrayType>(value.get(mem)->data);
         mem.destroy_array(mem.relative_to_offset(data.array_value), data.size, locks_held);

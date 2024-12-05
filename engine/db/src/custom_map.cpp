@@ -13,7 +13,10 @@ db_map::db_map(shmem& mem) : mem{mem} {
 }
 
 db_map::~db_map() {
-    mem.destroy_array(data, alloc_size);
+    // LOCKS HAVE TO BE HELD WHEN THIS IS CALLED
+    if (alloc_size > 0) {
+        mem.destroy_array(data, alloc_size, true);
+    }
 }
 
 //! @onlyInAtomicAccess
