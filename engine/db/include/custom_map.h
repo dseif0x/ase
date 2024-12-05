@@ -118,7 +118,6 @@ public:
         bool found = false;
         size_t used_size;
         size_t alloc_size;
-        offset_ptr<Value> old_value;
         std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
 
         map.atomic_access(mem, [&](db_map* map) {
@@ -126,7 +125,7 @@ public:
             std::pair<offset_ptr<char>, offset_ptr<Value>>* data = map->data.get(mem);
             for (size_t i = 0; i < map->used_size; i++) {
                 if (std::strcmp(data[i].first.get(mem), key) == 0) {
-                    old_value = data[i].second;
+                    Value::destroy_value(mem, data[i].second, true);
                     data[i].second = value;
                     found = true;
                     map->lock.unlock();
@@ -138,7 +137,6 @@ public:
         }, true);
 
         if (found) {
-            Value::destroy_value(mem, old_value, true);
             return;
         }
 
