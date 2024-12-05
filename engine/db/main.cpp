@@ -102,12 +102,18 @@ int main() { {
         DB db;
         db.destroy();
     }
-    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    //int pid = 1;
+    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    int pid = 1;
     stopwatch s;
     if (pid != 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     DB db;
+    {
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(42);
+        db.set("test", std::move(newval));
+    }
     get_and_print(db, "test");
     get_and_print(db, "test1");
     get_and_print(db, "test2");
