@@ -274,7 +274,7 @@ int main() { {
 
             db.remove("delete.me.1");
             db.remove("delete.me.2");
-            //db.remove("delete.me");
+            db.remove("delete.me");
         }
 
 

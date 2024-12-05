@@ -21,6 +21,22 @@
 #define MEM_DEBUG 1
 #endif
 
+#ifdef MEM_DEBUG
+
+#define VALIDATE_FREE_BLOCK(block) \
+    if (block->magic[0] != 'F' || block->magic[1] != 'R' || block->magic[2] != 'E' || block->magic[3] != 'E') { \
+        throw std::runtime_error("Invalid free block"); \
+    }
+
+#define VALIDATE_ALLOC_HEADER(block) \
+    if (block->magic[0] != 'A' || block->magic[1] != 'L' || block->magic[2] != 'H' || block->magic[3] != 'R') { \
+        throw std::runtime_error("Invalid allocation header"); \
+    }
+#else
+#define VALIDATE_FREE_BLOCK(block)
+#define VALIDATE_ALLOC_HEADER(block)
+#endif
+
 namespace {
     size_t page_size = sysconf(_SC_PAGESIZE);
 }
@@ -113,7 +129,7 @@ size_t find_free_block(shmem_meta& metadata, void* base, size_t size, size_t& pr
     // Traverse the free list to find a block with enough space
     while (current != -1) {
         auto* currentblock = get_free_block(base, current);
-        if (currentblock->size >= size + sizeof(FreeBlock)) {
+        if (currentblock->size >= size) {
             return current;
         }
 
@@ -237,7 +253,7 @@ void shmem::destroy() {
 }
 
 void shmem::ensure_enough_space(std::size_t required_memory) {
-    if (can_fit(required_memory + sizeof(FreeBlock))) { // We need this to fit the required memory and possibly another FreeBlock
+    if (can_fit(required_memory)) { // We need this to fit the required memory and possibly another FreeBlock
         return;
     }
     int flags = O_RDWR;
@@ -326,15 +342,11 @@ offset_t shmem::allocate(std::size_t size, bool lock_held) {
     }
 
     auto* newblockptr = get_free_block(base, newblock);
-#ifdef MEM_DEBUG
-    if (strncmp(newblockptr->magic, "FREE", 4) != 0) {
-        throw std::runtime_error("Invalid free block magic in allocate");
-    }
-#endif
+    VALIDATE_FREE_BLOCK(newblockptr);
 
     size_t required_space = size;
     size_t remaining = newblockptr->size - required_space;
-    if (remaining > sizeof(FreeBlock)) {
+    if (remaining >= sizeof(FreeBlock)) {
         // Split the block
         auto* nextblock = get_free_block(base, newblock + required_space);
 #ifdef MEM_DEBUG
@@ -342,6 +354,10 @@ offset_t shmem::allocate(std::size_t size, bool lock_held) {
 #endif
         nextblock->size = remaining;
         free_block_insert(*metadata, base, newblock, nextblock);
+        VALIDATE_FREE_BLOCK(nextblock);
+    } else {
+        // If the remaining space is not enough for a FreeBlock, just use the entire block
+        required_space = newblockptr->size;
     }
 
     free_block_remove(*metadata, base, prev, newblockptr);
@@ -351,6 +367,7 @@ offset_t shmem::allocate(std::size_t size, bool lock_held) {
     new (header_ptr) AllocationHeader();
 #endif
     header_ptr->size = required_space;
+    VALIDATE_ALLOC_HEADER(header_ptr);
     return newblock + sizeof(AllocationHeader);
 }
 
@@ -362,11 +379,8 @@ void shmem::deallocate(offset_t ptr, bool lock_held) {
     ensure_mounted();
 
     auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr - sizeof(AllocationHeader));
-#ifdef MEM_DEBUG
-    if (strncmp(header_ptr->magic, "ALHR", 4) != 0) {
-        throw std::runtime_error("Invalid header magic in deallocate");
-    }
-#endif
+
+    VALIDATE_ALLOC_HEADER(header_ptr);
     size_t size = header_ptr->size;
 
     auto* newblock = reinterpret_cast<FreeBlock*>(header_ptr);
@@ -380,6 +394,7 @@ void shmem::deallocate(offset_t ptr, bool lock_held) {
     while (curr != -1) {
         if (curr > ptr) { // Find the block that is greater than the new block
             free_block_insert(*metadata, base, prev, newblock);
+            VALIDATE_FREE_BLOCK(newblock);
             break;
         }
         auto* currblock = get_free_block(base, curr);

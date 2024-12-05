@@ -160,7 +160,8 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
 }
 
 void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) {
-    if (value.get(mem)->type == ValueType::MAP) {
+    // TODO FIX THIS
+    /*if (value.get(mem)->type == ValueType::MAP) {
         auto& data = std::get<shmem_map_t>(value.get(mem)->data);
         for(auto& key : data->keys()) {
             auto child = data->get(key.c_str());
@@ -174,6 +175,6 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
         auto& data = std::get<shmem_pair_t>(value.get(mem)->data);
         destroy_value(mem, mem.relative_to_offset(data.first), locks_held);
         destroy_value(mem, mem.relative_to_offset(data.second), locks_held);
-    }
+    }*/
     mem.destroy(value, locks_held);
 }
