@@ -51,9 +51,10 @@ function App() {
     return (
         <div className="app-container">
             <div className="connections-panel">
+                <h3>Connections</h3>
                 {connections.map((connection) => (
                     <div key={connection.id} className="connection">
-                        {connection.address}
+                        {`${connection.ip}:${connection.port}:${connection.username}`}
                     </div>
                 ))}
                 <button className="add-connection-button" onClick={addConnection}>
@@ -61,6 +62,7 @@ function App() {
                 </button>
             </div>
             <div className="data-panel">
+                <h3>Keys</h3>
                 <table>
                     <thead>
                     <tr>
