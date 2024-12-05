@@ -5,7 +5,12 @@ package com.ase.exception;
  */
 public class ServerErrorException extends TCPClientException {
 
+    /** The error code sent by the server. */
     private int errorCode;
+
+    /** The error message sent by the server. */
+    private String errorMessage;
+
     /**
      * Constructs a new ServerErrorException with the specified error code and message.
      *
@@ -14,6 +19,8 @@ public class ServerErrorException extends TCPClientException {
      */
     public ServerErrorException(int errorCode, String errorMessage) {
         super("Server Error " + errorCode + ": " + errorMessage);
+
+        this.errorMessage = errorMessage;
         this.errorCode = errorCode;
     }
 
@@ -24,5 +31,14 @@ public class ServerErrorException extends TCPClientException {
      */
     public int getErrorCode() {
         return errorCode;
+    }
+
+    /**
+     * Retrieves the error message sent by the server.
+     *
+     * @return The error message sent by the server.
+     */
+    public String getErrorMessage() {
+        return errorMessage;
     }
 }
