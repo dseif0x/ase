@@ -129,6 +129,7 @@ size_t find_free_block(shmem_meta& metadata, void* base, size_t size, size_t& pr
     // Traverse the free list to find a block with enough space
     while (current != -1) {
         auto* currentblock = get_free_block(base, current);
+        VALIDATE_FREE_BLOCK(currentblock);
         if (currentblock->size >= size) {
             return current;
         }
@@ -361,6 +362,10 @@ offset_t shmem::allocate(std::size_t size, bool lock_held) {
     }
 
     free_block_remove(*metadata, base, prev, newblockptr);
+    if (prev != -1) {
+        VALIDATE_FREE_BLOCK(get_free_block(base, prev));
+    }
+    VALIDATE_FREE_BLOCK(newblockptr);
 
     auto* header_ptr = reinterpret_cast<AllocationHeader*>(newblockptr);
 #ifdef MEM_DEBUG
@@ -376,9 +381,10 @@ void shmem::deallocate(offset_t ptr, bool lock_held) {
     if (!lock_held) {
         lk2.lock();
     }
+    ptr -= sizeof(AllocationHeader);
     ensure_mounted();
 
-    auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr - sizeof(AllocationHeader));
+    auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr);
 
     VALIDATE_ALLOC_HEADER(header_ptr);
     size_t size = header_ptr->size;
@@ -394,7 +400,11 @@ void shmem::deallocate(offset_t ptr, bool lock_held) {
     while (curr != -1) {
         if (curr > ptr) { // Find the block that is greater than the new block
             free_block_insert(*metadata, base, prev, newblock);
+            if (prev != -1) {
+                VALIDATE_FREE_BLOCK(get_free_block(base, prev));
+            }
             VALIDATE_FREE_BLOCK(newblock);
+            VALIDATE_FREE_BLOCK(get_free_block(base, curr));
             break;
         }
         auto* currblock = get_free_block(base, curr);
