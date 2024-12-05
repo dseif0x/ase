@@ -15,7 +15,7 @@
 
 struct shmem_meta {
     std::size_t version{1};
-    std::size_t alloc_size{1024};
+    std::size_t alloc_size{1024*1024};
     std::size_t first_free{0};
     shrwlock meta_mutex;
 };

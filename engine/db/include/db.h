@@ -44,11 +44,13 @@ public:
      *
      * @param key the key to retrieve
      * @param value the value to be inserted
+     * @param force force set
      */
-    void set(const char* key, CopiedValue&& value);
+    void set(const char* key, CopiedValue&& value, bool force = false);
 
     /**
-     * FOLLOW command of the database
+     * FOLLOW command of the database. If max_chained_follows is 0 it behaves the same as GET.
+     * The same is true if it is called on a key *not* containing a reference.
      *
      * @param key the key of the reference
      * @param max_chained_follows The maximum of jumps that should be done when following a chain of references
