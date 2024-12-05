@@ -2,38 +2,96 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 
+const keyDataStructure = {
+    a: {
+        b: {
+            c: 3,
+            d: "Hello",
+        },
+        e: "World",
+    },
+    f: 42,
+    g: {
+        h: {
+            i: "DeepValue",
+        },
+    },
+};
+
+const buildHierarchy = (obj, prefix = "") => {
+    const result = [];
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            const currentKey = prefix ? `${prefix}.${key}` : key;
+            if (typeof obj[key] === "object" && obj[key] !== null) {
+                result.push({
+                    key: currentKey,
+                    value: null,
+                    children: buildHierarchy(obj[key], currentKey),
+                    collapsed: true,
+                });
+            } else {
+                result.push({ key: currentKey, value: obj[key], children: [], collapsed: false });
+            }
+        }
+    }
+    return result;
+};
+
+const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
+    return nodes.map((node, index) => (
+        <React.Fragment key={node.key + index}>
+            <tr>
+                <td style={{ paddingLeft: `${level * 20}px` }}>{node.key}</td>
+                <td>{node.value !== null ? node.value : ""}</td>
+                <td>
+                    <button
+                        className="edit-button"
+                        onClick={() => navigate(`/edit/${node.key}`)}
+                    >
+                        Edit
+                    </button>
+                    {node.children.length > 0 && (
+                        <button
+                            className="list-button"
+                            onClick={() => toggleCollapse(node)}
+                        >
+                            List
+                        </button>
+                    )}
+                </td>
+            </tr>
+            {!node.collapsed &&
+                renderHierarchy(node.children, toggleCollapse, navigate, level + 1)}
+        </React.Fragment>
+    ));
+};
+
 function App() {
-    const connectionsDataStructure = [
-        { ip: "127.0.0.1", port: "65836", username: "user1" },
-        { ip: "192.168.1.100", port: "12345", username: "user2" },
-        { ip: "10.0.0.1", port: "45678", username: "user3" },
-    ];
-
-    const keyDataStructure = {
-        Key1: "12",
-        Key2: "Hello",
-        Key3: "42",
-        Key4: "World",
-    };
-
     const [connections, setConnections] = useState([]);
-    const [data, setData] = useState([]);
+    const [hierarchicalData, setHierarchicalData] = useState([]);
 
     const navigate = useNavigate();
 
     useEffect(() => {
+        const hierarchy = buildHierarchy(keyDataStructure);
+        setHierarchicalData(hierarchy);
+
+        const connectionsDataStructure = [
+            { ip: "127.0.0.1", port: "65836", username: "user1" },
+            { ip: "192.168.1.100", port: "12345", username: "user2" },
+            { ip: "10.0.0.1", port: "45678", username: "user3" },
+        ];
         const loadedConnections = connectionsDataStructure.map((connection, index) => ({
             id: index + 1,
             ...connection,
         }));
         setConnections(loadedConnections);
-
-        const extractedData = Object.entries(keyDataStructure).map(([key, value]) => ({ key, value }));
-        setData(extractedData);
     }, []);
 
-    const handleEdit = (index) => {
-        navigate(`/edit/${data[index].key}`);
+    const toggleCollapse = (node) => {
+        node.collapsed = !node.collapsed;
+        setHierarchicalData([...hierarchicalData]);
     };
 
     const addConnection = () => {
@@ -72,17 +130,7 @@ function App() {
                     </tr>
                     </thead>
                     <tbody>
-                    {data.map((item, index) => (
-                        <tr key={index}>
-                            <td>{item.key}</td>
-                            <td>{item.value}</td>
-                            <td>
-                                <button className="edit-button" onClick={() => handleEdit(index)}>
-                                    Edit
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
+                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate)}
                     </tbody>
                 </table>
             </div>
