@@ -11,22 +11,46 @@
 #include <string>
 #include <poll.h>
 #include <cstring>
-#include <utility>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <utils.h>
 
-class TCPServerEnvironment final : public ::testing::Environment {
-public:
+void safe_sleep(unsigned int milliseconds) {
+    auto start_time = std::chrono::steady_clock::now();
+    auto end_time = start_time + std::chrono::milliseconds(milliseconds);
+    while (std::chrono::steady_clock::now() < end_time) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+    }
+}
 
-    // TODO add acl and db to constructor
-    TCPServerEnvironment(const int port, const int max_clients) : port { port }, max_clients { max_clients } {
-        this->server = new TCP2Server {acl, db, port, max_clients};
+class ServerPort {
+public:
+    static ServerPort& instance() {
+        static ServerPort instance;
+        return instance;
+    }
+
+    void increment() { ++counter_; }
+    int get() const { return counter_; }
+
+private:
+    int counter_ = 42069;
+    ServerPort() = default; // Prevent external instantiation
+    ServerPort(const ServerPort&) = delete;
+    ServerPort& operator=(const ServerPort&) = delete;
+};
+
+class IntegrationTests_TCPServer : public ::testing::Test {
+public:
+    IntegrationTests_TCPServer() : max_clients {63} {
     }
 
     void SetUp() override {
-        server->start();
+        ServerPort::instance().increment();
+        std::cout << "PORT:" << ServerPort::instance().get() << std::endl;
+        this->server = std::make_unique<TCP2Server>(this->acl, this->db, ServerPort::instance().get(), this->max_clients);
+        this->server->start();
     }
 
     void TearDown() override {
@@ -35,24 +59,25 @@ public:
 
 private:
     ACL acl{};
-    DB db;
-    int port;
+    DB db{};
     int max_clients;
-    TCP2Server *server;
+
+    std::unique_ptr<TCP2Server> server;
 };
 
-class DumbTCPClient final : public ::testing::Environment {
-public:
-    DumbTCPClient(std::string  host, int port) : host_(std::move(host)), port_(port), sock_fd_(-1) {}
 
-    ~DumbTCPClient() override {
+class DumbTCPClient {
+public:
+    DumbTCPClient(std::string host, int port) : host_(std::move(host)), port_(port), sock_fd_(-1) {}
+
+    ~DumbTCPClient() {
         if (sock_fd_ != -1) {
             close(sock_fd_);
         }
     }
 
     bool connect_to_server() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // extra time for pipeline
+        safe_sleep(100); // extra time for pipeline
         sock_fd_ = socket(AF_INET, SOCK_STREAM, 0);
         if (sock_fd_ == -1) {
             perror("Socket creation failed");
@@ -77,7 +102,7 @@ public:
     }
 
     bool is_connection_open() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // extra time for pipeline
+        safe_sleep(100); // extra time for pipeline
         struct pollfd pfd;
         pfd.fd = this->sock_fd_;
         pfd.events = POLLIN; // Monitor for incoming data
@@ -165,16 +190,10 @@ private:
     int sock_fd_;
 };
 
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    // sets one global tcp server for all tests
-    ::testing::AddGlobalTestEnvironment(new TCPServerEnvironment(42069, 10));
-    return RUN_ALL_TESTS();
-}
 
 
-TEST(IntegrationTests_TCPServer, login_admin) {
-    DumbTCPClient client("127.0.0.1", 42069);
+TEST_F(IntegrationTests_TCPServer, login_admin) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
 
 
     ASSERT_TRUE(client.connect_to_server());
@@ -203,8 +222,9 @@ TEST(IntegrationTests_TCPServer, login_admin) {
     client.close_connection();
 }
 
-TEST(IntegrationTests_TCPServer, login_unknown) {
-    DumbTCPClient client("127.0.0.1", 42069);
+
+TEST_F(IntegrationTests_TCPServer, login_unknown) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
 
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
@@ -219,10 +239,12 @@ TEST(IntegrationTests_TCPServer, login_unknown) {
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // already connected
+
+    client.close_connection();
 }
 
-TEST(IntegrationTests_TCPServer, login_invalid_passwd) {
-    DumbTCPClient client("127.0.0.1", 42069);
+TEST_F(IntegrationTests_TCPServer, login_invalid_passwd) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
 
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
@@ -237,10 +259,12 @@ TEST(IntegrationTests_TCPServer, login_invalid_passwd) {
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x03); // already connected
+
+    client.close_connection();
 }
 
-TEST(IntegrationTests_TCPServer, login_invalid_version) {
-    DumbTCPClient client("127.0.0.1", 42069);
+TEST_F(IntegrationTests_TCPServer, login_invalid_version) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
 
     std::vector<unsigned char> client_information_package{0xFF, 0xFF, 0x0F};
@@ -250,10 +274,12 @@ TEST(IntegrationTests_TCPServer, login_invalid_version) {
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x01); // already connected
+
+    client.close_connection();
 }
 
-TEST(IntegrationTests_TCPServer, login_admin_and_stop) {
-    DumbTCPClient client("127.0.0.1", 42069);
+TEST_F(IntegrationTests_TCPServer, login_admin_and_stop) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
 
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
@@ -275,8 +301,8 @@ TEST(IntegrationTests_TCPServer, login_admin_and_stop) {
     client.close_connection();
 }
 
-TEST(IntegrationTests_TCPServer, login_admin_and_ping) {
-    DumbTCPClient client("127.0.0.1", 42069);
+TEST_F(IntegrationTests_TCPServer, login_admin_and_ping) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
 
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
@@ -298,8 +324,8 @@ TEST(IntegrationTests_TCPServer, login_admin_and_ping) {
     client.close_connection();
 }
 
-TEST(IntegrationTests_TCPServer, login_admin_and_disconnect) {
-    DumbTCPClient client("127.0.0.1", 42069);
+TEST_F(IntegrationTests_TCPServer, login_admin_and_disconnect) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
 
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
@@ -322,8 +348,8 @@ TEST(IntegrationTests_TCPServer, login_admin_and_disconnect) {
     client.close_connection();
 }
 
-TEST(IntegrationTests_TCPServer, login_admin_twice) {
-    DumbTCPClient client("127.0.0.1", 42069);
+TEST_F(IntegrationTests_TCPServer, login_admin_twice) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
 
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
@@ -339,7 +365,7 @@ TEST(IntegrationTests_TCPServer, login_admin_twice) {
 
     // admin logged in
 
-    DumbTCPClient client2("127.0.0.1", 42069);
+    DumbTCPClient client2("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client2.connect_to_server());
 
     ASSERT_TRUE(client2.send_message(client_information_package));
