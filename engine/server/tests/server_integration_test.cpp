@@ -263,6 +263,21 @@ TEST_F(IntegrationTests_TCPServer, login_invalid_passwd) {
     client.close_connection();
 }
 
+TEST_F(IntegrationTests_TCPServer, login_to_much_info) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F, 0xab};
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto res = client.receive_message(100);
+    ASSERT_TRUE(res.size() >= 3);
+    print_vec(res);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xFF); // general protocol error
+
+    client.close_connection();
+}
+
 TEST_F(IntegrationTests_TCPServer, login_invalid_version) {
     DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
     ASSERT_TRUE(client.connect_to_server());
@@ -375,7 +390,41 @@ TEST_F(IntegrationTests_TCPServer, login_admin_twice) {
     ASSERT_TRUE(client2.send_message(user_info_pack));
     auto res = client2.receive_message(100);
     ASSERT_TRUE(res.size() >= 3);
-    print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x04); // already connected
+}
+
+TEST_F(IntegrationTests_TCPServer, login_admin_update_scope) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(100);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(100);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 09 246F72662E6E657773 03")));
+    auto res = client.receive_message(100);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 11646D696E 09 2E6F72662E6E657773 03")));
+    res = client.receive_message(100);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // user not found
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 09 2E6F72662E6E657773 03")));
+    res = client.receive_message(100);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    client.close_connection();
 }
 
