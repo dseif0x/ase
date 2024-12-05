@@ -53,7 +53,7 @@ double GenericDecoder::to_double() {
 int GenericDecoder::to_acknak() {
     auto data = this->get_bytes(1);
     if (data[0] == 0xFF) return 1;
-    if (data[1] == 0x00) return 0;
+    if (data[0] == 0x00) return 0;
     return -1;
 }
 
@@ -157,7 +157,6 @@ CopiedValue GenericDecoder::to_complex_general() {
         // simple type
         return this->to_basic_general(info_block::get_basic_type(info));
     }
-    val.print();
     return val;
 }
 

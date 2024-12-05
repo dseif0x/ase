@@ -27,7 +27,7 @@ generate_docs:
 
 variables:
   BUILD_DIR: engine/build
-  GTEST_DIRS: "core db"
+  GTEST_DIRS: "core db server"
   JUNIT_DIRS: "java-driver backend"
 
 build:

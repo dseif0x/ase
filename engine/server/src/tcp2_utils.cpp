@@ -246,6 +246,8 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             encoder.from_unsigned(1, sizeof(char)); // size of char
             encoder.from_unsigned(1, sizeof(double)); // size of double
             encoder.from_unsigned(1, sizeof(int)); // size of semaphore // todo send actual size
+            encoder.from_unsigned(2, 16384);
+            encoder.from_unsigned(2, 16384);
             state = 1;
         } else if (state == 1) {
             if (decoder.to_acknak() != 1) {
