@@ -29,6 +29,13 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int p
         //return false;
     }
 
+    int opt = 1;
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+        perror("setsockopt failed");
+        close(serverSocket);
+        return;
+    }
+
     // Configure server
     struct sockaddr_in serverAddress{};
     serverAddress.sin_family = AF_INET;
@@ -94,8 +101,10 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int p
     }
     kill_all = true;
     for (auto &x : clientThreads) x.join();
+    std::cout << "all joined" << std::endl;
 
     close(serverSocket);
+    std::cout << "server closed" << std::endl;
 }
 
 void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db) {
@@ -104,4 +113,5 @@ void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, 
     TCP2Encoder encoder{client_socket, &pipe_lock};
     client_main_thread(kys, decoder, encoder, acl, db);
     close(client_socket);
+    std::cout << "close is called" << std::endl;
 }
