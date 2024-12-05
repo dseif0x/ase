@@ -157,7 +157,6 @@ CopiedValue GenericDecoder::to_complex_general() {
         // simple type
         return this->to_basic_general(info_block::get_basic_type(info));
     }
-    val.print();
     return val;
 }
 

@@ -55,7 +55,7 @@ void GenericEncoder::clear_buffer() {
 void GenericEncoder::from_string(std::string val) {
     std::vector<unsigned char> data(val.begin(), val.end());
     this->from_expanding_unsigned(data.size());
-    this->add_to_buffer(data);
+    if (val.length() != 0) this->add_to_buffer(data);
 }
 
 void GenericEncoder::from_int(int val) {
@@ -103,6 +103,7 @@ void GenericEncoder::from_expanding_unsigned(unsigned long long val) {
     std::vector<unsigned char> data{};
     unsigned char face{0xff};
     bool add_all_now{false};
+    if (val == 0) data.push_back(0x00); // if empty, add one empty byte
     if ((val >> 7*8) & 0xFF) { // val is actually completely full, all 8 bytes are sent
         data.push_back(0xFF);
         add_all_now = true;
@@ -115,7 +116,7 @@ void GenericEncoder::from_expanding_unsigned(unsigned long long val) {
                 if ((face & cur) == 0) {
                     data.push_back((face << 1) | cur);
                 } else {
-                    data.push_back(face << 1);
+                    data.push_back(face);
                     data.push_back(cur);
                 }
                 add_all_now = true;
@@ -164,8 +165,6 @@ void GenericEncoder::from_basic_general(CopiedValue &val) {
 }
 
 void GenericEncoder::from_complex_general(CopiedValue &val) {
-    val.print();
-    std::cout << std::endl;
     unsigned char info{};
     if (val.type == ValueType::MAP) {
         this->from_byte(info_block::map_bit);
