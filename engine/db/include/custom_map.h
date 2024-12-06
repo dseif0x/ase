@@ -120,8 +120,6 @@ public:
         bool found = false;
         size_t used_size;
         size_t alloc_size;
-        offset_ptr<Value> old_value;
-
         auto hash = hash_fn(std::string(key));
 
         std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
@@ -138,14 +136,14 @@ public:
                 // TODO check for collision
                 auto &ll_node = data[idx];
                 found = true;
-                old_value = std::get<1>(ll_node);
+                auto& old_value = std::get<1>(ll_node);
+                Value::destroy_value(mem, old_value, true);
                 std::get<1>(data[1]) = value;
                 map->lock.unlock();
             }
         }, true);
 
         if (found) {
-            Value::destroy_value(mem, old_value, true);
             return;
         }
 
