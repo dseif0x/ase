@@ -24,10 +24,7 @@ import static org.mockito.Mockito.*;
 class DatabaseClientHandshakeTest {
 
     private Socket mockSocket;
-    private ByteArrayInputStream byteIn;
     private ByteArrayOutputStream byteOut;
-    private DataInputStream dataInputStream;
-    private DataOutputStream dataOutputStream;
 
     private DatabaseClient databaseClient;
 
@@ -37,7 +34,7 @@ class DatabaseClientHandshakeTest {
         mockSocket = mock(Socket.class);
 
         byteOut = new ByteArrayOutputStream();
-        dataOutputStream = new DataOutputStream(byteOut);
+        DataOutputStream dataOutputStream = new DataOutputStream(byteOut);
 
         when(mockSocket.getOutputStream()).thenReturn(dataOutputStream);
         when(mockSocket.getInputStream()).thenReturn(dataInputStream);
@@ -56,7 +53,7 @@ class DatabaseClientHandshakeTest {
         mockSocket = mock(Socket.class);
 
         byteOut = new ByteArrayOutputStream();
-        dataOutputStream = new DataOutputStream(byteOut);
+        DataOutputStream dataOutputStream = new DataOutputStream(byteOut);
 
         when(mockSocket.getOutputStream()).thenReturn(dataOutputStream);
         when(mockSocket.getInputStream()).thenReturn(dataInputStream);

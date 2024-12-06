@@ -500,4 +500,22 @@ public class DatabaseClient {
         }
     }
 
+
+    /**
+     * Sets the data reader for the client.
+     *
+     * @param dataReader The data reader to set.
+     */
+    public void setDataReader(DynamicDataReader dataReader) {
+        this.dataReader = dataReader;
+    }
+
+    /**
+     * Sets the data writer for the client.
+     *
+     * @param dataWriter The data writer to set.
+     */
+    public void setDataWriter(DynamicDataWriter dataWriter) {
+        this.dataWriter = dataWriter;
+    }
 }
