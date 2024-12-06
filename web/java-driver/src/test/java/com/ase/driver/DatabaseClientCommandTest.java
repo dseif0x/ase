@@ -42,10 +42,8 @@ public class DatabaseClientCommandTest {
         when(mockSocket.getOutputStream()).thenReturn(dataOutputStream);
         when(mockSocket.getInputStream()).thenReturn(dataInputStream);
 
-        // Initialize the DatabaseClient
         databaseClient = new DatabaseClient(mockSocket);
 
-        // Instead of reflection, use setters now
         databaseClient.setDataWriter(clientDataWriter);
         databaseClient.setDataReader(clientDataReader);
     }
@@ -201,5 +199,94 @@ public class DatabaseClientCommandTest {
         databaseClient.disconnect();
 
         verify(mockSocket, times(1)).close();
+    }
+
+    @Test
+    void testCreateUserSuccess() throws Exception {
+        String username = "testuser";
+        String password = "securepassword";
+        byte options = 0x01;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.createUser(username, password, options);
+
+        assertTrue(result.isOk(), "Expected createUser to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+    @Test
+    void testCreateUserServerError() throws Exception {
+        String username = "testuser";
+        String password = "securepassword";
+        byte options = 0x00; // Regular user flag
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK); // NAK response
+        dataOut.writeChar(0xFF01); // Example error code
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+        serverDataWriter.writeString("Invalid permissions.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.createUser(username, password, options);
+
+        assertFalse(result.isOk(), "Expected createUser to fail with NAK.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("Invalid permissions."),
+            "Expected the error message to match the server response.");
+        assertNotNull(result.getData(), "Expected no data on failure.");
+    }
+
+    @Test
+    void testCreateUserUnexpectedResponse() throws Exception {
+        String username = "testuser";
+        String password = "securepassword";
+        byte options = 0x00; // Regular user flag
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x12);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.createUser(username, password, options);
+
+        assertFalse(result.isOk(), "Expected createUser to fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("unknown response"),
+            "Expected the error message to indicate an unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+        assertEquals(0x12, result.getData(), "Expected the response byte to match.");
+    }
+
+    @Test
+    void testCreateUserTcpClientException() throws Exception {
+        String username = "testuser";
+        String password = "securepassword";
+        byte options = 0x00;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(serverResponseOut);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOutputStream.write(0xFF01); // Will not write as unsigned short so readString will fail
+        serverDataWriter.writeString("Invalid client version."); // Will not be read
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.createUser(username, password, options);
+
+        assertFalse(result.isOk(), "Expected ping to fail after NAK response.");
+        assertNotNull(result.getMessage(), "Expected an error message due to server error.");
+        assertTrue(result.getMessage().contains("Failed to read string."),
+            "Expected readString to fail.");
+        assertNull(result.getData(), "Expected no data on failure.");
     }
 }
