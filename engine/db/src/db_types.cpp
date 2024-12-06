@@ -45,48 +45,55 @@ CopiedValue::CopiedValue(const Value &value) {
     }
 }
 
+std::string CopiedValue::get_python_style(CopiedValue &val) {
+    std::string res = "";
+    if (val.type == ValueType::INT) {
+        res += std::to_string(std::get<int>(val.data));
+    } else if (val.type == ValueType::STRING) {
+        res += "\"" + std::get<std::string>(val.data) + "\"";
+    } else if (val.type == ValueType::DOUBLE) {
+        res += std::to_string(std::get<double>(val.data));
+    } else if (val.type == ValueType::BOOLEAN) {
+        res += std::to_string(std::get<bool>(val.data));
+    } else if (val.type == ValueType::PAIR) {
+        auto &temp = std::get<CopiedValue::copied_pair_t>(val.data);
+        res += "(";
+        res += get_python_style(*temp.first);
+        res += ", ";
+        res += get_python_style(*temp.second);
+        res += ")";
+    } else if (val.type == ValueType::ARRAY) {
+        res += "[";
+        auto &temp = std::get<CopiedValue::copied_array_t>(val.data);
+        for (int x = 0; x < temp.size(); x++) {
+            if (x != 0) res += ", ";
+            res += get_python_style(temp[x]);
+        }
+        res += "]";
+    } else if (val.type == ValueType::MAP) {
+        res += "{";
+        auto &temp = std::get<CopiedValue::copied_map_t>(val.data);
+        bool nfirst = false;
+        for (auto& [key, value] : temp) {
+            if (nfirst) res += ", ";
+            nfirst = true;
+            res += key + ": ";
+            res += get_python_style(*value);
+        }
+        res += "}";
+    } else {
+        res += "?????";
+    }
+    return res;
+}
+
+
 void CopiedValue::print() {
     CopiedValue::print(*this);
 }
 
 void CopiedValue::print(CopiedValue &val) {
-    if (val.type == ValueType::INT) {
-        std::cout << std::get<int>(val.data);
-    } else if (val.type == ValueType::STRING) {
-        std::cout << "\"" << std::get<std::string>(val.data) << "\"";
-    } else if (val.type == ValueType::DOUBLE) {
-        std::cout << std::get<double>(val.data);
-    } else if (val.type == ValueType::BOOLEAN) {
-        std::cout << std::get<bool>(val.data);
-    } else if (val.type == ValueType::PAIR) {
-        auto &temp = std::get<CopiedValue::copied_pair_t>(val.data);
-        std::cout << "(";
-        print(*temp.first);
-        std::cout << ", ";
-        print(*temp.second);
-        std::cout << ")";
-    } else if (val.type == ValueType::ARRAY) {
-        std::cout << "[";
-        auto &temp = std::get<CopiedValue::copied_array_t>(val.data);
-        for (int x = 0; x < temp.size(); x++) {
-            if (x != 0) std::cout << ", ";
-            print(temp[x]);
-        }
-        std::cout << "]";
-    } else if (val.type == ValueType::MAP) {
-        std::cout << "{";
-        auto &temp = std::get<CopiedValue::copied_map_t>(val.data);
-        bool nfirst = false;
-        for (auto& [key, value] : temp) {
-            if (nfirst) std::cout << ", ";
-            nfirst = true;
-            std::cout << key << ": ";
-            print(*value);
-        }
-        std::cout << "}";
-    } else {
-        std::cout << "Value found, but type (" << (int)val.type << ") not handeled" << std::endl;
-    }
+    std::cout << CopiedValue::get_python_style(val) << std::endl;
 }
 
 offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {

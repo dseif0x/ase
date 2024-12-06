@@ -21,7 +21,8 @@ bool TCP2Encoder::write_data() {
     std::cout << std::endl;
     {
         std::lock_guard<std::mutex> lock(*this->pipe_lock);
-        if (send(this->client_socket, data.first.get(), data.second, 0) < 0) return false;
+        if (fcntl(this->client_socket, F_GETFD) == -1) return false;
+        if (send(this->client_socket, data.first.get(), data.second, MSG_NOSIGNAL) < 0) return false;
     }
     return true;
 }

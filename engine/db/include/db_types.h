@@ -109,6 +109,11 @@ struct CopiedValue {
     CopiedValue(const Value& value);
 
     /**
+     * Returns a python-style representation of the provided CopiedValue.
+     */
+    static std::string get_python_style(CopiedValue &val);
+
+    /**
      * Prints a python-style representation of the provided CopiedValue to stdout.
      */
     void print();
