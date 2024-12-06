@@ -95,6 +95,7 @@ public:
     //! @neverInAtomicAccess
     template<typename T>
     void destroy(offset_ptr<T> ptr, bool locks_held = false) { // Using this inside an atomic_access lambda will cause a deadlock
+        if (ptr.offset == -1) return;
         atomic_access(ptr.offset, [](void *ptr) {
             reinterpret_cast<T*>(ptr)->~T();
         }, locks_held);
@@ -104,6 +105,7 @@ public:
     //! @neverInAtomicAccess
     template<typename T>
     void destroy_array(offset_ptr<T> ptr, size_t size, bool locks_held = false) { // Using this inside an atomic_access lambda will cause a deadlock
+        if (ptr.offset == -1) return;
         atomic_access(ptr.offset, [](void *ptr) {
             reinterpret_cast<T*>(ptr)->~T();
         }, locks_held);

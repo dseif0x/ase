@@ -177,6 +177,6 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
         auto& data = std::get<shmem_pair_t>(value.get(mem)->data);
         destroy_value(mem, mem.relative_to_offset(data.first), locks_held);
         destroy_value(mem, mem.relative_to_offset(data.second), locks_held);
-    }*/
-    mem.destroy(value, locks_held);
+    }
+    mem.destroy(value, locks_held);*/
 }
