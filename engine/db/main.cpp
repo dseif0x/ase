@@ -102,8 +102,8 @@ int main() { {
         DB db;
         db.destroy();
     }
-    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    int pid = 1;
+    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    //int pid = 1;
     stopwatch s;
     if (pid != 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));

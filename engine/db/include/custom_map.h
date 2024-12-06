@@ -138,7 +138,7 @@ public:
                 found = true;
                 auto& old_value = std::get<1>(ll_node);
                 Value::destroy_value(mem, old_value, true);
-                std::get<1>(data[1]) = value;
+                std::get<1>(ll_node) = value;
                 map->lock.unlock();
             }
         }, true);
