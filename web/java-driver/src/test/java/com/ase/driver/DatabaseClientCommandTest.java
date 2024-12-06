@@ -1,15 +1,11 @@
 package com.ase.driver;
 
-import com.ase.exception.TCPClientException;
 import com.ase.utility.*;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.io.*;
 import java.net.Socket;
-import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -21,7 +17,7 @@ public class DatabaseClientCommandTest {
     private DatabaseClient databaseClient;
 
     @BeforeAll
-   static void setUp() throws Exception {
+   static void setUp() {
         serverInfo = new ServerInformation();
         serverInfo.setBooleanSize(1);
         serverInfo.setIntSize(4);
@@ -155,5 +151,55 @@ public class DatabaseClientCommandTest {
         assertTrue(result.getMessage().contains("Failed to read string."),
             "Expected readString to fail.");
         assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    @Test
+    void testStopSuccess() throws Exception {
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x03);
+        serverResponseOut.write(0x01);
+        serverResponseOut.write(0x01);
+        serverResponseOut.write(Utility.ACK);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.stop();
+
+        assertTrue(result.isOk(), "Expected stop to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+    @Test
+    void testStopUnknownCode() throws Exception {
+        byte[] unknownBytes = new byte[1024];
+        for (int i = 0; i < 1024; i++) {
+            unknownBytes[i] = 0x12;
+        }
+
+        setServerResponse(unknownBytes);
+
+        WebReturn<Integer> result = databaseClient.stop();
+
+        assertFalse(result.isOk(), "Expected stop to fail due to no ACK/NAK received.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("ACK/NAK not received"),
+            "Expected error message about not receiving ACK/NAK.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    @Test
+    void testDisconnect() throws Exception {
+        Socket mockSocket = mock(Socket.class);
+        ByteArrayOutputStream clientByteOut = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(clientByteOut);
+
+        when(mockSocket.getOutputStream()).thenReturn(dataOutputStream);
+
+        DatabaseClient databaseClient = new DatabaseClient(mockSocket);
+
+        databaseClient.disconnect();
+
+        verify(mockSocket, times(1)).close();
     }
 }

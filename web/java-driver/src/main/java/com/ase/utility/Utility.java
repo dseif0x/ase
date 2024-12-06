@@ -51,6 +51,8 @@ public class Utility {
     public static final byte DISCONNECT_COMMAND = (byte) 0xFC;
     // --- END SERVER COMMANDS ---
 
+    // --- START CONSTANTS ---
+    public static final int MAX_BYTES_TO_READ = 1024;
     /**
      * Creates a client information packet with version and flags.
      *
