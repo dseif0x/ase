@@ -436,18 +436,15 @@ public class DatabaseClient {
             writer.writeByte(Utility.STOP_COMMAND);
             writer.flush();
 
-            final int MAX_BYTES_TO_READ = 1024; // Maximum number of bytes to read before giving up
             int bytesRead = 0;
 
-            while (bytesRead < MAX_BYTES_TO_READ) {
+            while (bytesRead < Utility.MAX_BYTES_TO_READ) {
                 if (reader.available() > 0) {
                     byte responseByte = reader.readByte();
                     bytesRead++;
 
                     if (responseByte == Utility.ACK) {
                         return WebReturn.success();
-                    } else if (responseByte == Utility.NAK) {
-                        return readError();
                     }
                 } else {
                     try {
@@ -462,8 +459,6 @@ public class DatabaseClient {
             return WebReturn.error("ACK/NAK not received after sending STOP command.");
         } catch (IOException e) {
             return WebReturn.error("Failed to send STOP command.");
-        } catch (TCPClientException e) {
-            return WebReturn.error(e.getMessage());
         }
     }
 
