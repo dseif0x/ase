@@ -46,7 +46,7 @@ const AclEditor = () => {
 
     return (
         <div className="acl-editor">
-            <h2>Key: Key1</h2>
+            <h2>Key: {keyData?.key || "Unknown Key"}</h2>
             <div className="value-section">
                 <label>Value:</label>
                 <input
@@ -89,17 +89,42 @@ const AclEditor = () => {
                             </td>
                         ))}
                         <td>
-                            <button className="delete-btn">🗑</button>
+                            <button
+                                className="delete-btn"
+                                onClick={() => {
+                                    const updatedPermissions = permissions.filter(
+                                        (_, i) => i !== index
+                                    );
+                                    setPermissions(updatedPermissions);
+                                }}
+                            >
+                                <span className="trash">&#128465;</span>
+
+                            </button>
                         </td>
                     </tr>
                 ))}
                 </tbody>
             </table>
 
-            <button className="add-btn">Add</button>
+            <button
+                className="add-btn"
+                onClick={() =>
+                    setPermissions([
+                        ...permissions,
+                        { user: `NewUser${permissions.length + 1}`, read: false, update: false, delete: false },
+                    ])
+                }
+            >
+                Add
+            </button>
             <div className="action-buttons">
-                <button className="cancel-btn">Cancel</button>
-                <button className="update-btn">Update</button>
+                <button className="cancel-btn" onClick={handleCancel}>
+                    Cancel
+                </button>
+                <button className="update-btn" onClick={handleUpdate}>
+                    Update
+                </button>
             </div>
         </div>
     );
