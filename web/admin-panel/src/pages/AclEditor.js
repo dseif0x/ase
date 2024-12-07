@@ -44,7 +44,7 @@ const AclEditor = () => {
                     <th>Read</th>
                     <th>Update</th>
                     <th>Delete</th>
-                    <th>Delete</th>
+                    <th>Remove</th>
                 </tr>
                 </thead>
                 <tbody>
