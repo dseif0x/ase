@@ -7,6 +7,9 @@
 
 #include <gtest/gtest.h>
 #include "tcp2_server.h"
+#include "encoder.h"
+#include "decoder.h"
+#include "TestCoding.h"
 
 #include <string>
 #include <poll.h>
@@ -43,23 +46,30 @@ private:
 
 class IntegrationTests_TCPServer : public ::testing::Test {
 public:
-    IntegrationTests_TCPServer() : max_clients {63} {
+    IntegrationTests_TCPServer() : max_clients {63}, db(nullptr) {
     }
 
     void SetUp() override {
+        this->db = new DB();
         ServerPort::instance().increment();
         std::cout << "PORT:" << ServerPort::instance().get() << std::endl;
-        this->server = std::make_unique<TCP2Server>(this->acl, this->db, ServerPort::instance().get(), this->max_clients);
+        this->server = std::make_unique<TCP2Server>(this->acl, *this->db, ServerPort::instance().get(), this->max_clients);
         this->server->start();
     }
 
     void TearDown() override {
         server->stop();
+        this->db->destroy();
+        delete this->db;
+    }
+
+    DB* get_db() {
+        return this->db;
     }
 
 private:
     ACL acl{};
-    DB db{};
+    DB* db;
     int max_clients;
 
     std::unique_ptr<TCP2Server> server;
@@ -428,3 +438,92 @@ TEST_F(IntegrationTests_TCPServer, login_admin_update_scope) {
     client.close_connection();
 }
 
+TEST_F(IntegrationTests_TCPServer, login_admin_get) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(100);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(100);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    auto db = get_db();
+
+    // add value to db
+    CopiedValue newval5{};
+    newval5.type = ValueType::ARRAY;
+    auto& vector = newval5.data.emplace<CopiedValue::copied_array_t>();
+
+    CopiedValue arrval1{};
+    arrval1.type = ValueType::INT;
+    arrval1.data.emplace<int>(13);
+    CopiedValue arrval2{};
+    arrval2.type = ValueType::INT;
+    arrval2.data.emplace<int>(12);
+
+    vector.emplace_back(std::move(arrval1));
+    vector.emplace_back(std::move(arrval2));
+
+    TestGenericEncoder enc{};
+    enc.from_ack();
+    enc.from_general(newval5);
+    auto correct_get = enc._get_all_bytes();
+
+    db->set(".test.sub.val", std::move(newval5), true);
+
+    // correct access, get value
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E746573742E7375622E76616C")));
+    auto res = client.receive_message(100);
+    ASSERT_TRUE(vec_equ(res, correct_get));
+
+    // invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E246573742E7375622E76616C")));
+    res = client.receive_message(100);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
+
+    // invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E676573742E7375622E76616C")));
+    res = client.receive_message(100);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01); // invalid key
+
+    // remove all permissions
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 01 2e 00")));
+    res = client.receive_message(100);
+    ASSERT_TRUE(res[0] == 0xFF); // ack
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E676573742E7375622E76616C")));
+    res = client.receive_message(100);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
+
+    client.close_connection();
+}
+
+TEST_F(IntegrationTests_TCPServer, login_admin_self_permission) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x00};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(100);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(100);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E246573742E7375622E76616C")));
+    auto res = client.receive_message(250);
+    print_vec(res);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xF0); // self perm denied
+}
