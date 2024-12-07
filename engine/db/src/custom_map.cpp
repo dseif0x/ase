@@ -20,6 +20,7 @@ db_map::~db_map() {
     }
 }
 
+
 //! @onlyInAtomicAccess
 std::vector<std::string> db_map::atomic_keys() {
     std::shared_lock<shrwlock> lock_guard(lock);
@@ -50,12 +51,22 @@ relative_offset_ptr<Value> db_map::atomic_get(const char* key) {
 
 //! @onlyInAtomicAccess
 bool db_map::has(const char* key) {
-    if (this->alloc_size == 0) {
+    if (this->used_size == 0) {
         return false;
     }
-    offset_t removed_idx = hash_fn(std::string(key)) % this->alloc_size;
+    offset_t idx = hash_fn(std::string(key)) % this->alloc_size;
     auto* lookup = this->lookup.get(mem);
-    return lookup[removed_idx] >= 0;
+    auto* data = this->data.get(mem);
+    if (lookup[idx] < 0)
+        return false;
+    auto ll_node = data[lookup[idx]];
+    while (strcmp(std::get<0>(ll_node).get(mem), key) != 0) {
+        auto next = std::get<2>(ll_node);
+        if (next < 0)
+            return false;
+        ll_node = data[next];
+    }
+    return true;
 }
 
 //! @onlyInAtomicAccess
@@ -65,9 +76,16 @@ relative_offset_ptr<Value> db_map::get(const char* key) {
     size_t hash = db_map::hash_fn(std::string(key));
     auto idx = lookup[hash % this->alloc_size];
     if (idx >= 0) {
-        // TODO check for collision
-        return std::get<1>(data[idx]).get_relative(mem);
+        auto ll_node = data[idx];
+        while (strcmp(std::get<0>(ll_node).get(mem), key) != 0) {
+            auto next = std::get<2>(ll_node);
+            if (next <= 0)
+                throw std::runtime_error("Key not found");
+            ll_node = data[next];
+        }
+        return std::get<1>(ll_node).get_relative(mem);
     }
+    // TODO it's better to return a value indicating the key was not found instead of throwing an error
     throw std::runtime_error("Key not found");
 }
 
