@@ -38,6 +38,14 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::get;
             perms = permissions::read;
             break;
+        case 0x02: //SET
+            func = command::safe_set;
+            perms = permissions::write;
+            break;
+        case 0x03: //forced-SET
+            func = command::forced_set;
+            perms = permissions::write_del;
+            break;
         // ACL Commands
         case 0x81: // Update Scope
             func = command::update_scope;
@@ -182,6 +190,52 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
     encoder.from_ack();
 
     return 0;
+}
+
+int set_helper(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info, bool force) {
+    std::string key_str = decoder.to_string();
+    auto key = tcp2_utils::check_and_create_key(key_str);
+
+    if (!key) {
+        std::cout << "errror 1" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+    if (!info.user->has_permission(*key, force ? tcp2_utils::permissions::write_del : tcp2_utils::permissions::write)) {
+        std::cout << "errror 2" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::permission_denied);
+        return -1;
+    }
+    auto val = decoder.to_general();
+    if (!val) {
+        std::cout << "errror 3" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_value);
+        return -1;
+    }
+
+    val->print();
+
+    try {
+        info.db.set(key_str.c_str(), std::move(*val), force);
+        encoder.from_ack();
+    } catch (...) {
+        std::cout << "errror 4" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+    return 0;
+}
+
+int tcp2_utils::command::safe_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    return set_helper(decoder, encoder, info, false);
+}
+
+int tcp2_utils::command::forced_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    return set_helper(decoder, encoder, info, true);
 }
 
 void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {

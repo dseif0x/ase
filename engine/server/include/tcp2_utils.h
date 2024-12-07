@@ -114,7 +114,7 @@ namespace tcp2_utils {
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
          * @param info Reference to the CommandInfo struct containing additional information for the function.
-         * @return int Always returns 1 to signal a soft shutdown.
+         * @return int returns 0 on success or -1 on error.
         */
         int get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
@@ -124,7 +124,7 @@ namespace tcp2_utils {
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
          * @param info Reference to the CommandInfo struct containing additional information for the function.
-         * @return int Always returns 1 to signal a soft shutdown.
+         * @return int returns 0 on success or -1 on error.
 */
         int update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
@@ -134,9 +134,29 @@ namespace tcp2_utils {
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
          * @param info Reference to the CommandInfo struct containing additional information for the function.
-         * @return int Always returns 1 to signal a soft shutdown.
+         * @return int returns 0 on success or -1 on error.
          */
         int testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+        * @brief Executes the set command without forcing the write.
+        *
+        * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+        * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+        * @param info Reference to the CommandInfo struct containing additional information for the function.
+        * @return int returns 0 on success or -1 on error.
+        */
+        int safe_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+        * @brief Executes the set command and forces the write.
+        *
+        * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+        * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+        * @param info Reference to the CommandInfo struct containing additional information for the function.
+        * @return int returns 0 on success or -1 on error.
+        */
+        int forced_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {
@@ -147,6 +167,7 @@ namespace tcp2_utils {
         constexpr unsigned char admin = 0x08;
         constexpr unsigned char read_write = read | write;
         constexpr unsigned char read_write_del = read_write | del;
+        constexpr unsigned char write_del = write | del;
         constexpr unsigned char all = read | write | del;
     }
 }
