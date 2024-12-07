@@ -47,7 +47,7 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
                 <td>
                     <button
                         className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`)}
+                        onClick={() => navigate(`/edit/${node.key}`, { state: { keyData: node } })}
                     >
                         Edit
                     </button>
