@@ -46,6 +46,10 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::forced_set;
             perms = permissions::write_del;
             break;
+        case 0x04: //DELETE
+            func = command::del;
+            perms = permissions::del;
+            break;
         // ACL Commands
         case 0x81: // Update Scope
             func = command::update_scope;
@@ -236,6 +240,36 @@ int tcp2_utils::command::safe_set(TCP2Decoder &decoder, TCP2Encoder &encoder, Co
 
 int tcp2_utils::command::forced_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     return set_helper(decoder, encoder, info, true);
+}
+
+int tcp2_utils::command::del(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string key_str = decoder.to_string();
+    auto key = tcp2_utils::check_and_create_key(key_str);
+
+    if (!key) {
+        std::cout << "errror 1" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+    if (!info.user->has_permission(*key, permissions::del)) {
+        std::cout << "errror 2" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::permission_denied);
+        return -1;
+    }
+
+    try {
+        info.db.remove(key_str.c_str());
+        encoder.from_ack();
+    } catch (...) {
+        // can this even happen?
+        std::cout << "errror 4" << std::endl;
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+    return 0;
 }
 
 void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
