@@ -120,7 +120,14 @@ function App() {
                 </button>
             </div>
             <div className="data-panel">
-                <h3>Keys</h3>
+                <div className="keys-header">
+                    <h3>Keys</h3>
+                    <span>
+                    <button className="refresh-button">
+                        Refresh
+                    </button>
+                </span>
+                </div>
                 <table>
                     <thead>
                     <tr>

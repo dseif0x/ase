@@ -86,3 +86,24 @@ th {
 .list-button:hover {
     background-color: #ab610b;
 }
+
+.keys-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.refresh-button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.refresh-button:hover {
+    background-color: #45a049;
+}
