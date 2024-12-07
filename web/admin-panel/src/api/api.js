@@ -3,6 +3,7 @@ const API_BASE_URL = "http://localhost:8080/api";
 export async function fetchData() {
     try {
         const response = await fetch(`${API_BASE_URL}/data`);
+        console.log(response);
         if (!response.ok) {
             throw new Error(`Msg: ${response.status}`);
         }
