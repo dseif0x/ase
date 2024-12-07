@@ -52,6 +52,7 @@ void TCP2Decoder::read_data() {
     } else if (sel == 0) {
         // in case of timeout sleep for a bit to give others time to access pipe mutex
         // this way large data pack would not be slowed down, as we only sleep in case of nothing arriving
+        std::cout << "sleep for decode" << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(10)); // todo replace with yield
     } else {
         std::cerr << "select error: " << strerror(errno) << std::endl;

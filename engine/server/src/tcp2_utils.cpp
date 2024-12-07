@@ -19,7 +19,8 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
     unsigned char perms{};
     uint16_t error = 0;
 
-    switch (decoder.to_unsigned(1)) {
+    unsigned char switchval = decoder.to_unsigned(1);
+    switch (switchval) {
         // CONTROL COMMANDS
         case 0xFE: //STOP
             func = command::stop;
@@ -57,6 +58,7 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             break;
         default:
             error = errors::unknown_command;
+            std::cout << "UNKNOWN COMMAND:" << (int)switchval << std::endl;
             break;
     }
     if (error == 0) {
@@ -339,6 +341,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             // logged in and ready for commands
             switch (client_command_switch(decoder, encoder, *ci, self_perms)) {
                 case -1: // error, but recovered
+                    decoder.clear_buffer();
                 case 0: // executed fine
                     break;
                 case 1: // soft shutdown
