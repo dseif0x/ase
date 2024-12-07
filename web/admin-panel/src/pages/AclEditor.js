@@ -1,19 +1,47 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/pages/AclEditor.css";
 
 const AclEditor = () => {
-    const [value, setValue] = useState("12");
-    const [valueType, setValueType] = useState("Integer");
-    const [permissions, setPermissions] = useState([
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const { keyData } = location.state || {};
+    const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
         { user: "@ALL", read: false, update: false, delete: false },
-    ]);
+    ];
+
+    const [value, setValue] = useState(keyData?.value || "");
+    const [valueType, setValueType] = useState("String");
+    const [permissions, setPermissions] = useState(initialPermissions);
+
+    useEffect(() => {
+        if (keyData) {
+            setValue(keyData.value || "");
+            setValueType(typeof keyData.value === "number" ? "Integer" : "String");
+        }
+    }, [keyData]);
 
     const togglePermission = (index, permissionType) => {
         const updatedPermissions = [...permissions];
         updatedPermissions[index][permissionType] = !updatedPermissions[index][permissionType];
         setPermissions(updatedPermissions);
+    };
+
+    const handleUpdate = () => {
+        console.log("Updated Data:", {
+            key: keyData?.key,
+            value,
+            valueType,
+            permissions,
+        });
+        navigate(-1);
+    };
+
+    const handleCancel = () => {
+        navigate(-1);
     };
 
     return (
