@@ -133,13 +133,20 @@ public:
             if (alloc_size == 0) return;
             auto idx = lookup[hash % alloc_size];
             if (idx >= 0) {
-                // TODO check for collision
                 auto &ll_node = data[idx];
-                found = true;
-                auto& old_value = std::get<1>(ll_node);
-                Value::destroy_value(mem, old_value, true);
-                std::get<1>(ll_node) = value;
-                map->lock.unlock();
+                while (strcmp(std::get<0>(ll_node).get(mem), key) != 0) {
+                    auto next = std::get<2>(ll_node);
+                    if (next < 0)
+                        break;
+                    ll_node = data[next];
+                }
+                if (strcmp(std::get<0>(ll_node).get(mem), key) == 0) {
+                    found = true;
+                    auto& old_value = std::get<1>(ll_node);
+                    Value::destroy_value(mem, old_value, true);
+                    std::get<1>(ll_node) = value;
+                    map->lock.unlock();
+                }
             }
         }, true);
 
@@ -159,8 +166,9 @@ public:
             auto *lookup_p = map_p->lookup.get(mem);
             strncpy(ptr, key, str_len);
             ptr[str_len] = '\0';
+            auto next = lookup_p[hash % map_p->alloc_size];
             lookup_p[hash % map_p->alloc_size] = used_size;
-            data_p[used_size++] = std::make_tuple(new_key, value, -1);
+            data_p[used_size++] = std::make_tuple(new_key, value, next);
             map_p->used_size = used_size;
             map_p->lock.unlock();
         }, true);
@@ -178,27 +186,38 @@ public:
         // Potentially shrink the shmem
         std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
         map.atomic_access(mem, [&](db_map *map) {
-            map->lock.lock();
+            std::unique_lock<shrwlock> map_lock_guard(map->lock);
             map_entry_type *data = map->data.get(mem);
-
-            offset_t removed_idx = hash_fn(std::string(key)) % map->alloc_size;
             auto *lookup = map->lookup.get(mem);
+            offset_t removed_idx = hash_fn(std::string(key)) % map->alloc_size;
 
-            if (lookup[removed_idx] >= 0) {
-                map->used_size--; // we don't delete anything, just invalidate it's memory
-                auto tmpfirst = std::get<0>(data[removed_idx]);
-                auto tmpsecond = std::get<1>(data[removed_idx]);
-                if (lookup[removed_idx] < map->used_size) { // swap values with last data entry
-                    std::swap(data[lookup[removed_idx]], data[map->used_size]);
-                    // adjust reference to moved value
-                    auto moved_idx = hash_fn(std::string(std::get<0>(data[map->used_size]).get(mem))) % map->alloc_size;
-                    lookup[moved_idx] = lookup[removed_idx];
-                }
-                lookup[removed_idx] = -1;
-                Value::destroy_value(mem, tmpsecond, true);
-                mem.destroy_array(tmpfirst, 0, true);
+            auto pos = findPositionInLL(map, mem, removed_idx, key);
+            if (pos.second < 0) // key not found
+                return;
+            auto& deleted_node = data[pos.second];
+            if (pos.first < 0) { // no predecessor
+                lookup[removed_idx] = std::get<2>(deleted_node);
+            } else { // predecessor
+                auto& predecessor_node = data[pos.first];
+                std::get<2>(predecessor_node) = std::get<2>(deleted_node);
             }
-            map->lock.unlock();
+            if (pos.second == --map->used_size) { // deleting the last element in data
+                Value::destroy_value(mem, std::get<1>(deleted_node), true);
+                mem.destroy_array(std::get<0>(deleted_node), 0, true);
+            } else { // deleting a node in the middle
+                auto& moved_node = data[map->used_size];
+                auto moved_key = std::get<0>(moved_node).get(mem);
+                auto moved_hash = hash_fn(moved_key) % map->alloc_size;
+                auto moved_node_predecessor = findPositionInLL(map, mem, moved_hash, moved_key).first;
+                std::swap(moved_node, deleted_node);
+                if (moved_node_predecessor < 0) { // moved node had no predecessor
+                    lookup[moved_hash] = pos.second;
+                } else {
+                    std::get<2>(data[moved_node_predecessor]) = pos.second;
+                }
+                Value::destroy_value(mem, std::get<1>(moved_node), true);
+                mem.destroy_array(std::get<0>(moved_node), 0, true);
+            }
         }, true);
     }
 
@@ -234,6 +253,43 @@ private:
     shmem &mem;
 
     /**
+     * Just a little herper function to find the position of a node and its predecessor
+     * Should only be called when all locks (shmem and map) are acquired.
+     *
+     * @param map the node the value is attached to
+     * @param mem the shmem
+     * @param key the bottom level key to find
+     * @return a pair containing the position of the predecessor and the node. returns -1 for any of those that don't exist.
+     */
+    static std::pair<offset_t, offset_t> findPositionInLL(db_map *map, shmem &mem, offset_t hash, const char *key) {
+        hash %= map->alloc_size; // make sure it's not out of range
+        std::pair<offset_t, offset_t> res{-1, -1};
+        map_entry_type *data = map->data.get(mem);
+        auto* lookup = map->lookup.get(mem);
+        offset_t entrypoint = lookup[hash];
+        if (entrypoint >= 0) { // we found an entrypoint for the keys hash
+            auto& ll_node = data[entrypoint];
+            if (strcmp(key, std::get<0>(ll_node).get(mem)) == 0) { // the entrypoint was the element we were looking for
+                res.second = entrypoint;
+                return res;
+            }
+            while (true) {
+                auto prev = entrypoint;
+                auto curr = std::get<2>(ll_node);
+                if (curr < 0) // we reached the end without finding the key
+                    return res;
+                ll_node = data[curr];
+                if (strcmp(key, std::get<0>(ll_node).get(mem)) == 0) { // we found the key
+                    res.first = prev;
+                    res.second = curr;
+                    break;
+                }
+            }
+        }
+        return res;
+    }
+
+    /**
      * resizes the space that is allocated for the given node.
      * @param map the node that grows
      * @param mem the shmem
@@ -241,24 +297,34 @@ private:
      */
     static void resize(offset_ptr<db_map> &map, shmem &mem) {
         size_t alloc_size;
+        size_t used_size;
         offset_ptr<map_entry_type> old_data;
         offset_ptr<offset_t> old_lookup;
         map.atomic_access(mem, [&](db_map *map) {
+            used_size = map->used_size;
             alloc_size = map->alloc_size;
             old_data = map->data;
             old_lookup = map->lookup;
         }, true);
-        size_t new_size = std::max(512ul, alloc_size) * 2;
+        size_t new_size = std::max(2ul, alloc_size) * 2;
         auto new_lookup = mem.construct_array_unsafe<offset_t>(new_size);
         map.atomic_access(mem, [&](db_map *map) {
             std::memset(new_lookup.get(mem), -1, new_size * sizeof(offset_t));
         }, true);
         auto new_data = mem.construct_array_unsafe<map_entry_type>(new_size);
-        if (alloc_size > 0) {
+        if (used_size > 0) {
             map.atomic_access(mem, [&](db_map *map) {
                 // We have to adjust for new hashes
-                memcpy(new_lookup.get(mem), old_lookup.get(mem), alloc_size * sizeof(offset_t));
-                memcpy(new_data.get(mem), old_data.get(mem), alloc_size * sizeof(map_entry_type));
+                auto new_data_ptr = new_data.get(mem);
+                auto new_lookup_ptr = new_lookup.get(mem);
+                memcpy(new_data_ptr, old_data.get(mem), used_size * sizeof(map_entry_type));
+                for (offset_t i = 0; i < used_size; i++) {
+                    auto& ll_node = new_data_ptr[i];
+                    auto key = std::get<0>(ll_node).get(mem);
+                    auto hash = hash_fn(key) % new_size;
+                    std::get<2>(ll_node) = new_lookup_ptr[hash];
+                    new_lookup_ptr[hash] = i;
+                }
             }, true);
             mem.destroy_array(old_data, alloc_size, true);
             mem.destroy_array(old_lookup, alloc_size, true);
