@@ -42,7 +42,9 @@ public:
     relative_offset_ptr<T> get_relative(shmem& mem) const; //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     template <typename Lambda>
     void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); //!< Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
-
+    explicit operator bool() const {
+        return offset >= 0;
+    }
     template <typename U>
     friend class offset_ptr;
     friend class shmem;

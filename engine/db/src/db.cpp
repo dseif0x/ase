@@ -23,7 +23,7 @@ DB::~DB() {
 }
 
 void DB::destroy() {
-    mem.destroy();
+    shmem::destroy_data();
 }
 
 offset_ptr<db_key_map> DB::get_entrypoint() {

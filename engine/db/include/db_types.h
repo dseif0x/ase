@@ -70,7 +70,7 @@ struct Value {
     static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
 
     /**
-     * @brief Construct a new Value object
+     * @brief Destroys a Value object
      * @param mem The shared memory
      * @param value The value to destroy
      * @param locks_held Indicates if locks have to be acquired
