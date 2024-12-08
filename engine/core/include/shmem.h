@@ -41,7 +41,7 @@ class shmem {
     bool can_fit(std::size_t required_memory); //!< This function is used to check if the required size can fit in the base segment
     void ensure_enough_space(std::size_t required_memory); //!< This function is used to resize the base segment if the required size is larger than the current size
     void atomic_access(offset_t offset, std::function<void(void*)>&& lambda, bool locks_held = false); //!< This function is used to access the data segment in an atomic way
-    offset_t allocate(std::size_t size, bool lock_held = false); //!< This function is used to allocate a new block of memory in the base segment
+    offset_t allocate(std::size_t size, std::size_t alignment, bool lock_held = false); //!< This function is used to allocate a new block of memory in the base segment
     void deallocate(offset_t ptr, bool lock_held = false); //!< This function is used to allocate a new block of memory in the base segment
 public:
     shmem();
@@ -56,7 +56,7 @@ public:
     //! @neverInAtomicAccess
     template <typename T, typename... Args>
     offset_ptr<T> construct(Args&&... args) {
-        auto storage = allocate(sizeof(T));
+        auto storage = allocate(sizeof(T), alignof(T));
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [&args...](void *ptr) {
             new (ptr) T(std::forward<Args>(args)...);
@@ -67,7 +67,7 @@ public:
     //! @neverInAtomicAccess
     template <typename T>
     offset_ptr<T> construct_array(size_t count) {
-        auto storage = allocate(sizeof(T) * count);
+        auto storage = allocate(sizeof(T) * count, alignof(T));
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [count](void *ptr) {
             for (size_t i = 0; i < count; i++) {
@@ -82,7 +82,7 @@ public:
      */
     template <typename T>
     offset_ptr<T> construct_array_unsafe(size_t count) {
-        auto storage = allocate(sizeof(T) * count, true);
+        auto storage = allocate(sizeof(T) * count, alignof(T), true);
         offset_ptr<T> ptr{storage};
         atomic_access(storage, [count](void *ptr) {
             for (size_t i = 0; i < count; i++) {
