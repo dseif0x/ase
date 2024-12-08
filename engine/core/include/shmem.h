@@ -48,6 +48,10 @@ public:
     shmem(std::function<void(shmem&)> on_create);
     ~shmem();
     void destroy();
+    /**
+     * Be careful with this function, it will destroy the shared memory segment and all data in it
+     */
+    static void destroy_data();
 
     shrwlock& get_meta_mutex();
 

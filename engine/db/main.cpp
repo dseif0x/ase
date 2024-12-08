@@ -98,10 +98,8 @@ void follow_and_print(DB &db, const char *key) {
 /**
  * @brief Simply tests a few functionalities of the DB
  */
-int main() { {
-        DB db;
-        db.destroy();
-    }
+int main() {
+    DB::destroy();
     int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
     //int pid = 1;
     stopwatch s;

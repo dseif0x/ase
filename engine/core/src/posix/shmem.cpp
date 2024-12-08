@@ -292,6 +292,11 @@ void shmem::destroy() {
     shm_unlink("shmem_data");
 }
 
+void shmem::destroy_data() {
+    shm_unlink("shmem_meta");
+    shm_unlink("shmem_data");
+}
+
 void shmem::ensure_enough_space(std::size_t required_memory, std::size_t required_alignment) {
     if (can_fit(required_memory, required_alignment)) { // We need this to fit the required memory and possibly another FreeBlock
         return;
