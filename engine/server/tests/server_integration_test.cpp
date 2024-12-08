@@ -557,14 +557,12 @@ TEST_F(IntegrationTests_TCPServer, login_admin_set) {
     // invalid key
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E246573742E7375622E76616C 03 07 7465737476616C")));
     auto res = client.receive_message(wait_time_error);
-    print_vec(res);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
 
     // correct access, set value
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E746573742E7375622E76616C 03 07 7465737476616C")));
     res = client.receive_message(wait_time_success);
-    print_vec(res);
     ASSERT_TRUE(vec_equ(res, {0xFF}));
     auto val_db = db->get(".test.sub.val");
     ASSERT_TRUE(val_db);
@@ -574,7 +572,6 @@ TEST_F(IntegrationTests_TCPServer, login_admin_set) {
     // try write again different value on same key without force
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E746573742E7375622E76616C 03 08 746573743276616C")));
     res = client.receive_message(wait_time_success);
-    print_vec(res);
     ASSERT_TRUE(res.size() == 1);
     ASSERT_TRUE(res[0] == 0xFF); // unsafe write -> not detectable currently
 
@@ -591,7 +588,6 @@ TEST_F(IntegrationTests_TCPServer, login_admin_set) {
 
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E746573742E7375622E76616C 03 07 7465737476616C")));
     res = client.receive_message(wait_time_error);
-    print_vec(res);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
 
@@ -622,7 +618,6 @@ TEST_F(IntegrationTests_TCPServer, login_admin_forced_set) {
     // correct access, set value
     ASSERT_TRUE(client.send_message(make_hex_vector("03 0d 2E746573742E7375622E76616C 03 07 7465737476616C")));
     auto res = client.receive_message(wait_time_success);
-    print_vec(res);
     ASSERT_TRUE(vec_equ(res, {0xFF}));
     auto val_db = db->get(".test.sub.val");
     ASSERT_TRUE(val_db);
@@ -632,7 +627,6 @@ TEST_F(IntegrationTests_TCPServer, login_admin_forced_set) {
     // try write again different value on same key without force
     ASSERT_TRUE(client.send_message(make_hex_vector("03 0d 2E746573742E7375622E76616C 03 08 746573743276616C")));
     res = client.receive_message(wait_time_success);
-    print_vec(res);
     ASSERT_TRUE(res.size() == 1);
     ASSERT_TRUE(res[0] == 0xFF); // unsafe write -> not detectable currently
 
@@ -640,6 +634,75 @@ TEST_F(IntegrationTests_TCPServer, login_admin_forced_set) {
     ASSERT_TRUE(val_db2);
     ASSERT_TRUE(val_db2->type == ValueType::STRING);
     ASSERT_TRUE(std::get<std::string>(val_db2->data).compare("test2val") == 0);
+
+    client.close_connection();
+}
+
+TEST_F(IntegrationTests_TCPServer, login_admin_del) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    auto db = get_db();
+
+    {
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(42);
+        db->set(".top.sub.val1", std::move(newval), false);
+    }
+    {
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(69);
+        db->set(".top.sub.val2", std::move(newval), false);
+    }
+
+    // key hex:2E746F702E7375622E76616C31 (len13)
+
+    // invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E246F702E7375622E76616C31")));
+    auto res = client.receive_message(wait_time_error);
+    print_vec(res);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
+
+    // correct key, delete value
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E746F702E7375622E76616C31")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(res, {0xFF}));
+    auto val_db = db->get(".top.sub.val1");
+    ASSERT_FALSE(val_db);
+
+    // try delete again, should work
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E746F702E7375622E76616C31")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF); // currently not detectable that key does not exist anymore
+
+    // remove all permissions
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 01 2e 00")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF); // ack
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E746F702E7375622E76616C32")));
+    res = client.receive_message(wait_time_error);
+    print_vec(res);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
 
     client.close_connection();
 }

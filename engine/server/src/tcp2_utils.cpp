@@ -230,7 +230,7 @@ int tcp2_utils::command::forced_set(TCP2Decoder &decoder, TCP2Encoder &encoder, 
 
 int tcp2_utils::command::del(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     std::string key_str = decoder.to_string();
-    auto key = tcp2_utils::check_and_create_key(key_str);
+    auto key = check_and_create_key(key_str);
 
     if (!key) {
         encoder.from_nak();
