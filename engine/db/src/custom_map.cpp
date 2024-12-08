@@ -79,7 +79,7 @@ relative_offset_ptr<Value> db_map::get(const char* key) {
         auto ll_node = data[idx];
         while (strcmp(std::get<0>(ll_node).get(mem), key) != 0) {
             auto next = std::get<2>(ll_node);
-            if (next <= 0)
+            if (next < 0)
                 throw std::runtime_error("Key not found");
             ll_node = data[next];
         }
