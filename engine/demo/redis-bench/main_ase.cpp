@@ -9,10 +9,7 @@
 #include <db.h>
 
 int main() {
-    {
-        DB db;
-        db.destroy();
-    }
+    DB::destroy();
     auto test_data = get_test_data();
     DB db;
     stopwatch s;

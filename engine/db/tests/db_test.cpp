@@ -129,10 +129,7 @@ void insert_test_data(DB& db) {
 class DatabaseWithData : public ::testing::Test {
 public:
     void SetUp() override {
-        {
-            DB db;
-            db.destroy();
-        }
+        DB::destroy();
         db = new DB();
 
         insert_test_data(*db);
