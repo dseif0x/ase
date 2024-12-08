@@ -169,14 +169,15 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
 
 void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) {
     assert(locks_held && "LOCKS MUST BE HELD");
-    // TODO This causes some sort of race condition
-    /*if (value.get(mem)->type == ValueType::MAP) {
+    if (value.get(mem)->type == ValueType::MAP) {
         auto& data = std::get<shmem_map_t>(value.get(mem)->data);
         for(auto& key : data->keys()) {
             auto child = data->get(key.c_str());
-            destroy_value(mem, mem.relative_to_offset(child), locks_held);
+            // TODO This causes some sort of race condition (invalid free blocks in memory)
+            //destroy_value(mem, mem.relative_to_offset(child), locks_held);
         }
-        data->~db_map();
+        // TODO This causes some sort deadlock (maybe the lock being destroyed is still locked somewhere?)
+        //data->~db_map();
     } else if (value.get(mem)->type == ValueType::ARRAY) {
         auto& data = std::get<ArrayType>(value.get(mem)->data);
         mem.destroy_array(mem.relative_to_offset(data.array_value), data.size, locks_held);
@@ -184,6 +185,9 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
         auto& data = std::get<shmem_pair_t>(value.get(mem)->data);
         destroy_value(mem, mem.relative_to_offset(data.first), locks_held);
         destroy_value(mem, mem.relative_to_offset(data.second), locks_held);
-    }*/
+    } else if (value.get(mem)->type == ValueType::STRING || value.get(mem)->type == ValueType::REFERENCE) {
+        auto& data = std::get<shmem_string_t>(value.get(mem)->data);
+        mem.destroy_array(mem.relative_to_offset(data), 0, locks_held);
+    }
     mem.destroy(value, locks_held);
 }
