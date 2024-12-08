@@ -291,8 +291,8 @@ void shmem::destroy() {
     shm_unlink("shmem_data");
 }
 
-void shmem::ensure_enough_space(std::size_t required_memory) {
-    if (can_fit(required_memory)) { // We need this to fit the required memory and possibly another FreeBlock
+void shmem::ensure_enough_space(std::size_t required_memory, std::size_t required_alignment) {
+    if (can_fit(required_memory, required_alignment)) { // We need this to fit the required memory and possibly another FreeBlock
         return;
     }
     int flags = O_RDWR;
@@ -376,7 +376,7 @@ offset_t shmem::allocate(std::size_t size, std::size_t alignment, bool lock_held
     }
     ensure_mounted();
     // Ensure we have enough space, resize if needed
-    ensure_enough_space(size); // TODO Also consider padding
+    ensure_enough_space(size, alignment);
 
     size_t prev;
     size_t padding;
@@ -490,11 +490,13 @@ shrwlock &shmem::get_meta_mutex() {
     return metadata->meta_mutex;
 }
 
-bool shmem::can_fit(std::size_t required_memory) {
+bool shmem::can_fit(std::size_t required_memory, std::size_t required_alignment) {
     size_t current = metadata->first_free;
     while (current != -1) {
         auto* currentblock = get_free_block(base, current);
-        if (currentblock->size >= required_memory) return true;
+        VALIDATE_FREE_BLOCK(currentblock);
+        size_t padding = calc_padding_with_header((uintptr_t)currentblock, (uintptr_t)required_alignment, sizeof(AllocationHeader));
+        if (currentblock->size >= required_memory + padding) return true;
         current = currentblock->next_offset;
     }
     return false;
