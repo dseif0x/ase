@@ -55,6 +55,7 @@ struct AllocationHeader {
     char magic[4] = {'A', 'L', 'H', 'R'};
 #endif
     size_t size;
+    size_t padding;
 };
 
 bool is_power_of_two(uintptr_t x) {
@@ -408,7 +409,6 @@ offset_t shmem::allocate(std::size_t size, std::size_t alignment, bool lock_held
     }
 
     free_block_remove(*metadata, base, prev, newblockptr);
-    assert(newblock + required_space >= metadata->first_free);
     if (prev != -1) {
         VALIDATE_FREE_BLOCK(get_free_block(base, prev));
     }
@@ -419,29 +419,29 @@ offset_t shmem::allocate(std::size_t size, std::size_t alignment, bool lock_held
     new (header_ptr) AllocationHeader();
 #endif
     header_ptr->size = required_space;
+    header_ptr->padding = alignment_padding;
     VALIDATE_ALLOC_HEADER(header_ptr);
     return newblock + sizeof(AllocationHeader);
 }
 
 void shmem::deallocate(offset_t ptr, bool lock_held) {
-    return;
     std::unique_lock<shrwlock> lk2(metadata->meta_mutex, std::defer_lock);
     if (!lock_held) {
         lk2.lock();
     }
-    ptr -= sizeof(AllocationHeader);
     ensure_mounted();
 
-    auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr);
+    auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr - sizeof(AllocationHeader));
 
     VALIDATE_ALLOC_HEADER(header_ptr);
-    size_t size = header_ptr->size;
+    size_t size = header_ptr->size + header_ptr->padding;
 
     auto* newblock = reinterpret_cast<FreeBlock*>(header_ptr);
 #ifdef MEM_DEBUG
     new (newblock) FreeBlock();
 #endif
     newblock->size = size;
+    newblock->next_offset = -1;
 
     size_t prev = -1;
     size_t curr = metadata->first_free;
