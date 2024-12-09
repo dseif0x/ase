@@ -1,6 +1,8 @@
 package com.ase.driver;
 
 import com.ase.utility.*;
+import com.ase.utility.tcp.SimpleType;
+import com.ase.utility.tcp.TcpGeneral;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -283,7 +285,7 @@ public class DatabaseClientCommandTest {
 
         WebReturn<Integer> result = databaseClient.createUser(username, password, options);
 
-        assertFalse(result.isOk(), "Expected ping to fail after NAK response.");
+        assertFalse(result.isOk(), "Expected createUser to fail after NAK response.");
         assertNotNull(result.getMessage(), "Expected an error message due to server error.");
         assertTrue(result.getMessage().contains("Failed to read string."),
             "Expected readString to fail.");
@@ -372,10 +374,153 @@ public class DatabaseClientCommandTest {
 
         WebReturn<Integer> result = databaseClient.updateScope(username, password, options);
 
-        assertFalse(result.isOk(), "Expected ping to fail after NAK response.");
+        assertFalse(result.isOk(), "Expected updateScope to fail after NAK response.");
         assertNotNull(result.getMessage(), "Expected an error message due to server error.");
         assertTrue(result.getMessage().contains("Failed to read string."),
             "Expected readString to fail.");
         assertNull(result.getData(), "Expected no data on failure.");
     }
+
+    @Test
+    void testSetNullKey() {
+        TcpGeneral value = mock(TcpGeneral.class);
+
+        WebReturn<Integer> result = databaseClient.set(null, value, false);
+
+        // Verify error
+        assertFalse(result.isOk(), "Expected set to fail due to null key.");
+        assertEquals("Key must not be null or empty.", result.getMessage(),
+            "Expected error message for null key.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    @Test
+    void testSetSuccess() throws Exception {
+        String key = "testKey";
+        TcpGeneral value = TcpGeneral.ofSimple(SimpleType.STRING, "testValue");
+        boolean force = false;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.set(key, value, force);
+
+        assertTrue(result.isOk(), "Expected set to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+
+    @Test
+    void testSetForceSuccess() throws Exception {
+        String key = "testKey";
+        TcpGeneral value = TcpGeneral.ofSimple(SimpleType.STRING, "testValue");
+        boolean force = true;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.set(key, value, force);
+
+        assertTrue(result.isOk(), "Expected set to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+    @Test
+    void testSetNullValue() throws Exception {
+        String key = "testKey";
+        boolean force = false;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.set(key, null, force);
+
+        // Verify error
+        assertFalse(result.isOk(), "Expected set to fail due to null TcpGeneral value.");
+        assertEquals("Value must not be null.", result.getMessage(),
+            "Expected error message for null TcpGeneral value.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    @Test
+    void testSetServerError() throws Exception {
+        String key = "testKey";
+        TcpGeneral value = TcpGeneral.ofSimple(SimpleType.STRING, "testValue");
+        boolean force = false;
+
+        // Simulate server responding with NAK and an error message
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+        DynamicDataWriter clientDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK); // NAK response
+        dataOut.writeShort(0x0100); // Example error code
+        clientDataWriter.writeString("Invalid key.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.set(key, value, force);
+
+        // Verify error
+        assertFalse(result.isOk(), "Expected set to fail with NAK.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("Invalid key."),
+            "Expected the error message to match the server response.");
+        assertNotNull(result.getData(), "Expected no data on failure.");
+    }
+
+    @Test
+    void testSetUnexpectedResponse() throws Exception {
+        String key = "testKey";
+        TcpGeneral value = TcpGeneral.ofSimple(SimpleType.INT, 100);
+        boolean force = false;
+
+        // Simulate server responding with an unknown byte
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x12); // Unknown response
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.set(key, value, force);
+
+        // Verify error
+        assertFalse(result.isOk(), "Expected set to fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("unknown response"),
+            "Expected the error message to indicate unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+        assertEquals(0x12, result.getData(), "Expected the response byte to match.");
+    }
+
+    @Test
+    void testSetTcpClientException() throws Exception {
+        String key = "testKey";
+        TcpGeneral value = TcpGeneral.ofSimple(SimpleType.INT, 100);
+        boolean force = false;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(serverResponseOut);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOutputStream.write(0xFF00); // Will not write as unsigned short so readString will fail
+        serverDataWriter.writeString("Permission denied"); // Will not be read
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.set(key, value, force);
+
+        assertFalse(result.isOk(), "Expected set to fail after NAK response.");
+        assertNotNull(result.getMessage(), "Expected an error message due to server error.");
+        assertTrue(result.getMessage().contains("Failed to read string."),
+            "Expected readString to fail.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+
 }
