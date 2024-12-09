@@ -4,6 +4,13 @@ package com.ase.exception;
  * Custom exception to represent errors communicated from the server.
  */
 public class ServerErrorException extends TCPClientException {
+
+    /** The error code sent by the server. */
+    private int errorCode;
+
+    /** The error message sent by the server. */
+    private String errorMessage;
+
     /**
      * Constructs a new ServerErrorException with the specified error code and message.
      *
@@ -12,15 +19,26 @@ public class ServerErrorException extends TCPClientException {
      */
     public ServerErrorException(int errorCode, String errorMessage) {
         super("Server Error " + errorCode + ": " + errorMessage);
+
+        this.errorMessage = errorMessage;
+        this.errorCode = errorCode;
     }
 
+    /**
+     * Retrieves the error code sent by the server.
+     *
+     * @return The error code sent by the server.
+     */
+    public int getErrorCode() {
+        return errorCode;
+    }
 
     /**
-     * Constructs a new ServerErrorException with only the message.
+     * Retrieves the error message sent by the server.
      *
-     * @param errorMessage The error message sent by the server.
+     * @return The error message sent by the server.
      */
-    public ServerErrorException(String errorMessage) {
-        super(errorMessage);
+    public String getErrorMessage() {
+        return errorMessage;
     }
 }

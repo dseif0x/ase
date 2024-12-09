@@ -73,7 +73,7 @@ public class WebReturn<T> {
      * @param <T>     the type of the data
      * @return a WebReturn instance representing success with a message
      */
-    public static <T> WebReturn<T> success(T data, String message) {
+    public static <T> WebReturn<T> success(String message, T data) {
         return new WebReturn<>(true, message, data);
     }
 

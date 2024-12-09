@@ -178,7 +178,7 @@ public class DynamicDataReader {
      * @return A {@link TcpGeneral} instance representing the Key-Value Map.
      * @throws TCPClientReadException if an I/O error occurs or the reading fails.
      */
-    public TcpGeneral readKeyMap() throws TCPClientException {
+    private TcpGeneral readKeyMap() throws TCPClientException {
         long keyLength = readTCPEUI();
         int len = (int) keyLength;
 
@@ -198,7 +198,7 @@ public class DynamicDataReader {
      * @return A {@link TcpGeneral} instance representing the array.
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
-    public TcpGeneral readArray(boolean isComplex, SimpleType simpleType) throws TCPClientException {
+    private TcpGeneral readArray(boolean isComplex, SimpleType simpleType) throws TCPClientException {
         long arrayLength = readTCPEUI();
         if (arrayLength < 0 || arrayLength > serverInfo.getArraySize()) {
             throw new TCPClientReadException("Invalid array length: " + arrayLength);

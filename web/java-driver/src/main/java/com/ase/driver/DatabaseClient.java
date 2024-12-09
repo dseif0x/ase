@@ -70,7 +70,7 @@ public class DatabaseClient {
             if (response == Utility.NAK) {
                 int errorCode = reader.readUnsignedShort();
                 TcpErrorCode errorCodeEnum = TcpErrorCode.fromCode(errorCode);
-                throw new ServerErrorException(errorCodeEnum.toString());
+                throw new ServerErrorException(errorCodeEnum.getCode(), errorCodeEnum.getDescription());
             } else if (response == Utility.ACK) {
                 ServerInformation serverInfo = ServerInformation.readServerInformation(reader);
                 if (!serverInfo.validate()) {
@@ -147,7 +147,7 @@ public class DatabaseClient {
             byte response = reader.readByte();
             if (response == Utility.NAK) {
                 WebReturn<Integer> error = readError();
-                return WebReturn.error("Server responded with NAK.", TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
+                return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
             } else if (response == Utility.ACK) {
                 TcpGeneral tcpGeneral = dataReader.readGeneral();
                 return WebReturn.success(tcpGeneral);
@@ -185,6 +185,8 @@ public class DatabaseClient {
     public WebReturn<Integer> set(String key, TcpGeneral value, boolean force) {
         if (key == null || key.isEmpty()) {
             return WebReturn.error("Key must not be null or empty.");
+        } else if (value == null) {
+            return WebReturn.error("Value must not be null.");
         }
 
         try {
@@ -420,18 +422,15 @@ public class DatabaseClient {
             writer.writeByte(Utility.STOP_COMMAND);
             writer.flush();
 
-            final int MAX_BYTES_TO_READ = 1024; // Maximum number of bytes to read before giving up
             int bytesRead = 0;
 
-            while (bytesRead < MAX_BYTES_TO_READ) {
+            while (bytesRead < Utility.MAX_BYTES_TO_READ) {
                 if (reader.available() > 0) {
                     byte responseByte = reader.readByte();
                     bytesRead++;
 
                     if (responseByte == Utility.ACK) {
                         return WebReturn.success();
-                    } else if (responseByte == Utility.NAK) {
-                        return readError();
                     }
                 } else {
                     try {
@@ -446,8 +445,6 @@ public class DatabaseClient {
             return WebReturn.error("ACK/NAK not received after sending STOP command.");
         } catch (IOException e) {
             return WebReturn.error("Failed to send STOP command.");
-        } catch (TCPClientException e) {
-            return WebReturn.error(e.getMessage());
         }
     }
 
@@ -484,4 +481,22 @@ public class DatabaseClient {
         }
     }
 
+
+    /**
+     * Sets the data reader for the client.
+     *
+     * @param dataReader The data reader to set.
+     */
+    public void setDataReader(DynamicDataReader dataReader) {
+        this.dataReader = dataReader;
+    }
+
+    /**
+     * Sets the data writer for the client.
+     *
+     * @param dataWriter The data writer to set.
+     */
+    public void setDataWriter(DynamicDataWriter dataWriter) {
+        this.dataWriter = dataWriter;
+    }
 }
