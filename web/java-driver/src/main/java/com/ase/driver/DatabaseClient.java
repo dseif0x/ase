@@ -147,7 +147,7 @@ public class DatabaseClient {
             byte response = reader.readByte();
             if (response == Utility.NAK) {
                 WebReturn<Integer> error = readError();
-                return WebReturn.error("Server responded with NAK.", TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
+                return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
             } else if (response == Utility.ACK) {
                 TcpGeneral tcpGeneral = dataReader.readGeneral();
                 return WebReturn.success(tcpGeneral);

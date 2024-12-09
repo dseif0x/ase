@@ -3,10 +3,9 @@ package com.ase.driver;
 import com.ase.exception.HandshakeException;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
-import com.ase.utility.ServerInformation;
-import com.ase.utility.Utility;
+import com.ase.utility.*;
 import com.ase.utility.tcp.TcpErrorCode;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -28,21 +27,44 @@ class DatabaseClientHandshakeTest {
 
     private DatabaseClient databaseClient;
 
+    private static ServerInformation serverInfo;
+
+    @BeforeAll
+    static void setUp() {
+        serverInfo = new ServerInformation();
+        serverInfo.setBooleanSize(1);
+        serverInfo.setIntSize(4);
+        serverInfo.setCharSize(2);
+        serverInfo.setDoubleSize(8);
+        serverInfo.setSemaphoreSize(4);
+        serverInfo.setStringSize(255);
+        serverInfo.setArraySize(256);
+    }
+
     private void setServerResponse(byte[] responseBytes) throws IOException {
-        ByteArrayInputStream byteIn = new ByteArrayInputStream(responseBytes);
-        DataInputStream dataInputStream = new DataInputStream(byteIn);
         mockSocket = mock(Socket.class);
+
+        ByteArrayInputStream byteIn = new ByteArrayInputStream(responseBytes);
+
+        DataInputStream dataInputStream = new DataInputStream(byteIn);
+        DynamicDataReader clientDataReader = new DynamicDataReader(serverInfo, dataInputStream);
 
         byteOut = new ByteArrayOutputStream();
         DataOutputStream dataOutputStream = new DataOutputStream(byteOut);
+        DynamicDataWriter clientDataWriter = new DynamicDataWriter(serverInfo, byteOut);
 
         when(mockSocket.getOutputStream()).thenReturn(dataOutputStream);
         when(mockSocket.getInputStream()).thenReturn(dataInputStream);
 
         databaseClient = new DatabaseClient(mockSocket);
+
+        databaseClient.setDataWriter(clientDataWriter);
+        databaseClient.setDataReader(clientDataReader);
     }
 
-    private void setServerErrorResponse(int errorCode) throws IOException {
+    private void setServerErrorResponse(int errorCode) throws Exception {
+        mockSocket = mock(Socket.class);
+
         ByteArrayInputStream byteIn = new ByteArrayInputStream(new byte[]{
             Utility.NAK,
             (byte)((errorCode >> 8) & 0xFF),
@@ -50,15 +72,19 @@ class DatabaseClientHandshakeTest {
         });
 
         DataInputStream dataInputStream = new DataInputStream(byteIn);
-        mockSocket = mock(Socket.class);
+        DynamicDataReader clientDataReader = new DynamicDataReader(serverInfo, dataInputStream);
 
         byteOut = new ByteArrayOutputStream();
         DataOutputStream dataOutputStream = new DataOutputStream(byteOut);
+        DynamicDataWriter clientDataWriter = new DynamicDataWriter(serverInfo, byteOut);
 
         when(mockSocket.getOutputStream()).thenReturn(dataOutputStream);
         when(mockSocket.getInputStream()).thenReturn(dataInputStream);
 
         databaseClient = new DatabaseClient(mockSocket);
+
+        databaseClient.setDataWriter(clientDataWriter);
+        databaseClient.setDataReader(clientDataReader);
     }
 
     @Test
@@ -89,7 +115,7 @@ class DatabaseClientHandshakeTest {
     }
 
     @Test
-    void testGeneralProtocolError() throws IOException {
+    void testGeneralProtocolError() throws Exception {
         int errorCode = TcpErrorCode.UNKNOWN_ERROR.getCode();
         setServerErrorResponse(errorCode);
 
@@ -104,7 +130,7 @@ class DatabaseClientHandshakeTest {
     }
 
     @Test
-    void testPermissionDeniedError() throws IOException {
+    void testPermissionDeniedError() throws Exception {
         int errorCode = TcpErrorCode.PERMISSION_DENIED_CONNECTION.getCode();
         setServerErrorResponse(errorCode);
 
@@ -119,7 +145,7 @@ class DatabaseClientHandshakeTest {
     }
 
     @Test
-    void testInvalidVersionError() throws IOException {
+    void testInvalidVersionError() throws Exception {
         int errorCode = TcpErrorCode.INVALID_VERSION.getCode();
         setServerErrorResponse(errorCode);
 
@@ -155,6 +181,49 @@ class DatabaseClientHandshakeTest {
             byte[] sentPacket = byteOut.toByteArray();
             assertEquals(Utility.NAK, sentPacket[sentPacket.length - 1]);
         }
+    }
+
+    @Test
+    void testSuccessLogin() throws Exception{
+        setServerResponse(new byte[]{
+            Utility.ACK,
+        });
+
+        databaseClient.login("username", "password");
+   }
+
+   @Test
+    void testFailedLogin() throws Exception{
+       ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+       DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+       serverResponseOut.write(Utility.NAK);
+       dataOut.writeChar(0xFF02);
+
+       DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+
+       serverDataWriter.writeString("There is no user with that username.");
+       setServerResponse(serverResponseOut.toByteArray());
+
+       ServerErrorException exception = assertThrows(ServerErrorException.class, () -> {
+            databaseClient.login("username", "password");
+        });
+
+        assertEquals(0xFF02, exception.getErrorCode());
+        assertEquals("Server Error 65282: There is no user with that username.", exception.getMessage());
+    }
+
+    @Test
+    void testLoginUnknownResponse() throws Exception {
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x12);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        assertThrows(TCPClientException.class, () -> {
+            databaseClient.login("username", "password");
+        });
     }
 
 }
