@@ -3,6 +3,7 @@ package com.ase.utility;
 import com.ase.exception.ServerErrorException;
 import com.ase.exception.TCPClientException;
 import com.ase.exception.TCPClientReadException;
+import com.ase.exception.TCPClientWriteException;
 import com.ase.utility.tcp.SimpleType;
 import com.ase.utility.tcp.TcpGeneral;
 import com.ase.utility.tcp.TcpGeneralType;
@@ -26,7 +27,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DynamicDataReaderTest {
+public class DynamicDataReaderWriterTest {
     private static ServerInformation serverInfo;
     private DynamicDataReader dataReader;
     private DynamicDataWriter dataWriter;
@@ -214,6 +215,7 @@ public class DynamicDataReaderTest {
 
         double actualValue = dataReader.readDouble();
         assertEquals(expectedFloat, actualValue, "Expected float value to match as double.");
+        serverInfo.setDoubleSize(8);
     }
 
     @Test
@@ -319,6 +321,202 @@ public class DynamicDataReaderTest {
 
         assertEquals(errorCode, exception.getErrorCode(), "Expected error code to match.");
         assertEquals("Server Error 65535: " + errorMessage, exception.getMessage(), "Expected error message to match.");
+    }
+
+    @Test
+    void testWriteTCPEUISingleByte() throws Exception {
+        String testString = "aaaaaa";
+
+        dataWriter.writeString(testString);
+        byte[] expected = Utility.createTCPEUIByteArray(testString.length());
+
+        byte[] actual = byteOut.toByteArray();
+        byte[] expectedPacket = new byte[expected.length + testString.length()];
+        System.arraycopy(expected, 0, expectedPacket, 0, expected.length);
+        System.arraycopy(testString.toString().getBytes(StandardCharsets.ISO_8859_1), 0, expectedPacket, expected.length, testString.length());
+        System.arraycopy(testString.toString().getBytes(StandardCharsets.ISO_8859_1), 0, expectedPacket, expected.length, testString.length());
+
+        assertArrayEquals(expectedPacket, actual, "Expected TCP_EUI encoded length followed by string bytes.");
+    }
+
+    @Test
+    void testWriteTCPEUIMultiByte() throws Exception {
+        long value = 255;
+        byte[] expected = Utility.createTCPEUIByteArray(value);
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < value; i++) {
+            sb.append('a');
+        }
+        dataWriter.writeString(sb.toString());
+
+        byte[] actual = byteOut.toByteArray();
+        byte[] expectedPacket = new byte[expected.length + sb.length()];
+        System.arraycopy(expected, 0, expectedPacket, 0, expected.length);
+        System.arraycopy(sb.toString().getBytes(StandardCharsets.ISO_8859_1), 0, expectedPacket, expected.length, sb.length());
+
+        assertArrayEquals(expectedPacket, actual, "Expected multi-byte TCP_EUI encoded length followed by string bytes.");
+    }
+
+    /**
+     * Test writing a string that exceeds the server's size limit.
+     */
+    @Test
+    void testWriteStringExceedsLimit() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < serverInfo.getStringSize() + 1; i++) {
+            sb.append('a');
+        }
+        String longString = sb.toString();
+
+        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> {
+            dataWriter.writeString(longString);
+        });
+
+        assertEquals("Write failed. String length exceeds server limit.", exception.getMessage(),
+            "Expected exception message for exceeding string length.");
+    }
+
+    @Test
+    void testWriteBoolean() throws Exception {
+        TcpGeneral booleanTrue = TcpGeneral.ofSimple(SimpleType.BOOLEAN, true);
+        dataWriter.writeGeneral(booleanTrue);
+
+        byte[] actual = byteOut.toByteArray();
+        byte typeDef = (byte) (SimpleType.BOOLEAN.getTypeId());
+        byte expectedValue = 0x01;
+
+        byte[] expected = new byte[]{typeDef, expectedValue};
+
+        assertArrayEquals(expected, actual, "Expected TypeDefinition byte followed by 0x01 for true.");
+    }
+
+    @Test
+    void testWriteIntSuccess() throws Exception {
+        int value = 123456789;
+        TcpGeneral intValue = TcpGeneral.ofSimple(SimpleType.INT, value);
+        dataWriter.writeGeneral(intValue);
+
+        byte[] actual = byteOut.toByteArray();
+
+        byte typeDef = (byte) (SimpleType.INT.getTypeId());
+        byte[] intBytes = ByteBuffer.allocate(serverInfo.getIntSize())
+            .order(ByteOrder.BIG_ENDIAN)
+            .putInt(value)
+            .array();
+
+        byte[] expected = new byte[1 + serverInfo.getIntSize()];
+        expected[0] = typeDef;
+        System.arraycopy(intBytes, 0, expected, 1, serverInfo.getIntSize());
+
+        assertArrayEquals(expected, actual, "Expected TypeDefinition byte followed by int bytes.");
+    }
+
+    /**
+     * Test writing an integer that exceeds the server's allowed range.
+     */
+    @Test
+    void testWriteIntExceedsLimit() {
+        int value = Integer.MAX_VALUE;
+        serverInfo.setIntSize(3);
+        TcpGeneral intValue = TcpGeneral.ofSimple(SimpleType.INT, value);
+
+        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> {
+            dataWriter.writeGeneral(intValue);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to write int"),
+            "Expected exception message to mention integer out of range.");
+
+        serverInfo.setIntSize(4);
+    }
+
+    /**
+     * Test writing a double as 8-byte value.
+     */
+    @Test
+    void testWriteDoubleSuccess_Double() throws Exception {
+        serverInfo.setDoubleSize(8);
+        double value = 12345.6789;
+        TcpGeneral doubleValue = TcpGeneral.ofSimple(SimpleType.DOUBLE, value);
+        dataWriter.writeGeneral(doubleValue);
+
+        byte[] actual = byteOut.toByteArray();
+
+        byte typeDef = (byte) (SimpleType.DOUBLE.getTypeId() | 0);
+        byte[] doubleBytes = ByteBuffer.allocate(serverInfo.getDoubleSize())
+            .order(ByteOrder.BIG_ENDIAN)
+            .putDouble(value)
+            .array();
+
+        byte[] expected = new byte[1 + serverInfo.getDoubleSize()];
+        expected[0] = typeDef;
+        System.arraycopy(doubleBytes, 0, expected, 1, serverInfo.getDoubleSize());
+
+        assertArrayEquals(expected, actual, "Expected TypeDefinition byte followed by double bytes.");
+    }
+
+    @Test
+    void testWriteDouble_Success_Float() throws Exception {
+        serverInfo.setDoubleSize(4);
+        double value = 12345.67;
+        TcpGeneral doubleValue = TcpGeneral.ofSimple(SimpleType.DOUBLE, value);
+        dataWriter.writeGeneral(doubleValue);
+
+        byte[] actual = byteOut.toByteArray();
+        // TypeDefinition for SIMPLE DOUBLE: typeId | flags (no COMPLEX)
+        byte typeDef = (byte) (SimpleType.DOUBLE.getTypeId() | 0);
+        byte[] floatBytes = ByteBuffer.allocate(4)
+            .order(ByteOrder.BIG_ENDIAN)
+            .putFloat((float) value)
+            .array();
+
+        byte[] expected = new byte[1 + 4];
+        expected[0] = typeDef;
+        System.arraycopy(floatBytes, 0, expected, 1, 4);
+
+        assertArrayEquals(expected, actual, "Expected TypeDefinition byte followed by float bytes.");
+        serverInfo.setDoubleSize(8);
+    }
+
+    @Test
+    void testWriteDoubleExceedsFloatRange() {
+        serverInfo.setDoubleSize(4);
+        double largeDouble = Float.MAX_VALUE * 2;
+        TcpGeneral doubleValue = TcpGeneral.ofSimple(SimpleType.DOUBLE, largeDouble);
+
+        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> {
+            dataWriter.writeGeneral(doubleValue);
+        });
+
+        assertTrue(exception.getMessage().contains("out of range"),
+            "Expected exception message to mention double out of range.");
+        serverInfo.setDoubleSize(8);
+    }
+
+    @Test
+    void testWriteUnsignedIntSuccess() throws Exception {
+        long unsignedInt = 4000000000L; // 0xEE6B2800
+        dataWriter.writeUnsignedInt(unsignedInt);
+
+        byte[] actual = byteOut.toByteArray();
+        byte[] expected = ByteBuffer.allocate(4)
+            .order(ByteOrder.BIG_ENDIAN)
+            .putInt((int) unsignedInt)
+            .array();
+
+        assertArrayEquals(expected, actual, "Expected unsigned int bytes to match.");
+    }
+
+    @Test
+    void testWriteUnsignedIntOutOfRange() {
+        long invalidUnsignedInt = 5000000000L; // Exceeds 0xFFFFFFFF
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            dataWriter.writeUnsignedInt(invalidUnsignedInt);
+        });
+
+        assertTrue(exception.getMessage().contains("out of range"),
+            "Expected exception message to mention unsigned int out of range.");
     }
 
     @Test
