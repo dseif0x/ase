@@ -310,6 +310,7 @@ public class DynamicDataWriter {
                         flags |= TypeFlag.ARRAY.getBitmask();
                         type = value.getElementType();
                     }
+                    break;
                 case PAIR:
                     if (value.isComplex()) {
                         flags |= TypeFlag.COMPLEX.getBitmask();
@@ -318,6 +319,7 @@ public class DynamicDataWriter {
                         flags |= TypeFlag.PAIR.getBitmask();
                         type = value.getElementType();
                     }
+                    break;
                 case KEY_MAP:
                     flags |= TypeFlag.KEY.getBitmask();
                     break;

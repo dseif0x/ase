@@ -108,7 +108,7 @@ public class TcpGeneral {
     }
 
     public SimpleType getElementType() {
-        if (((array == null || array.isEmpty()) && pair == null) || !isComplex()) {
+        if (type == TcpGeneralType.SIMPLE || type == TcpGeneralType.KEY_MAP || isComplex()) {
             throw new IllegalStateException("Cannot get element type for empty array or pair.");
         } else {
             switch (type) {
@@ -130,8 +130,9 @@ public class TcpGeneral {
                 return array.stream().anyMatch(TcpGeneral::_isComplex);
             case PAIR:
                 return pair.getLeft()._isComplex();
-            case SIMPLE:
             case KEY_MAP:
+                return true;
+            case SIMPLE:
             default:
                 return false;
         }
