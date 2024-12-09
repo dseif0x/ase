@@ -10,7 +10,7 @@
 #include <iostream>
 #include <cassert>
 
-CopiedValue::CopiedValue(const Value &value) {
+CopiedValue::CopiedValue(const Value &value, shmem& mem) {
     type = value.type;
     if (type == ValueType::INT) {
         data.emplace<int>(get<int>(value.data));
@@ -22,17 +22,17 @@ CopiedValue::CopiedValue(const Value &value) {
         auto& array = get<ArrayType>(value.data);
         auto& local_array = data.emplace<copied_array_t>();
         for (size_t i = 0; i < array.size; i++) {
-            local_array.emplace_back(array.array_value.get()[i]);
+            local_array.emplace_back(array.array_value.get()[i], mem);
         }
     } else if (type == ValueType::PAIR) {
         auto& pair = get<Value::shmem_pair_t>(value.data);
-        data.emplace<CopiedValue::copied_pair_t>() = {std::make_unique<CopiedValue>(*pair.first), std::make_unique<CopiedValue>(*pair.second)};
+        data.emplace<CopiedValue::copied_pair_t>() = {std::make_unique<CopiedValue>(*pair.first, mem), std::make_unique<CopiedValue>(*pair.second, mem)};
     } else if (type == ValueType::MAP) {
         auto& map = get<Value::shmem_map_t>(value.data);
         auto& local_map = data.emplace<CopiedValue::copied_map_t>();
-        for (auto& key : map->atomic_keys()) {
-            auto& val = *map->atomic_get(key.c_str());
-            local_map.emplace(key, std::make_unique<CopiedValue>(val));
+        for (auto& key : map->atomic_keys(mem)) {
+            auto& val = *map->atomic_get(mem, key.c_str());
+            local_map.emplace(key, std::make_unique<CopiedValue>(val, mem));
         }
     } else if (type == ValueType::STRING || type == ValueType::REFERENCE) {
         auto& str = get<Value::shmem_string_t>(value.data);
@@ -142,7 +142,7 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
             new_value->data.emplace<Value::shmem_pair_t>(pair_v1.get_relative(mem), pair_v2.get_relative(mem));
         });
     } else if (value.type == ValueType::MAP) {
-        auto shmem_map = mem.construct<Value::shmem_map>(mem);
+        auto shmem_map = mem.construct<Value::shmem_map>();
         auto& local_map = get<CopiedValue::copied_map_t>(value.data);
         for (auto& [key, val] : local_map) {
             auto shmem_value = create_value(mem, *val);
@@ -171,10 +171,12 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
     assert(locks_held && "LOCKS MUST BE HELD");
     if (value.get(mem)->type == ValueType::MAP) {
         auto& data = std::get<shmem_map_t>(value.get(mem)->data);
-        for(auto& key : data->keys()) {
-            auto child = data->get(key.c_str());
+        auto& shmemap = *data;
+        for(int i = 0; i < shmemap.used_size; i++) {
+            auto* dataarr = shmemap.data.get(mem);
+            auto& child = std::get<1>(dataarr[i]);
             // TODO This causes some sort of race condition (invalid free blocks in memory)
-            //destroy_value(mem, mem.relative_to_offset(child), locks_held);
+            // destroy_value(mem, child, locks_held);
         }
         // TODO This causes some sort deadlock (maybe the lock being destroyed is still locked somewhere?)
         //data->~db_map();
