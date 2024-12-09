@@ -342,12 +342,16 @@ public class DynamicDataWriter {
         switch (simpleType) {
             case BOOLEAN:
                 writeBoolean((boolean) value);
+                break;
             case INT:
                 writeInt((int) value);
+                break;
             case STRING:
                 writeString((String) value);
+                break;
             case DOUBLE:
                 writeDouble((double) value);
+                break;
             default:
                 throw new TCPClientWriteException("Unsupported SimpleType: " + simpleType);
         }

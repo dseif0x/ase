@@ -185,6 +185,8 @@ public class DatabaseClient {
     public WebReturn<Integer> set(String key, TcpGeneral value, boolean force) {
         if (key == null || key.isEmpty()) {
             return WebReturn.error("Key must not be null or empty.");
+        } else if (value == null) {
+            return WebReturn.error("Value must not be null.");
         }
 
         try {
