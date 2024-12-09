@@ -18,5 +18,14 @@ target_link_libraries(server_static PUBLIC core_static)
 target_link_libraries(server_static PUBLIC db_static)
 target_include_directories(server_static PUBLIC include)
 
-add_executable(tcp_test tcp_test.cpp)
+add_executable(tcp_test main.cpp)
 target_link_libraries(tcp_test server_static)
+
+#gTest
+enable_testing()
+file(GLOB TEST_SOURCES "tests/*.cpp")
+add_executable(gtest_server ${TEST_SOURCES})
+target_include_directories(gtest_server PUBLIC tests/include)
+target_link_libraries(gtest_server PRIVATE server_static GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(gtest_server)

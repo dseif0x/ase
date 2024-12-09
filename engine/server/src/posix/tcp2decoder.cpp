@@ -25,15 +25,14 @@ client_socket(client_socket), pipe_lock(pipe_lock), kys(false) {
 }
 
 void TCP2Decoder::read_data() {
+    this->pipe_lock->lock();
     FD_ZERO(&this->readfds);
     FD_SET(this->client_socket, &this->readfds);
     int sel;
-    {
-        std::lock_guard<std::mutex> lock(*this->pipe_lock);
-        sel = select(this->client_socket + 1, &this->readfds, nullptr, nullptr, &this->timeout);
-    }
+    sel = select(this->client_socket + 1, &this->readfds, nullptr, nullptr, &this->timeout);
     if (sel > 0) {
         bytesReceived = recv(this->client_socket, tcp_buffer, BUFFER_SIZE, 0);
+        this->pipe_lock->unlock();
         if (bytesReceived == 0) {
             std::cout << "Client disconnected.\n";
             this->error_msg = "Client disconnected";
@@ -52,8 +51,10 @@ void TCP2Decoder::read_data() {
     } else if (sel == 0) {
         // in case of timeout sleep for a bit to give others time to access pipe mutex
         // this way large data pack would not be slowed down, as we only sleep in case of nothing arriving
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // todo replace with yield
+        this->pipe_lock->unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     } else {
+        this->pipe_lock->unlock();
         std::cerr << "select error: " << strerror(errno) << std::endl;
         this->error_msg = "error: select: " + std::string(strerror(errno));
         this->kys = true;

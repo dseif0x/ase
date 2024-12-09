@@ -7,6 +7,9 @@
 #include <iostream>
 #include <thread>
 #include "tcp2_utils.h"
+
+#include <stopwatch.h>
+
 #include "tcp2_server.h"
 #include "decoder.h"
 
@@ -38,14 +41,22 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::get;
             perms = permissions::read;
             break;
+        case 0x02: //SET
+            func = command::safe_set;
+            perms = permissions::write;
+            break;
+        case 0x03: //forced-SET
+            func = command::forced_set;
+            perms = permissions::write_del;
+            break;
+        case 0x04: //DELETE
+            func = command::del;
+            perms = permissions::del;
+            break;
         // ACL Commands
         case 0x81: // Update Scope
             func = command::update_scope;
             perms = permissions::admin;
-            break;
-        case 0xAA: //test, to be deleted
-            func = command::testing;
-            perms = permissions::none;
             break;
         default:
             error = errors::unknown_command;
@@ -64,11 +75,10 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
     }
 
     if (error == 0) {
-        return func(decoder, encoder, ci);
+        return func(decoder, encoder, ci);;
     } else {
         encoder.from_nak();
         encoder.encode_error(error);
-        decoder.clear_buffer(200);
         return -1;
     }
 }
@@ -116,29 +126,21 @@ int tcp2_utils::command::disconnect(TCP2Decoder &decoder, TCP2Encoder &encoder, 
 }
 
 int tcp2_utils::command::get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
-    std::cout << "in get" << std::endl;
     std::string key_str = decoder.to_string();
-    std::cout << "key:" << key_str << std::endl;
     auto key = tcp2_utils::check_and_create_key(key_str);
 
     if (!key) {
-        std::cout << "errror 1" << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::invalid_key);
         return -1;
     }
-    std::cout << "sep key:";
-    for (auto &x : *key) std::cout << x << ", ";
-    std::cout << std::endl;
     if (!info.user->has_permission(*key, permissions::read)) {
-        std::cout << "errror 2" << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::permission_denied);
         return -1;
     }
     auto res = info.db.get(key_str.c_str());
     if (!res) {
-        std::cout << "errror 3, key:" << key_str.c_str() << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::key_not_found);
         return -1;
@@ -146,7 +148,6 @@ int tcp2_utils::command::get(TCP2Decoder &decoder, TCP2Encoder &encoder, Command
     res->print();
     encoder.from_ack();
     if (!encoder.from_general(*res)) {
-        std::cout << "errror 4" << std::endl;
         // this should normally never happen, as the data here is extracted directly from the db and therefore correct
         encoder.clear_buffer();
         encoder.from_nak();
@@ -163,14 +164,12 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
     auto key = tcp2_utils::check_and_create_key(key_str);
 
     if (!key) {
-        std::cout << "errror 1" << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::invalid_key);
         return -1;
     }
 
     if (!info.acl.has_user(username)) {
-        std::cout << "errror 2" << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::user_not_found);
         return -1;
@@ -178,7 +177,6 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
 
     if (!info.acl.update_key_permission(username, *key, permission)) {
         // this should never happen
-        std::cout << "errror 3" << std::endl;
         encoder.from_nak();
         encoder.encode_error(errors::general_server_error);
         return -1;
@@ -188,23 +186,72 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
     return 0;
 }
 
-int tcp2_utils::command::testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
-    std::cout << "starting to_general" << std::endl;
+int set_helper(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info, bool force) {
+    std::string key_str = decoder.to_string();
+    auto key = tcp2_utils::check_and_create_key(key_str);
 
-    if (auto val = decoder.to_general()) {
-        std::cout << "decoding success!" << std::endl;
-        std::cout << "starting printing" << std::endl;
-        val->print();
-        encoder.from_ack();
-        std::cout << "start from_general" << std::endl;
-        encoder.from_general(*val);
-        std::cout << "starting printing" << std::endl;
-        val->print();
-    } else {
+    if (!key) {
         encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+    if (!info.user->has_permission(*key, force ? tcp2_utils::permissions::write_del : tcp2_utils::permissions::write)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::permission_denied);
+        return -1;
+    }
+    auto val = decoder.to_general();
+    if (!val) {
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_value);
+        return -1;
     }
 
-    std::cout << std::endl << "all done testing" << std::endl;
+    val->print();
+
+    try {
+        info.db.set(key_str.c_str(), std::move(*val), force);
+        encoder.from_ack();
+    } catch (...) {
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+    return 0;
+}
+
+int tcp2_utils::command::safe_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    return set_helper(decoder, encoder, info, false);
+}
+
+int tcp2_utils::command::forced_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    return set_helper(decoder, encoder, info, true);
+}
+
+int tcp2_utils::command::del(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string key_str = decoder.to_string();
+    auto key = check_and_create_key(key_str);
+
+    if (!key) {
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+    if (!info.user->has_permission(*key, permissions::del)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::permission_denied);
+        return -1;
+    }
+
+    try {
+        info.db.remove(key_str.c_str());
+        encoder.from_ack();
+    } catch (...) {
+        // can this even happen?
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
     return 0;
 }
 
@@ -217,7 +264,6 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
 
     int state = 0;
     while (decoder.is_healthy()) {
-        std::cout << "state:" << state << std::endl;
         if (state < 0) {
             if (encoder.is_empty()) break;
         } else if (state == 0) {
@@ -246,6 +292,8 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             encoder.from_unsigned(1, sizeof(char)); // size of char
             encoder.from_unsigned(1, sizeof(double)); // size of double
             encoder.from_unsigned(1, sizeof(int)); // size of semaphore // todo send actual size
+            encoder.from_unsigned(2, 16384);
+            encoder.from_unsigned(2, 16384);
             state = 1;
         } else if (state == 1) {
             if (decoder.to_acknak() != 1) {
@@ -271,8 +319,12 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             ci = std::make_unique<CommandInfo>(user, acl, db);
         } else if (state == 2) {
             // logged in and ready for commands
-            switch (client_command_switch(decoder, encoder, *ci, self_perms)) {
+            stopwatch s4{};
+            s4.start();
+            int temp_ret = client_command_switch(decoder, encoder, *ci, self_perms);
+            switch (temp_ret) {
                 case -1: // error, but recovered
+                    decoder.clear_buffer();
                 case 0: // executed fine
                     break;
                 case 1: // soft shutdown
@@ -290,6 +342,9 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
         while (!encoder.is_empty()) {
             // stop is only valid if the connection is achieved and the user is logged in
             if (state == 2 && decoder.is_stop()) {
+                decoder.clear_buffer();
+                encoder.clear_buffer();
+                encoder.from_ack();
                 break;
             }
             if (!encoder.write_data()) {
@@ -300,7 +355,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
         }
     }
     acl.disconnect(username);
-    std::cout << "state machine end" << std::endl;
+    decoder.set_kys();
 }
 
 

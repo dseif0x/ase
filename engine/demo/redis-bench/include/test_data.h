@@ -23,7 +23,7 @@ inline std::unordered_map<std::string, std::string> get_test_data() {
 inline void print_stopwatch(stopwatch& s, std::string prefix = "Time: ") {
     auto duration = s.peek();
     auto microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-    if (microsduration < 1000) {
+    if (microsduration < 9999) {
         std::cout << prefix << microsduration << "µs" << std::endl;
     } else {
         std::cout << prefix << microsduration / 1000 << "ms" << std::endl;

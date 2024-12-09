@@ -1,0 +1,99 @@
+.acl-editor {
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+    color: #333;
+}
+
+h2 {
+    margin-bottom: 20px;
+}
+
+.value-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    padding: 5px;
+    font-size: 1rem;
+    width: 100px;
+}
+
+select {
+    padding: 5px;
+    font-size: 1rem;
+}
+
+.permissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.permissions-table th,
+.permissions-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+}
+
+.permissions-table th {
+    background-color: #f9f9f9;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: red;
+    cursor: pointer;
+}
+
+.add-btn {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.add-btn:hover {
+    background-color: #45a049;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.cancel-btn,
+.update-btn {
+    padding: 8px 15px;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.cancel-btn {
+    background-color: #ccc;
+}
+
+.update-btn {
+    background-color: #4caf50;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background-color: #bbb;
+}
+
+.update-btn:hover {
+    background-color: #45a049;
+}

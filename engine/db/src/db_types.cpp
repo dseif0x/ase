@@ -8,6 +8,7 @@
 #include "db_types.h"
 
 #include <iostream>
+#include <cassert>
 
 CopiedValue::CopiedValue(const Value &value) {
     type = value.type;
@@ -44,48 +45,55 @@ CopiedValue::CopiedValue(const Value &value) {
     }
 }
 
+std::string CopiedValue::get_python_style(CopiedValue &val) {
+    std::string res = "";
+    if (val.type == ValueType::INT) {
+        res += std::to_string(std::get<int>(val.data));
+    } else if (val.type == ValueType::STRING) {
+        res += "\"" + std::get<std::string>(val.data) + "\"";
+    } else if (val.type == ValueType::DOUBLE) {
+        res += std::to_string(std::get<double>(val.data));
+    } else if (val.type == ValueType::BOOLEAN) {
+        res += std::to_string(std::get<bool>(val.data));
+    } else if (val.type == ValueType::PAIR) {
+        auto &temp = std::get<CopiedValue::copied_pair_t>(val.data);
+        res += "(";
+        res += get_python_style(*temp.first);
+        res += ", ";
+        res += get_python_style(*temp.second);
+        res += ")";
+    } else if (val.type == ValueType::ARRAY) {
+        res += "[";
+        auto &temp = std::get<CopiedValue::copied_array_t>(val.data);
+        for (int x = 0; x < temp.size(); x++) {
+            if (x != 0) res += ", ";
+            res += get_python_style(temp[x]);
+        }
+        res += "]";
+    } else if (val.type == ValueType::MAP) {
+        res += "{";
+        auto &temp = std::get<CopiedValue::copied_map_t>(val.data);
+        bool nfirst = false;
+        for (auto& [key, value] : temp) {
+            if (nfirst) res += ", ";
+            nfirst = true;
+            res += key + ": ";
+            res += get_python_style(*value);
+        }
+        res += "}";
+    } else {
+        res += "?????";
+    }
+    return res;
+}
+
+
 void CopiedValue::print() {
     CopiedValue::print(*this);
 }
 
 void CopiedValue::print(CopiedValue &val) {
-    if (val.type == ValueType::INT) {
-        std::cout << std::get<int>(val.data);
-    } else if (val.type == ValueType::STRING) {
-        std::cout << "\"" << std::get<std::string>(val.data) << "\"";
-    } else if (val.type == ValueType::DOUBLE) {
-        std::cout << std::get<double>(val.data);
-    } else if (val.type == ValueType::BOOLEAN) {
-        std::cout << std::get<bool>(val.data);
-    } else if (val.type == ValueType::PAIR) {
-        auto &temp = std::get<CopiedValue::copied_pair_t>(val.data);
-        std::cout << "(";
-        print(*temp.first);
-        std::cout << ", ";
-        print(*temp.second);
-        std::cout << ")";
-    } else if (val.type == ValueType::ARRAY) {
-        std::cout << "[";
-        auto &temp = std::get<CopiedValue::copied_array_t>(val.data);
-        for (int x = 0; x < temp.size(); x++) {
-            if (x != 0) std::cout << ", ";
-            print(temp[x]);
-        }
-        std::cout << "]";
-    } else if (val.type == ValueType::MAP) {
-        std::cout << "{";
-        auto &temp = std::get<CopiedValue::copied_map_t>(val.data);
-        bool nfirst = false;
-        for (auto& [key, value] : temp) {
-            if (nfirst) std::cout << ", ";
-            nfirst = true;
-            std::cout << key << ": ";
-            print(*value);
-        }
-        std::cout << "}";
-    } else {
-        std::cout << "Value found, but type (" << (int)val.type << ") not handeled" << std::endl;
-    }
+    std::cout << CopiedValue::get_python_style(val) << std::endl;
 }
 
 offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
@@ -160,6 +168,26 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
 }
 
 void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) {
-    // TODO recursively destroy other values
+    assert(locks_held && "LOCKS MUST BE HELD");
+    if (value.get(mem)->type == ValueType::MAP) {
+        auto& data = std::get<shmem_map_t>(value.get(mem)->data);
+        for(auto& key : data->keys()) {
+            auto child = data->get(key.c_str());
+            // TODO This causes some sort of race condition (invalid free blocks in memory)
+            //destroy_value(mem, mem.relative_to_offset(child), locks_held);
+        }
+        // TODO This causes some sort deadlock (maybe the lock being destroyed is still locked somewhere?)
+        //data->~db_map();
+    } else if (value.get(mem)->type == ValueType::ARRAY) {
+        auto& data = std::get<ArrayType>(value.get(mem)->data);
+        mem.destroy_array(mem.relative_to_offset(data.array_value), data.size, locks_held);
+    } else if (value.get(mem)->type == ValueType::PAIR) {
+        auto& data = std::get<shmem_pair_t>(value.get(mem)->data);
+        destroy_value(mem, mem.relative_to_offset(data.first), locks_held);
+        destroy_value(mem, mem.relative_to_offset(data.second), locks_held);
+    } else if (value.get(mem)->type == ValueType::STRING || value.get(mem)->type == ValueType::REFERENCE) {
+        auto& data = std::get<shmem_string_t>(value.get(mem)->data);
+        mem.destroy_array(mem.relative_to_offset(data), 0, locks_held);
+    }
     mem.destroy(value, locks_held);
 }

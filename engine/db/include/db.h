@@ -27,7 +27,7 @@ public:
     DB();
     ~DB();
 
-    void destroy();
+    static void destroy();
 
     // Core Commands
 

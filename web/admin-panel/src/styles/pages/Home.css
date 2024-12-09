@@ -1,0 +1,36 @@
+.home-page {
+    text-align: center;
+    background-color: #f4f4f9;
+    padding: 50px;
+    font-family: Arial, sans-serif;
+}
+
+.home-header h1 {
+    font-size: 3rem;
+    color: #333;
+}
+
+.home-header p {
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.home-buttons {
+    margin-top: 20px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 10px;
+    font-size: 1rem;
+    text-decoration: none;
+    color: white;
+    background-color: #007bff;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
