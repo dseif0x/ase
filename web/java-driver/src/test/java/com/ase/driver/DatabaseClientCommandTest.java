@@ -455,7 +455,7 @@ public class DatabaseClientCommandTest {
     @Test
     void testUpdateScopeTcpClientException() throws Exception {
         String username = "testuser";
-        String password = "securepassword";
+        String key = "scopeKey";
         byte options = 0x00;
 
         ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
@@ -468,9 +468,110 @@ public class DatabaseClientCommandTest {
 
         setServerResponse(serverResponseOut.toByteArray());
 
-        WebReturn<Integer> result = databaseClient.updateScope(username, password, options);
+        WebReturn<Integer> result = databaseClient.updateScope(username, key, options);
 
         assertFalse(result.isOk(), "Expected updateScope to fail after NAK response.");
+        assertNotNull(result.getMessage(), "Expected an error message due to server error.");
+        assertTrue(result.getMessage().contains("Failed to read string."),
+            "Expected readString to fail.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    /**
+     * Tests successful delete of key.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteSuccess() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertTrue(result.isOk(), "Expected delete to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+    /**
+     * Test the delete method with a server response of NAK and server error response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteServerError() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeChar(0x0100);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+        serverDataWriter.writeString("Invalid Key.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertFalse(result.isOk(), "Expected delete to fail with NAK.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("Invalid Key."),
+            "Expected the error message to match the server response.");
+        assertNotNull(result.getData(), "Expected no data on failure.");
+    }
+
+    /**
+     * Test the delete method with an unexpected server response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteUnexpectedResponse() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x12); // Unexpected response
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertFalse(result.isOk(), "Expected delete to fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("unknown response"),
+            "Expected the error message to indicate an unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+        assertEquals(0x12, result.getData(), "Expected the response byte to match.");
+    }
+
+    /**
+     * Test the delete method with a TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteTcpClientException() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(serverResponseOut);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOutputStream.write(0xFF00); // Will not write as unsigned short so readString will fail
+        serverDataWriter.writeString("Permission denied"); // Will not be read
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertFalse(result.isOk(), "Expected delete to fail after NAK response.");
         assertNotNull(result.getMessage(), "Expected an error message due to server error.");
         assertTrue(result.getMessage().contains("Failed to read string."),
             "Expected readString to fail.");
