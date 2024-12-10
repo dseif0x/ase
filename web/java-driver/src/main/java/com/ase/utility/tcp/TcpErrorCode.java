@@ -67,6 +67,24 @@ public enum TcpErrorCode {
     }
 
     /**
+     * Retrieves the code of the error.
+     *
+     * @return The code of the error.
+     */
+    public int getCode() {
+        return code;
+    }
+
+    /**
+     * Retrieves the description of the error.
+     *
+     * @return The description of the error.
+     */
+    public String getDescription() {
+        return description;
+    }
+
+    /**
      * Provides a formatted string representation of the error.
      *
      * @return A string containing the error code, name, and description.

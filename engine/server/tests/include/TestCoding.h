@@ -48,6 +48,14 @@ public:
         return std::vector<unsigned char>(data_pair.first.get(), data_pair.first.get() + data_pair.second);
     }
 
+    std::vector<unsigned char> _get_all_bytes() {
+        std::vector<unsigned char> res{};
+        while (!this->is_empty()) {
+            res.push_back(this->_get_bytes(1)[0]);
+        }
+        return res;
+    }
+
     bool write_data() override {
         return true;
     }

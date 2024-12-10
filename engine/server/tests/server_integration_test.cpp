@@ -7,6 +7,9 @@
 
 #include <gtest/gtest.h>
 #include "tcp2_server.h"
+#include "encoder.h"
+#include "decoder.h"
+#include "TestCoding.h"
 
 #include <string>
 #include <poll.h>
@@ -43,23 +46,34 @@ private:
 
 class IntegrationTests_TCPServer : public ::testing::Test {
 public:
-    IntegrationTests_TCPServer() : max_clients {63} {
+    IntegrationTests_TCPServer() : max_clients {63}, db(nullptr) {
+        {
+            DB db{};
+            db.destroy();
+        }
     }
 
     void SetUp() override {
+        this->db = new DB();
         ServerPort::instance().increment();
         std::cout << "PORT:" << ServerPort::instance().get() << std::endl;
-        this->server = std::make_unique<TCP2Server>(this->acl, this->db, ServerPort::instance().get(), this->max_clients);
+        this->server = std::make_unique<TCP2Server>(this->acl, *this->db, ServerPort::instance().get(), this->max_clients);
         this->server->start();
     }
 
     void TearDown() override {
         server->stop();
+        this->db->destroy();
+        delete this->db;
+    }
+
+    DB* get_db() {
+        return this->db;
     }
 
 private:
     ACL acl{};
-    DB db{};
+    DB* db;
     int max_clients;
 
     std::unique_ptr<TCP2Server> server;
@@ -190,7 +204,8 @@ private:
     int sock_fd_;
 };
 
-
+constexpr int wait_time_success = 150;
+constexpr int wait_time_error = wait_time_success + 250; // the server will wait for 250 seconds, therefore we have to also wait 250 more
 
 TEST_F(IntegrationTests_TCPServer, login_admin) {
     DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
@@ -202,7 +217,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin) {
 
     ASSERT_TRUE(client.send_message(client_information_package));
 
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
 
     // check actual data: ack + server information package
@@ -216,7 +231,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
     ASSERT_TRUE(client.send_message(user_info_pack));
 
-    auto logged_in = client.receive_message(100);
+    auto logged_in = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     client.close_connection();
@@ -231,11 +246,11 @@ TEST_F(IntegrationTests_TCPServer, login_unknown) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 04 616D696E 07 726F6F74707764");
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // already connected
@@ -251,11 +266,11 @@ TEST_F(IntegrationTests_TCPServer, login_invalid_passwd) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 06 726F6F707764");
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x03); // already connected
@@ -270,7 +285,7 @@ TEST_F(IntegrationTests_TCPServer, login_to_much_info) {
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F, 0xab};
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xFF); // general protocol error
@@ -285,7 +300,7 @@ TEST_F(IntegrationTests_TCPServer, login_invalid_version) {
     std::vector<unsigned char> client_information_package{0xFF, 0xFF, 0x0F};
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x01); // already connected
@@ -301,17 +316,17 @@ TEST_F(IntegrationTests_TCPServer, login_admin_and_stop) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto logged_in = client.receive_message(100);
+    auto logged_in = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     // logged in
 
     ASSERT_TRUE(client.send_message({0xFE}));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(res, {0xFF}));
     client.close_connection();
 }
@@ -324,17 +339,17 @@ TEST_F(IntegrationTests_TCPServer, login_admin_and_ping) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto logged_in = client.receive_message(100);
+    auto logged_in = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     // logged in
 
     ASSERT_TRUE(client.send_message({0xFD, 0x01, 0x02, 0x03, 0x04}));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(res, {0xFF, 0x01, 0x02, 0x03, 0x04}));
     client.close_connection();
 }
@@ -347,17 +362,17 @@ TEST_F(IntegrationTests_TCPServer, login_admin_and_disconnect) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto logged_in = client.receive_message(100);
+    auto logged_in = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     // logged in
 
     ASSERT_TRUE(client.send_message({0xFC}));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(res, {0xFF, 0x08, 'G', 'o', 'o', 'd', 'b', 'y', 'e', '!'}));
     ASSERT_FALSE(client.is_connection_open());
     client.close_connection();
@@ -371,11 +386,11 @@ TEST_F(IntegrationTests_TCPServer, login_admin_twice) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto logged_in = client.receive_message(100);
+    auto logged_in = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     // admin logged in
@@ -384,11 +399,11 @@ TEST_F(IntegrationTests_TCPServer, login_admin_twice) {
     ASSERT_TRUE(client2.connect_to_server());
 
     ASSERT_TRUE(client2.send_message(client_information_package));
-    auto server_information_package2 = client2.receive_message(100);
+    auto server_information_package2 = client2.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package2.size() == 10);
     ASSERT_TRUE(server_information_package2[0] == 0xFF);
     ASSERT_TRUE(client2.send_message(user_info_pack));
-    auto res = client2.receive_message(100);
+    auto res = client2.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x04); // already connected
 }
@@ -401,30 +416,293 @@ TEST_F(IntegrationTests_TCPServer, login_admin_update_scope) {
     std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto server_information_package = client.receive_message(100);
+    auto server_information_package = client.receive_message(wait_time_success);
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto logged_in = client.receive_message(100);
+    auto logged_in = client.receive_message(wait_time_success);
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     // admin logged in
 
     ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 09 246F72662E6E657773 03")));
-    auto res = client.receive_message(100);
+    auto res = client.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
 
     ASSERT_TRUE(client.send_message(make_hex_vector("81 05 11646D696E 09 2E6F72662E6E657773 03")));
-    res = client.receive_message(100);
+    res = client.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // user not found
 
     ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 09 2E6F72662E6E657773 03")));
-    res = client.receive_message(100);
+    res = client.receive_message(wait_time_success);
     ASSERT_TRUE(res.size() == 1);
     ASSERT_TRUE(res[0] == 0xFF);
 
     client.close_connection();
 }
 
+TEST_F(IntegrationTests_TCPServer, login_admin_get) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    auto db = get_db();
+
+    // add value to db
+    CopiedValue newval5{};
+    newval5.type = ValueType::ARRAY;
+    auto& vector = newval5.data.emplace<CopiedValue::copied_array_t>();
+
+    CopiedValue arrval1{};
+    arrval1.type = ValueType::INT;
+    arrval1.data.emplace<int>(13);
+    CopiedValue arrval2{};
+    arrval2.type = ValueType::INT;
+    arrval2.data.emplace<int>(12);
+
+    vector.emplace_back(std::move(arrval1));
+    vector.emplace_back(std::move(arrval2));
+
+    TestGenericEncoder enc{};
+    enc.from_ack();
+    enc.from_general(newval5);
+    auto correct_get = enc._get_all_bytes();
+
+    db->set(".test.sub.val", std::move(newval5), true);
+
+    // correct access, get value
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E746573742E7375622E76616C")));
+    auto res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(res, correct_get));
+
+    // invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E246573742E7375622E76616C")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
+
+    // invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E676573742E7375622E76616C")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01); // key not found
+
+    // remove all permissions
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 01 2e 00")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res[0] == 0xFF); // ack
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E676573742E7375622E76616C")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
+
+    client.close_connection();
+}
+
+TEST_F(IntegrationTests_TCPServer, login_admin_self_permission) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x00};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E246573742E7375622E76616C")));
+    auto res = client.receive_message(wait_time_error);
+    print_vec(res);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xF0); // self perm denied
+}
+
+TEST_F(IntegrationTests_TCPServer, login_admin_set) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    auto db = get_db();
+
+    //correct hex: "02 0d 2E746573742E7375622E76616C 03 07 7465737476616C"
+
+    // invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E246573742E7375622E76616C 03 07 7465737476616C")));
+    auto res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
+
+    // correct access, set value
+    ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E746573742E7375622E76616C 03 07 7465737476616C")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(res, {0xFF}));
+    auto val_db = db->get(".test.sub.val");
+    ASSERT_TRUE(val_db);
+    ASSERT_TRUE(val_db->type == ValueType::STRING);
+    ASSERT_TRUE(std::get<std::string>(val_db->data).compare("testval") == 0);
+
+    // try write again different value on same key without force
+    ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E746573742E7375622E76616C 03 08 746573743276616C")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF); // unsafe write -> not detectable currently
+
+    auto val_db2 = db->get(".test.sub.val");
+    ASSERT_TRUE(val_db2);
+    ASSERT_TRUE(val_db2->type == ValueType::STRING);
+    ASSERT_TRUE(std::get<std::string>(val_db2->data).compare("testval") == 0);
+
+    // remove all permissions
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 01 2e 00")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF); // ack
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E746573742E7375622E76616C 03 07 7465737476616C")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
+
+    client.close_connection();
+}
+
+TEST_F(IntegrationTests_TCPServer, login_admin_forced_set) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    auto db = get_db();
+
+    //correct hex: "02 0d 2E746573742E7375622E76616C 03 07 7465737476616C"
+
+    // correct access, set value
+    ASSERT_TRUE(client.send_message(make_hex_vector("03 0d 2E746573742E7375622E76616C 03 07 7465737476616C")));
+    auto res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(res, {0xFF}));
+    auto val_db = db->get(".test.sub.val");
+    ASSERT_TRUE(val_db);
+    ASSERT_TRUE(val_db->type == ValueType::STRING);
+    ASSERT_TRUE(std::get<std::string>(val_db->data).compare("testval") == 0);
+
+    // try write again different value on same key without force
+    ASSERT_TRUE(client.send_message(make_hex_vector("03 0d 2E746573742E7375622E76616C 03 08 746573743276616C")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF); // unsafe write -> not detectable currently
+
+    auto val_db2 = db->get(".test.sub.val");
+    ASSERT_TRUE(val_db2);
+    ASSERT_TRUE(val_db2->type == ValueType::STRING);
+    ASSERT_TRUE(std::get<std::string>(val_db2->data).compare("test2val") == 0);
+
+    client.close_connection();
+}
+
+TEST_F(IntegrationTests_TCPServer, login_admin_del) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    auto db = get_db();
+
+    {
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(42);
+        db->set(".top.sub.val1", std::move(newval), false);
+    }
+    {
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(69);
+        db->set(".top.sub.val2", std::move(newval), false);
+    }
+
+    // key hex:2E746F702E7375622E76616C31 (len13)
+
+    // invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E246F702E7375622E76616C31")));
+    auto res = client.receive_message(wait_time_error);
+    print_vec(res);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
+
+    // correct key, delete value
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E746F702E7375622E76616C31")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(res, {0xFF}));
+    auto val_db = db->get(".top.sub.val1");
+    ASSERT_FALSE(val_db);
+
+    // try delete again, should work
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E746F702E7375622E76616C31")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF); // currently not detectable that key does not exist anymore
+
+    // remove all permissions
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 01 2e 00")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF); // ack
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E746F702E7375622E76616C32")));
+    res = client.receive_message(wait_time_error);
+    print_vec(res);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
+
+    client.close_connection();
+}
