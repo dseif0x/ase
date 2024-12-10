@@ -12,12 +12,22 @@ import java.net.Socket;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-
+/**
+ * Test suite for the {@link DatabaseClient}, validating its methods and behavior.
+ * <p>
+ * Uses JUnit 5 and mocks server responses to simulate various scenarios.
+ * </p>
+ */
 public class DatabaseClientCommandTest {
 
+    /** The mocked server information. */
     private static ServerInformation serverInfo;
+    /** The database client to test. */
     private DatabaseClient databaseClient;
 
+    /**
+     * Sets up server information with default size values for tests.
+     */
     @BeforeAll
     static void setUp() {
         serverInfo = new ServerInformation();
@@ -30,6 +40,12 @@ public class DatabaseClientCommandTest {
         serverInfo.setArraySize(256);
     }
 
+    /**
+     * Configures a mocked server response for testing.
+     *
+     * @param responseBytes The server response to simulate.
+     * @throws Exception If an error occurs during setup.
+     */
     private void setServerResponse(byte[] responseBytes) throws Exception {
         Socket mockSocket = mock(Socket.class);
 
@@ -50,6 +66,11 @@ public class DatabaseClientCommandTest {
         databaseClient.setDataReader(clientDataReader);
     }
 
+    /**
+     * Test the ping method with a successful response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testPingSuccess() throws Exception {
         long packageToSend = 123456789L;
@@ -69,6 +90,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData());
     }
 
+    /**
+     * Test the ping method with a failed response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testPingFailure() throws Exception {
         long packageToSend = 123456789L;
@@ -91,6 +117,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Test the ping method with a server response of NAK.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testPingServerRespondsNAK() throws Exception {
         long packageToSend = 123456789L;
@@ -114,6 +145,11 @@ public class DatabaseClientCommandTest {
         assertNotNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Test the ping method with an unknown server response code.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testPingServerRespondsUnknownCode() throws Exception {
         long packageToSend = 123456789L;
@@ -130,6 +166,11 @@ public class DatabaseClientCommandTest {
             "Expected the error message to indicate unknown response.");
     }
 
+    /**
+     * Test the ping method with a TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testPingTcpClientException() throws Exception {
         long packageToSend = 123456789L;
@@ -153,6 +194,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Test the start method with a successful response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testStopSuccess() throws Exception {
         ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
@@ -170,8 +216,13 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on success.");
     }
 
+    /**
+     * Test the stop method with no response code.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
-    void testStopUnknownCode() throws Exception {
+    void testStopNoResponseCode() throws Exception {
         byte[] unknownBytes = new byte[1024];
         for (int i = 0; i < 1024; i++) {
             unknownBytes[i] = 0x12;
@@ -188,6 +239,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Test the disconnect method.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testDisconnect() throws Exception {
         Socket mockSocket = mock(Socket.class);
@@ -203,6 +259,11 @@ public class DatabaseClientCommandTest {
         verify(mockSocket, times(1)).close();
     }
 
+    /**
+     * Test the createUser method with a successful response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testCreateUserSuccess() throws Exception {
         String username = "testuser";
@@ -221,6 +282,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on success.");
     }
 
+    /**
+     * Test the createUser method with a server response of NAK and server error response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testCreateUserServerError() throws Exception {
         String username = "testuser";
@@ -246,6 +312,11 @@ public class DatabaseClientCommandTest {
         assertNotNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Test the createUser method with an unexpected server response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testCreateUserUnexpectedResponse() throws Exception {
         String username = "testuser";
@@ -267,6 +338,11 @@ public class DatabaseClientCommandTest {
         assertEquals(0x12, result.getData(), "Expected the response byte to match.");
     }
 
+    /**
+     * Test the createUser method with a TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
     @Test
     void testCreateUserTcpClientException() throws Exception {
         String username = "testuser";
@@ -292,6 +368,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Tests successful scope update for a user.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testUpdateScopeSuccess() throws Exception {
         String username = "testuser";
@@ -310,6 +391,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on success.");
     }
 
+    /**
+     * Test the updateScope method with a server response of NAK and server error response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testUpdateScopeServerError() throws Exception {
         String username = "testuser";
@@ -335,6 +421,11 @@ public class DatabaseClientCommandTest {
         assertNotNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Test the updateScope method with an unexpected server response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testUpdateScopeUnexpectedResponse() throws Exception {
         String username = "testuser";
@@ -356,10 +447,15 @@ public class DatabaseClientCommandTest {
         assertEquals(0x12, result.getData(), "Expected the response byte to match.");
     }
 
+    /**
+     * Test the updateScope method with a TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testUpdateScopeTcpClientException() throws Exception {
         String username = "testuser";
-        String password = "securepassword";
+        String key = "scopeKey";
         byte options = 0x00;
 
         ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
@@ -372,7 +468,7 @@ public class DatabaseClientCommandTest {
 
         setServerResponse(serverResponseOut.toByteArray());
 
-        WebReturn<Integer> result = databaseClient.updateScope(username, password, options);
+        WebReturn<Integer> result = databaseClient.updateScope(username, key, options);
 
         assertFalse(result.isOk(), "Expected updateScope to fail after NAK response.");
         assertNotNull(result.getMessage(), "Expected an error message due to server error.");
@@ -381,6 +477,112 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Tests successful delete of key.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteSuccess() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertTrue(result.isOk(), "Expected delete to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+    /**
+     * Test the delete method with a server response of NAK and server error response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteServerError() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeChar(0x0100);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+        serverDataWriter.writeString("Invalid Key.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertFalse(result.isOk(), "Expected delete to fail with NAK.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("Invalid Key."),
+            "Expected the error message to match the server response.");
+        assertNotNull(result.getData(), "Expected no data on failure.");
+    }
+
+    /**
+     * Test the delete method with an unexpected server response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteUnexpectedResponse() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x12); // Unexpected response
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertFalse(result.isOk(), "Expected delete to fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("unknown response"),
+            "Expected the error message to indicate an unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+        assertEquals(0x12, result.getData(), "Expected the response byte to match.");
+    }
+
+    /**
+     * Test the delete method with a TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testDeleteTcpClientException() throws Exception {
+        String key = "key";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(serverResponseOut);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOutputStream.write(0xFF00); // Will not write as unsigned short so readString will fail
+        serverDataWriter.writeString("Permission denied"); // Will not be read
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.delete(key);
+
+        assertFalse(result.isOk(), "Expected delete to fail after NAK response.");
+        assertNotNull(result.getMessage(), "Expected an error message due to server error.");
+        assertTrue(result.getMessage().contains("Failed to read string."),
+            "Expected readString to fail.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    /**
+     * Tests set failure due to null key.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testSetNullKey() throws Exception {
         TcpGeneral value = mock(TcpGeneral.class);
@@ -398,6 +600,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Tests set success with a simple value.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testSetSuccess() throws Exception {
         String key = "testKey";
@@ -416,6 +623,11 @@ public class DatabaseClientCommandTest {
     }
 
 
+    /**
+     * Tests set success with a simple value and force flag.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testSetForceSuccess() throws Exception {
         String key = "testKey";
@@ -433,6 +645,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on success.");
     }
 
+    /**
+     * Tests set failure due to null value.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testSetNullValue() throws Exception {
         String key = "testKey";
@@ -451,6 +668,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Tests set failure due to null value type.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testSetServerError() throws Exception {
         String key = "testKey";
@@ -478,6 +700,11 @@ public class DatabaseClientCommandTest {
         assertNotNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Tests set failure due to unknown response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testSetUnexpectedResponse() throws Exception {
         String key = "testKey";
@@ -501,6 +728,11 @@ public class DatabaseClientCommandTest {
         assertEquals(0x12, result.getData(), "Expected the response byte to match.");
     }
 
+    /**
+     * Tests set failure due to TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testSetTcpClientException() throws Exception {
         String key = "testKey";
@@ -526,6 +758,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Tests successful get for a key.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testGetSuccess() throws Exception {
         String key = "testKey";
@@ -546,6 +783,11 @@ public class DatabaseClientCommandTest {
         assertEquals(expectedValue, result.getData(), "Expected the TcpGeneral value to match.");
     }
 
+    /**
+     * Tests get failure due to null key.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testGetNullKey() throws Exception {
         ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
@@ -561,6 +803,11 @@ public class DatabaseClientCommandTest {
         assertNull(result.getData(), "Expected no data on failure.");
     }
 
+    /**
+     * Tests get failure due to server error.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testGetServerError() throws Exception {
         String key = "testKey";
@@ -585,6 +832,11 @@ public class DatabaseClientCommandTest {
         assertEquals(0xFF00, result.getData().getValue(), "Expected the error code to match.");
     }
 
+    /**
+     * Tests get failure due to unknown response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testGetUnexpectedResponse() throws Exception {
         String key = "testKey";
@@ -607,7 +859,9 @@ public class DatabaseClientCommandTest {
     }
 
     /**
-     * Test GET with TCPClientException During Reading
+     * Tests get failure due to TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during testing.
      */
     @Test
     void testGetTCPClientException() throws Exception {
