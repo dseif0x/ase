@@ -6,8 +6,18 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Test suite for the {@link Utility} class, validating utility methods for
+ * packet creation, encoding/decoding, and value range calculations.
+ * <p>
+ * Uses JUnit 5 for assertions and test validations.
+ * </p>
+ */
 class UtilityTest {
 
+    /**
+     * Tests creation of a client info packet.
+     */
     @Test
     void testCreateClientInfoPacket() {
         int version = 0x1234;
@@ -24,6 +34,9 @@ class UtilityTest {
         assertArrayEquals(expected, actual, "Client info packet does not match expected output.");
     }
 
+    /**
+     * Tests encoding and decoding of TCP Extended Unsigned Integers (EUI).
+     */
     @Test
     void testEncodeDecodeTCPEUIByteArray() {
         // Known encoded values
@@ -56,6 +69,9 @@ class UtilityTest {
         assertEquals(zeroValue, decodedZeroValue, "Decoded zero value does not match original.");
     }
 
+    /**
+     * Tests creation of a user info packet with valid input strings.
+     */
     @Test
     void testCreateUserInfoPacketLongStrings() {
         String username = "user";
@@ -83,6 +99,9 @@ class UtilityTest {
         }, "Creating user info packet with short strings should not throw an exception.");
     }
 
+    /**
+     * Tests retrieval of minimum values for integers of various sizes.
+     */
     @Test
     void testGetMinValue() {
         // 1-byte integer
@@ -104,6 +123,9 @@ class UtilityTest {
         assertEquals(expectedMin8, actualMin8, "Minimum value for 8-byte integer does not match.");
     }
 
+    /**
+     * Tests retrieval of maximum values for integers of various sizes.
+     */
     @Test
     void testGetMaxValue() {
         // 1-byte integer
@@ -123,4 +145,5 @@ class UtilityTest {
         long expectedMax8 = Long.MAX_VALUE;
         long actualMax8 = Utility.getMaxValue(targetSize8);
         assertEquals(expectedMax8, actualMax8, "Maximum value for 8-byte integer does not match.");
-    }}
+    }
+}

@@ -27,12 +27,26 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Test suite for {@link DynamicDataReader} and {@link DynamicDataWriter}, validating
+ * data reading and writing operations based on server configurations.
+ * <p>
+ * Uses JUnit 5 for assertions and mock data to simulate server interactions.
+ * </p>
+ */
 public class DynamicDataReaderWriterTest {
+    /** Mocked Server information for testing. */
     private static ServerInformation serverInfo;
+    /** Data reader instance for testing. */
     private DynamicDataReader dataReader;
+    /** Data writer instance for testing. */
     private DynamicDataWriter dataWriter;
+    /** Output stream for writing data. */
     private ByteArrayOutputStream byteOut;
 
+    /**
+     * Sets up server information with default configurations.
+     */
     @BeforeAll
     static void setUpServerInformation() {
         serverInfo = new ServerInformation();
@@ -45,12 +59,18 @@ public class DynamicDataReaderWriterTest {
         serverInfo.setArraySize(256);
     }
 
+    /**
+     * Sets up the data writer and output stream for tests.
+     */
     @BeforeEach
     void setUp() {
         byteOut = new ByteArrayOutputStream();
         dataWriter = new DynamicDataWriter(serverInfo, byteOut);
     }
 
+    /**
+     * Tests reading a single-byte TCP_EUI value successfully.
+     */
     @Test
     void testReadTCPEUISingleByte() throws Exception {
         byte[] bytes = Utility.createTCPEUIByteArray(5);
@@ -62,6 +82,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals(5, value, "Expected TCP_EUI value to be 5.");
     }
 
+    /**
+     * Tests reading a multibyte TCP_EUI value successfully.
+     */
     @Test
     void testReadTCPEUIMultiByte() throws Exception {
         byte[] bytes = Utility.createTCPEUIByteArray(300);
@@ -73,21 +96,25 @@ public class DynamicDataReaderWriterTest {
         assertEquals(300, value, "Expected TCP_EUI value to be 300.");
     }
 
+    /**
+     * Tests handling of invalid TCP_EUI encoding.
+     */
     @Test
-    void testReadTCPEUIInvalidEncoding() throws Exception {
+    void testReadTCPEUIInvalidEncoding() {
         byte[] bytes = new byte[]{(byte) 0xFF};
         ByteArrayInputStream byteIn = new ByteArrayInputStream(bytes);
         DataInputStream dataIn = new DataInputStream(byteIn);
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
-        Exception exception = assertThrows(TCPClientException.class, () -> {
-            dataReader.readTCPEUI();
-        });
+        Exception exception = assertThrows(TCPClientException.class, () -> dataReader.readTCPEUI());
 
         assertTrue(exception.getMessage().contains("Read failed. Failed to read TCP_EUI encoded integer."),
             "Expected exception message to mention too many leading ones.");
     }
 
+    /**
+     * Tests reading a valid string within size limits.
+     */
     @Test
     void testReadStringSuccess() throws Exception {
         String expectedString = "Hello, World!";
@@ -106,6 +133,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals(expectedString, actualString, "Expected strings to match.");
     }
 
+    /**
+     * Tests handling of a string exceeding size limits.
+     */
     @Test
     void testReadStringExceedsLimit() throws Exception {
         StringBuilder sb = new StringBuilder();
@@ -125,14 +155,15 @@ public class DynamicDataReaderWriterTest {
         DataInputStream dataIn = new DataInputStream(byteIn);
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
-        Exception exception = assertThrows(TCPClientReadException.class, () -> {
-            dataReader.readString();
-        });
+        Exception exception = assertThrows(TCPClientReadException.class, () -> dataReader.readString());
 
         assertTrue(exception.getMessage().contains("Invalid string length"),
             "Expected exception message to mention invalid string length.");
     }
 
+    /**
+     * Tests reading a boolean value successfully.
+     */
     @Test
     void testReadBoolean() throws Exception {
         byte[] bytes = new byte[]{0x01};
@@ -144,6 +175,9 @@ public class DynamicDataReaderWriterTest {
         assertTrue(value, "Expected boolean value to be true.");
     }
 
+    /**
+     * Tests reading a valid integer value.
+     */
     @Test
     void testReadIntSuccess() throws Exception {
         int expectedInt = 123456789;
@@ -160,24 +194,25 @@ public class DynamicDataReaderWriterTest {
         assertEquals(expectedInt, actualInt, "Expected integers to match.");
     }
 
+    /**
+     * Tests handling of insufficient data for integer reading.
+     */
     @Test
-    void testReadIntInvalidSize() throws Exception {
+    void testReadIntInvalidSize() {
         // Provide fewer bytes than expected
         byte[] bytes = new byte[]{0x00, 0x01}; // Only 2 bytes, but server expects 4
         ByteArrayInputStream byteIn = new ByteArrayInputStream(bytes);
         DataInputStream dataIn = new DataInputStream(byteIn);
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
-        Exception exception = assertThrows(TCPClientReadException.class, () -> {
-            dataReader.readInt();
-        });
+        Exception exception = assertThrows(TCPClientReadException.class, () -> dataReader.readInt());
 
         assertTrue(exception.getMessage().contains("Failed to read int"),
             "Expected exception message to mention failure to read int.");
     }
 
     /**
-     * Test reading a double value successfully (8 bytes).
+     * Tests reading a double value successfully as 8 bytes.
      */
     @Test
     void testReadDoubleSuccess_Double() throws Exception {
@@ -197,7 +232,7 @@ public class DynamicDataReaderWriterTest {
     }
 
     /**
-     * Test reading a double value successfully as float (4 bytes).
+     * Tests reading a double value successfully as 4 bytes (float).
      */
     @Test
     void testReadDoubleSuccess_Float() throws Exception {
@@ -218,6 +253,9 @@ public class DynamicDataReaderWriterTest {
         serverInfo.setDoubleSize(8);
     }
 
+    /**
+     * Tests handling of a double value exceeding the float range.
+     */
     @Test
     void testReadDoubleExceedsFloatRange() throws Exception {
         serverInfo.setDoubleSize(4);
@@ -235,6 +273,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals((float) largeDouble, actualValue, "Expected float conversion to handle large double.");
     }
 
+    /**
+     * Tests reading a valid unsigned integer.
+     */
     @Test
     void testReadUnsignedIntSuccess() throws Exception {
         long expectedUnsignedInt = 4000000000L;
@@ -251,6 +292,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals(expectedUnsignedInt, actualUnsignedInt, "Expected unsigned integers to match.");
     }
 
+    /**
+     * Tests boundary values for reading unsigned integers.
+     */
     @Test
     void testReadUnsignedIntBoundaryValues() throws Exception {
         // Minimum unsigned int
@@ -271,6 +315,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals(4294967295L, maxValue, "Expected maximum unsigned int to be 4294967295.");
     }
 
+    /**
+     * Tests reading a server error and extracting error details.
+     */
     @Test
     void testReadServerError() throws Exception {
         int errorCode = 0xFFFF;
@@ -296,7 +343,7 @@ public class DynamicDataReaderWriterTest {
     }
 
     /**
-     * Test reading a server error and throwing an exception.
+     * Tests reading a server error and throwing an exception.
      */
     @Test
     void testReadServerErrorWithException() throws Exception {
@@ -315,14 +362,15 @@ public class DynamicDataReaderWriterTest {
         DataInputStream dataIn = new DataInputStream(byteIn);
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
-        ServerErrorException exception = assertThrows(ServerErrorException.class, () -> {
-            dataReader.readServerError(true);
-        });
+        ServerErrorException exception = assertThrows(ServerErrorException.class, () -> dataReader.readServerError(true));
 
         assertEquals(errorCode, exception.getErrorCode(), "Expected error code to match.");
         assertEquals("Server Error 65535: " + errorMessage, exception.getMessage(), "Expected error message to match.");
     }
 
+    /**
+     * Tests writing a single-byte TCP_EUI value.
+     */
     @Test
     void testWriteTCPEUISingleByte() throws Exception {
         String testString = "aaaaaa";
@@ -333,12 +381,15 @@ public class DynamicDataReaderWriterTest {
         byte[] actual = byteOut.toByteArray();
         byte[] expectedPacket = new byte[expected.length + testString.length()];
         System.arraycopy(expected, 0, expectedPacket, 0, expected.length);
-        System.arraycopy(testString.toString().getBytes(StandardCharsets.ISO_8859_1), 0, expectedPacket, expected.length, testString.length());
-        System.arraycopy(testString.toString().getBytes(StandardCharsets.ISO_8859_1), 0, expectedPacket, expected.length, testString.length());
+        System.arraycopy(testString.getBytes(StandardCharsets.ISO_8859_1), 0, expectedPacket, expected.length, testString.length());
+        System.arraycopy(testString.getBytes(StandardCharsets.ISO_8859_1), 0, expectedPacket, expected.length, testString.length());
 
         assertArrayEquals(expectedPacket, actual, "Expected TCP_EUI encoded length followed by string bytes.");
     }
 
+    /**
+     * Tests writing a multi-byte TCP_EUI value.
+     */
     @Test
     void testWriteTCPEUIMultiByte() throws Exception {
         long value = 255;
@@ -369,14 +420,15 @@ public class DynamicDataReaderWriterTest {
         }
         String longString = sb.toString();
 
-        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> {
-            dataWriter.writeString(longString);
-        });
+        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> dataWriter.writeString(longString));
 
         assertEquals("Write failed. String length exceeds server limit.", exception.getMessage(),
             "Expected exception message for exceeding string length.");
     }
 
+    /**
+     * Tests writing a boolean value.
+     */
     @Test
     void testWriteBoolean() throws Exception {
         TcpGeneral booleanTrue = TcpGeneral.ofSimple(SimpleType.BOOLEAN, true);
@@ -391,6 +443,9 @@ public class DynamicDataReaderWriterTest {
         assertArrayEquals(expected, actual, "Expected TypeDefinition byte followed by 0x01 for true.");
     }
 
+    /**
+     * Tests writing an integer value.
+     */
     @Test
     void testWriteIntSuccess() throws Exception {
         int value = 123456789;
@@ -421,9 +476,7 @@ public class DynamicDataReaderWriterTest {
         serverInfo.setIntSize(3);
         TcpGeneral intValue = TcpGeneral.ofSimple(SimpleType.INT, value);
 
-        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> {
-            dataWriter.writeGeneral(intValue);
-        });
+        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> dataWriter.writeGeneral(intValue));
 
         assertTrue(exception.getMessage().contains("Failed to write int"),
             "Expected exception message to mention integer out of range.");
@@ -432,7 +485,7 @@ public class DynamicDataReaderWriterTest {
     }
 
     /**
-     * Test writing a double as 8-byte value.
+     * Tests writing a double value as 8 bytes.
      */
     @Test
     void testWriteDoubleSuccess_Double() throws Exception {
@@ -443,7 +496,7 @@ public class DynamicDataReaderWriterTest {
 
         byte[] actual = byteOut.toByteArray();
 
-        byte typeDef = (byte) (SimpleType.DOUBLE.getTypeId() | 0);
+        byte typeDef = (byte) (SimpleType.DOUBLE.getTypeId());
         byte[] doubleBytes = ByteBuffer.allocate(serverInfo.getDoubleSize())
             .order(ByteOrder.BIG_ENDIAN)
             .putDouble(value)
@@ -456,6 +509,9 @@ public class DynamicDataReaderWriterTest {
         assertArrayEquals(expected, actual, "Expected TypeDefinition byte followed by double bytes.");
     }
 
+    /**
+     * Tests writing a double value as 4 bytes (float).
+     */
     @Test
     void testWriteDouble_Success_Float() throws Exception {
         serverInfo.setDoubleSize(4);
@@ -465,7 +521,7 @@ public class DynamicDataReaderWriterTest {
 
         byte[] actual = byteOut.toByteArray();
         // TypeDefinition for SIMPLE DOUBLE: typeId | flags (no COMPLEX)
-        byte typeDef = (byte) (SimpleType.DOUBLE.getTypeId() | 0);
+        byte typeDef = (byte) (SimpleType.DOUBLE.getTypeId());
         byte[] floatBytes = ByteBuffer.allocate(4)
             .order(ByteOrder.BIG_ENDIAN)
             .putFloat((float) value)
@@ -479,21 +535,25 @@ public class DynamicDataReaderWriterTest {
         serverInfo.setDoubleSize(8);
     }
 
+    /**
+     * Tests handling of a double value exceeding the float range.
+     */
     @Test
     void testWriteDoubleExceedsFloatRange() {
         serverInfo.setDoubleSize(4);
         double largeDouble = Float.MAX_VALUE * 2;
         TcpGeneral doubleValue = TcpGeneral.ofSimple(SimpleType.DOUBLE, largeDouble);
 
-        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> {
-            dataWriter.writeGeneral(doubleValue);
-        });
+        TCPClientWriteException exception = assertThrows(TCPClientWriteException.class, () -> dataWriter.writeGeneral(doubleValue));
 
         assertTrue(exception.getMessage().contains("out of range"),
             "Expected exception message to mention double out of range.");
         serverInfo.setDoubleSize(8);
     }
 
+    /**
+     * Tests writing a valid unsigned integer.
+     */
     @Test
     void testWriteUnsignedIntSuccess() throws Exception {
         long unsignedInt = 4000000000L; // 0xEE6B2800
@@ -508,17 +568,21 @@ public class DynamicDataReaderWriterTest {
         assertArrayEquals(expected, actual, "Expected unsigned int bytes to match.");
     }
 
+    /**
+     * Tests handling of an unsigned integer out of range.
+     */
     @Test
     void testWriteUnsignedIntOutOfRange() {
         long invalidUnsignedInt = 5000000000L; // Exceeds 0xFFFFFFFF
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            dataWriter.writeUnsignedInt(invalidUnsignedInt);
-        });
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> dataWriter.writeUnsignedInt(invalidUnsignedInt));
 
         assertTrue(exception.getMessage().contains("out of range"),
             "Expected exception message to mention unsigned int out of range.");
     }
 
+    /**
+     * Tests reading a key map and validating its structure.
+     */
     @Test
     void testReadGeneralKeyMapSuccess() throws Exception {
         HashMap<String, TcpGeneral> keyMap = new HashMap<>();
@@ -571,6 +635,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals(30, resultArray.get(2).getValue(), "Expected third element to be 30.");
     }
 
+    /**
+     * Tests reading an array of complex types (key maps).
+     */
     @Test
     void testReadGeneralArrayComplexSuccess() throws Exception {
         // Prepare array of key-value maps
@@ -615,6 +682,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals(200, resultMap2Contents.get("k2").getValue(), "Expected value for 'k2' to be 200.");
     }
 
+    /**
+     * Tests reading a pair of simple types.
+     */
     @Test
     void testReadGeneralPairSimpleSuccess() throws Exception {
         TcpGeneral pair = TcpGeneral.ofPair(
@@ -636,6 +706,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals(256, resultPair.getRight().getValue(), "Expected second element of pair to be 256.");
     }
 
+    /**
+     * Tests reading a pair of complex types.
+     */
     @Test
     void testReadGeneralPairComplexSuccess() throws Exception {
         // Prepare pair: ({"innerKey": "innerValue"}, "simpleValue")
@@ -671,6 +744,9 @@ public class DynamicDataReaderWriterTest {
         assertEquals("simpleValue", second.getValue(), "Expected value to be 'simpleValue'.");
     }
 
+    /**
+     * Tests handling of invalid type definitions.
+     */
     @Test
     void testReadGeneralInvalidTypeDefinitionArrayAndPair() throws Exception {
         ByteArrayOutputStream byteOutManual = new ByteArrayOutputStream();
@@ -683,14 +759,15 @@ public class DynamicDataReaderWriterTest {
         DataInputStream dataIn = new DataInputStream(byteIn);
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
-        Exception exception = assertThrows(TCPClientReadException.class, () -> {
-            dataReader.readGeneral();
-        });
+        Exception exception = assertThrows(TCPClientReadException.class, () -> dataReader.readGeneral());
 
         assertTrue(exception.getMessage().contains("cannot have both Array and Pair flags set"),
             "Expected exception message to mention invalid TypeDefinition.");
     }
 
+    /**
+     * Tests handling of unknown simple types.
+     */
     @Test
     void testReadGeneralUnknownSimpleType() throws Exception {
         ByteArrayOutputStream byteOutManual = new ByteArrayOutputStream();
@@ -704,14 +781,15 @@ public class DynamicDataReaderWriterTest {
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
         // Read and assert exception
-        Exception exception = assertThrows(TCPClientReadException.class, () -> {
-            dataReader.readGeneral();
-        });
+        Exception exception = assertThrows(TCPClientReadException.class, () -> dataReader.readGeneral());
 
         assertTrue(exception.getMessage().contains("Read failed. Unknown SimpleType in Type-Definition-Block."),
             "Expected exception message to mention unsupported SimpleType.");
     }
 
+    /**
+     * Tests handling of incomplete data for simple types.
+     */
     @Test
     void testReadGeneralSimpleTypeIncompleteData() throws Exception {
         ByteArrayOutputStream byteOutManual = new ByteArrayOutputStream();
@@ -726,18 +804,19 @@ public class DynamicDataReaderWriterTest {
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
         // Read and assert exception
-        Exception exception = assertThrows(TCPClientReadException.class, () -> {
-            dataReader.readGeneral();
-        });
+        Exception exception = assertThrows(TCPClientReadException.class, () -> dataReader.readGeneral());
 
         assertTrue(exception.getMessage().contains("Failed to read int"),
             "Expected exception message to mention failure to read int.");
     }
 
+    /**
+     * Tests handling of pairs with missing elements.
+     */
     @Test
     void testReadGeneralPairMissingSecondElement() {
         Exception exception = assertThrows(NullPointerException.class, () -> {
-            TcpGeneral pair = TcpGeneral.ofPair(
+            TcpGeneral.ofPair(
                 TcpGeneral.ofSimple(SimpleType.STRING, "key"),
                 null // Missing second element
             );
@@ -747,6 +826,9 @@ public class DynamicDataReaderWriterTest {
             "Expected exception message to mention failure to read.");
     }
 
+    /**
+     * Tests handling of invalid key lengths in key maps.
+     */
     @Test
     void testReadGeneralKeyMapInvalidKeyLength() throws Exception {
         ByteArrayOutputStream byteOutManual = new ByteArrayOutputStream();
@@ -783,6 +865,9 @@ public class DynamicDataReaderWriterTest {
             "Expected exception message to mention invalid string length.");
     }
 
+    /**
+     * Tests handling of incomplete data for boolean types.
+     */
     @Test
     void testReadGeneralSimpleBooleanIncompleteData() throws Exception {
         ByteArrayOutputStream byteOutManual = new ByteArrayOutputStream();

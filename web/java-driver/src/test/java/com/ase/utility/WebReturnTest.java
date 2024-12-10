@@ -4,8 +4,19 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Test suite for the {@link WebReturn} class, validating constructors,
+ * static factory methods, and utility functions.
+ * <p>
+ * Uses JUnit 5 for assertions and test validations.
+ * </p>
+ */
 class WebReturnTest {
 
+    /**
+     * Tests the default constructor of {@link WebReturn}.
+     * Ensures default values for fields are correctly initialized.
+     */
     @Test
     void testDefaultConstructor() {
         WebReturn<Object> webReturn = new WebReturn<>();
@@ -15,6 +26,10 @@ class WebReturnTest {
         assertNull(webReturn.getData(), "Default 'data' should be null");
     }
 
+    /**
+     * Tests the parameterized constructor of {@link WebReturn}.
+     * Validates field assignments based on inputs.
+     */
     @Test
     void testParameterizedConstructor() {
         String message = "Operation completed";
@@ -27,6 +42,9 @@ class WebReturnTest {
         assertEquals(data, webReturn.getData(), "Data should match");
     }
 
+    /**
+     * Tests the {@link WebReturn#success()} static method without data.
+     */
     @Test
     void testSuccessStaticMethodNoData() {
         WebReturn<Object> webReturn = WebReturn.success();
@@ -36,6 +54,9 @@ class WebReturnTest {
         assertNull(webReturn.getData(), "Data should be null");
     }
 
+    /**
+     * Tests the {@link WebReturn#success(Object)} static method with data.
+     */
     @Test
     void testSuccessStaticMethodWithData() {
         String data = "Success data";
@@ -47,6 +68,10 @@ class WebReturnTest {
         assertEquals(data, webReturn.getData(), "Data should match");
     }
 
+    /**
+     * Tests the {@link WebReturn#success(String, Object)} static method
+     * with data and a message.
+     */
     @Test
     void testSuccessStaticMethodWithDataAndMessage() {
         String data = "Success data";
@@ -59,6 +84,9 @@ class WebReturnTest {
         assertEquals(message, webReturn.getMessage(), "Message should match");
     }
 
+    /**
+     * Tests the {@link WebReturn#error(String)} static method with an error message.
+     */
     @Test
     void testErrorStaticMethodWithMessage() {
         String errorMessage = "An error occurred";
@@ -70,6 +98,10 @@ class WebReturnTest {
         assertNull(webReturn.getData(), "Data should be null");
     }
 
+    /**
+     * Tests the {@link WebReturn#error(String, Object)} static method
+     * with an error message and associated data.
+     */
     @Test
     void testErrorStaticMethodWithMessageAndData() {
         String errorMessage = "Invalid input";
@@ -82,6 +114,10 @@ class WebReturnTest {
         assertEquals(data, webReturn.getData(), "Data should match");
     }
 
+    /**
+     * Tests the {@link WebReturn#toString()} method to ensure
+     * it returns the expected string representation.
+     */
     @Test
     void testToStringMethod() {
         String message = "Test message";
