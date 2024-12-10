@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Manages the communication with the frontend.
+ */
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -17,6 +20,10 @@ public class DataController {
 
     private static final Logger logger = LoggerFactory.getLogger(DataController.class);
 
+    /**
+     * Sends a test message.
+     *
+     */
     @GetMapping("/data")
     public Map<String, Object> getData() {
         logger.info("/data");

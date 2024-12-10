@@ -31,12 +31,6 @@ const AclEditor = () => {
     };
 
     const handleUpdate = () => {
-        console.log("Updated Data:", {
-            key: keyData?.key,
-            value,
-            valueType,
-            permissions,
-        });
         navigate(-1);
     };
 
