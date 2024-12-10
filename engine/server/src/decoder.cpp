@@ -24,13 +24,11 @@ bool GenericDecoder::is_empty() {
 }
 
 void GenericDecoder::clear_buffer(int delay_ms) {
-    while (!this->is_empty()) {
-        {
-            std::lock_guard<std::mutex> lock(this->buffer_lock);
-            this->buffer.clear();
-            this->start = 0;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+    std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+    {
+        std::lock_guard<std::mutex> lock(this->buffer_lock);
+        this->buffer.clear();
+        this->start = 0;
     }
 }
 
@@ -186,7 +184,8 @@ std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {
         if (this->buffer.empty()) {
             this->buffer_lock.unlock();
             // free lock to allow new data to be written into the buffer
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            //std::this_thread::yield();
             this->buffer_lock.lock();
             continue;
         }
