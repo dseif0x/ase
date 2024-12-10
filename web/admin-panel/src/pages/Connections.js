@@ -7,15 +7,31 @@ const keyDataStructure = {
         b: {
             c: 3,
             d: "Hello",
+            c1: 7,
+            d1: "Hello Again",
         },
         e: "World",
-    },
-    f: 42,
-    g: {
-        h: {
-            i: "DeepValue",
+        e1: "Universe",
+        e2: {
+            nested1: true,
+            nested2: [1, 2, 3],
         },
     },
+    f: 42,
+    f1: 99,
+    g: {
+        h: {
+            i: "Help",
+            i1: "List",
+        },
+        h1: {
+            i2: {
+                deeplyNested: "Deep",
+            },
+        },
+    },
+    j: "Wednesday",
+    k: [1, 2, { x: 5, y: "test" }],
 };
 
 let toggle = true;
@@ -49,16 +65,17 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
                 <td>
                     <button
                         className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, { state: { keyData: node } })}
+                        onClick={() => navigate(`/edit/${node.key}`, {state: {keyData: node}})}
                     >
                         Edit
                     </button>
+
                     {node.children.length > 0 && (
                         <button
                             className="list-button"
                             onClick={() => toggleCollapse(node)}
                         >
-                            List
+                            {node.collapsed ? "List" : "Close"}
                         </button>
                     )}
                 </td>
@@ -139,10 +156,10 @@ function App() {
                 <div className="keys-header">
                     <h3>Keys</h3>
                     <span>
-                    <button className="refresh-button">
-                        Refresh
-                    </button>
-                </span>
+                        <button className="refresh-button">
+                            Refresh
+                        </button>
+                    </span>
                 </div>
                 <table>
                     <thead>
