@@ -18,6 +18,8 @@ const keyDataStructure = {
     },
 };
 
+let toggle = true;
+
 const buildHierarchy = (obj, prefix = "") => {
     const result = [];
     for (const key in obj) {
@@ -94,6 +96,20 @@ function App() {
         setHierarchicalData([...hierarchicalData]);
     };
 
+    const toggleAll = () => {
+        toggle = !toggle;
+        const openAll = (nodes) => {
+            nodes.forEach((node) => {
+                node.collapsed = toggle;
+                if (node.children.length > 0) {
+                    openAll(node.children);
+                }
+            });
+        };
+        openAll(hierarchicalData);
+        setHierarchicalData([...hierarchicalData]);
+    };
+
     const addConnection = () => {
         const newIp = prompt("Enter IP Address:");
         const newPort = prompt("Enter Port:");
@@ -133,7 +149,15 @@ function App() {
                     <tr>
                         <th>Key</th>
                         <th>Value</th>
-                        <th></th>
+                        <th>
+                            <span>
+                                <button
+                                    className="list-button list-all"
+                                    onClick={toggleAll}>
+                                    Toggle All
+                                </button>
+                            </span>
+                        </th>
                     </tr>
                     </thead>
                     <tbody>
