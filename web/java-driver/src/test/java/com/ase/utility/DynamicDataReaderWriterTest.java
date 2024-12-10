@@ -815,12 +815,10 @@ public class DynamicDataReaderWriterTest {
      */
     @Test
     void testReadGeneralPairMissingSecondElement() {
-        Exception exception = assertThrows(NullPointerException.class, () -> {
-            TcpGeneral.ofPair(
-                TcpGeneral.ofSimple(SimpleType.STRING, "key"),
-                null // Missing second element
-            );
-        });
+        Exception exception = assertThrows(NullPointerException.class, () -> TcpGeneral.ofPair(
+            TcpGeneral.ofSimple(SimpleType.STRING, "key"),
+            null // Missing second element
+        ));
 
         assertTrue(exception.getMessage().contains("Second element cannot be null for PAIR TcpGeneral"),
             "Expected exception message to mention failure to read.");
@@ -857,9 +855,7 @@ public class DynamicDataReaderWriterTest {
         DataInputStream dataIn = new DataInputStream(byteIn);
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
-        Exception exception = assertThrows(TCPClientReadException.class, () -> {
-            dataReader.readGeneral();
-        });
+        Exception exception = assertThrows(TCPClientReadException.class, () -> dataReader.readGeneral());
 
         assertTrue(exception.getMessage().contains("Invalid string length"),
             "Expected exception message to mention invalid string length.");
@@ -881,9 +877,7 @@ public class DynamicDataReaderWriterTest {
         DataInputStream dataIn = new DataInputStream(byteIn);
         dataReader = new DynamicDataReader(serverInfo, dataIn);
 
-        Exception exception = assertThrows(TCPClientReadException.class, () -> {
-            dataReader.readGeneral();
-        });
+        Exception exception = assertThrows(TCPClientReadException.class, () -> dataReader.readGeneral());
 
         assertTrue(exception.getMessage().contains("Failed to read boolean"),
             "Expected exception message to mention failure to read boolean.");
