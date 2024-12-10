@@ -112,7 +112,7 @@ const AclEditor = () => {
                 onClick={() =>
                     setPermissions([
                         ...permissions,
-                        { user: `NewUser${permissions.length + 1}`, read: false, update: false, delete: false },
+                        { user: `NewUser/Group${permissions.length + 1}`, read: false, update: false, delete: false },
                     ])
                 }
             >
