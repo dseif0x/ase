@@ -5,12 +5,24 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
-import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Test suite for {@link ServerInformation}, verifying its data parsing,
+ * validation, and getter/setter methods.
+ * <p>
+ * Uses JUnit 5 to validate the behavior of {@link ServerInformation}.
+ * </p>
+ */
 class ServerInformationTest {
 
+    /**
+     * Tests the {@link ServerInformation#readServerInformation(DataInputStream)} method
+     * with valid input data.
+     *
+     * @throws HandshakeException If an error occurs during reading.
+     */
     @Test
     void testReadServerInformation() throws HandshakeException {
         byte[] serverInfoBytes = new byte[]{
@@ -38,6 +50,10 @@ class ServerInformationTest {
         assertEquals(256, serverInfo.getArraySize(), "Incorrect arraySize");
     }
 
+    /**
+     * Tests the {@link ServerInformation#readServerInformation(DataInputStream)} method
+     * with invalid input data, expecting a {@link HandshakeException}.
+     */
     @Test
     void testReadServerInformationInvalidData() {
         byte[] invalidServerInfoBytes = new byte[]{0x01, 0x04};
@@ -45,11 +61,12 @@ class ServerInformationTest {
         ByteArrayInputStream byteIn = new ByteArrayInputStream(invalidServerInfoBytes);
         DataInputStream dataInputStream = new DataInputStream(byteIn);
 
-        assertThrows(HandshakeException.class, () -> {
-            ServerInformation.readServerInformation(dataInputStream);
-        }, "Expected HandshakeException due to insufficient data");
+        assertThrows(HandshakeException.class, () -> ServerInformation.readServerInformation(dataInputStream), "Expected HandshakeException due to insufficient data");
     }
 
+    /**
+     * Tests the {@link ServerInformation#validate()} method with invalid data.
+     */
     @Test
     void testValidateInvalidData() {
         ServerInformation serverInfo = new ServerInformation();
@@ -64,6 +81,9 @@ class ServerInformationTest {
         assertFalse(isValid, "ServerInformation should be invalid with missing sizes");
     }
 
+    /**
+     * Tests the {@link ServerInformation#validate()} method with valid data.
+     */
     @Test
     void testValidateValidData() {
         ServerInformation serverInfo = new ServerInformation();
@@ -78,6 +98,9 @@ class ServerInformationTest {
         assertTrue(isValid, "ServerInformation should be valid with correct sizes");
     }
 
+    /**
+     * Tests the getter and setter methods of {@link ServerInformation}.
+     */
     @Test
     void testGettersAndSetters() {
         ServerInformation serverInfo = new ServerInformation();

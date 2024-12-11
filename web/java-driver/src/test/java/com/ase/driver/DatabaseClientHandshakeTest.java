@@ -20,15 +20,34 @@ import java.net.Socket;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Test suite for {@link DatabaseClient} connect and login operations.
+ * <p>
+ * Uses JUnit 5 and mock sockets to test various server responses.
+ * </p>
+ */
 class DatabaseClientHandshakeTest {
 
+    /**
+     * Mocked socket for testing.
+     */
     private Socket mockSocket;
+    /**
+     * Output stream for writing to the socket.
+     */
     private ByteArrayOutputStream byteOut;
-
+    /**
+     * Database client instance for testing.
+     */
     private DatabaseClient databaseClient;
-
+    /**
+     * Mocked Server information for testing.
+     */
     private static ServerInformation serverInfo;
 
+    /**
+     * Initializes server information with default sizes for testing.
+     */
     @BeforeAll
     static void setUp() {
         serverInfo = new ServerInformation();
@@ -41,6 +60,12 @@ class DatabaseClientHandshakeTest {
         serverInfo.setArraySize(256);
     }
 
+    /**
+     * Configures a mocked server response for testing.
+     *
+     * @param responseBytes The byte array simulating the server's response.
+     * @throws IOException If an error occurs during setup.
+     */
     private void setServerResponse(byte[] responseBytes) throws IOException {
         mockSocket = mock(Socket.class);
 
@@ -62,13 +87,19 @@ class DatabaseClientHandshakeTest {
         databaseClient.setDataReader(clientDataReader);
     }
 
+    /**
+     * Configures a mocked server error response for testing.
+     *
+     * @param errorCode The error code to simulate.
+     * @throws Exception If an error occurs during setup.
+     */
     private void setServerErrorResponse(int errorCode) throws Exception {
         mockSocket = mock(Socket.class);
 
         ByteArrayInputStream byteIn = new ByteArrayInputStream(new byte[]{
             Utility.NAK,
-            (byte)((errorCode >> 8) & 0xFF),
-            (byte)(errorCode & 0xFF)
+            (byte) ((errorCode >> 8) & 0xFF),
+            (byte) (errorCode & 0xFF)
         });
 
         DataInputStream dataInputStream = new DataInputStream(byteIn);
@@ -87,6 +118,12 @@ class DatabaseClientHandshakeTest {
         databaseClient.setDataReader(clientDataReader);
     }
 
+    /**
+     * Tests successful server connection with valid handshake response.
+     *
+     * @throws IOException        If an I/O error occurs.
+     * @throws TCPClientException If the client encounters an error.
+     */
     @Test
     void testSuccessfulConnect() throws IOException, TCPClientException {
         setServerResponse(new byte[]{
@@ -114,6 +151,11 @@ class DatabaseClientHandshakeTest {
         }
     }
 
+    /**
+     * Tests handshake failure due to a general protocol error.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testGeneralProtocolError() throws Exception {
         int errorCode = TcpErrorCode.UNKNOWN_ERROR.getCode();
@@ -129,6 +171,11 @@ class DatabaseClientHandshakeTest {
         assertEquals(errorCode, exception.getErrorCode());
     }
 
+    /**
+     * Tests handshake failure due to permission denied by the server.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testPermissionDeniedError() throws Exception {
         int errorCode = TcpErrorCode.PERMISSION_DENIED_CONNECTION.getCode();
@@ -144,6 +191,11 @@ class DatabaseClientHandshakeTest {
         assertEquals(errorCode, exception.getErrorCode());
     }
 
+    /**
+     * Tests handshake failure due to an invalid version error.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testInvalidVersionError() throws Exception {
         int errorCode = TcpErrorCode.INVALID_VERSION.getCode();
@@ -159,6 +211,11 @@ class DatabaseClientHandshakeTest {
         assertEquals(errorCode, exception.getErrorCode());
     }
 
+    /**
+     * Tests handshake failure when server information validation fails.
+     *
+     * @throws IOException If an error occurs during testing.
+     */
     @Test
     void testValidateServerInfoFailed() throws IOException {
         setServerResponse(new byte[]{
@@ -183,29 +240,39 @@ class DatabaseClientHandshakeTest {
         }
     }
 
+    /**
+     * Tests successful user login.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
-    void testSuccessLogin() throws Exception{
+    void testSuccessLogin() throws Exception {
         setServerResponse(new byte[]{
             Utility.ACK,
         });
 
         databaseClient.login("username", "password");
-   }
+    }
 
-   @Test
-    void testFailedLogin() throws Exception{
-       ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
-       DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+    /**
+     * Tests login failure due to an invalid username.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
+    @Test
+    void testFailedLogin() throws Exception {
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
 
-       serverResponseOut.write(Utility.NAK);
-       dataOut.writeChar(0xFF02);
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeChar(0xFF02);
 
-       DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
 
-       serverDataWriter.writeString("There is no user with that username.");
-       setServerResponse(serverResponseOut.toByteArray());
+        serverDataWriter.writeString("There is no user with that username.");
+        setServerResponse(serverResponseOut.toByteArray());
 
-       ServerErrorException exception = assertThrows(ServerErrorException.class, () -> {
+        ServerErrorException exception = assertThrows(ServerErrorException.class, () -> {
             databaseClient.login("username", "password");
         });
 
@@ -213,6 +280,11 @@ class DatabaseClientHandshakeTest {
         assertEquals("Server Error 65282: There is no user with that username.", exception.getMessage());
     }
 
+    /**
+     * Tests login failure due to an unknown server response.
+     *
+     * @throws Exception If an error occurs during testing.
+     */
     @Test
     void testLoginUnknownResponse() throws Exception {
 
