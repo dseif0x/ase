@@ -12,6 +12,38 @@
 #include <stopwatch.h>
 #include <iostream>
 
+inline std::unordered_map<std::string, std::string> get_test_data2() {
+    std::unordered_map<std::string, std::string> data;
+    for (int i = 0; i < 32; i++) {
+        for (int j = 0; j < 32; j++) {
+            for (int k = 0; k < 16; k++) {
+                data["key" + std::to_string(i) + "." + std::to_string(j) + "." + std::to_string(k)] = std::string("value") + std::to_string(i);
+            }
+        }
+    }
+    return data;
+}
+
+inline std::unordered_map<std::string, std::string> get_test_data4() {
+    std::unordered_map<std::string, std::string> data;
+    for (int i = 0; i < 16; i++) {
+        for (int j = 0; j < 1024; j++) {
+            data["key" + std::to_string(i) + "." + std::to_string(j)] = std::string("value") + std::to_string(i);
+        }
+    }
+    return data;
+}
+
+inline std::unordered_map<std::string, std::string> get_test_data3() {
+    std::unordered_map<std::string, std::string> data;
+    for (int i = 0; i < 1024; i++) {
+        for (int j = 0; j < 16; j++) {
+            data["key" + std::to_string(i) + "." + std::to_string(j)] = std::string("value") + std::to_string(i);
+        }
+    }
+    return data;
+}
+
 inline std::unordered_map<std::string, std::string> get_test_data() {
     std::unordered_map<std::string, std::string> data;
     for (int i = 0; i < 1024*16; i++) {
