@@ -7,28 +7,28 @@
 
 #include "custom_map.h"
 
-db_map::db_map(shmem& mem) : mem{mem} {
+db_map::db_map()  {
     used_size = 0;
     alloc_size = 0;
 }
 
 db_map::~db_map() {
     // LOCKS HAVE TO BE HELD WHEN THIS IS CALLED
-    if (alloc_size > 0) {
+    /*if (alloc_size > 0) {
         mem.destroy_array(lookup, alloc_size, true);
         mem.destroy_array(data, alloc_size, true);
-    }
+    }*/
 }
 
 
 //! @onlyInAtomicAccess
-std::vector<std::string> db_map::atomic_keys() {
+std::vector<std::string> db_map::atomic_keys(shmem& mem) {
     std::shared_lock<shrwlock> lock_guard(lock);
-    return keys();
+    return keys(mem);
 }
 
 //! @onlyInAtomicAccess
-std::vector<std::string> db_map::keys() {
+std::vector<std::string> db_map::keys(shmem& mem) {
     std::vector<std::string> keys;
     map_entry_type* data = this->data.get(mem);
     for (size_t i = 0; i < used_size; i++) {
@@ -38,19 +38,19 @@ std::vector<std::string> db_map::keys() {
 }
 
 //! @onlyInAtomicAccess
-bool db_map::atomic_has(const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+bool db_map::atomic_has(shmem& mem, const char* key) { // ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
     std::shared_lock<shrwlock> lock_guard(lock);
-    return has(key);
+    return has(mem, key);
 }
 
 //! @onlyInAtomicAccess
-relative_offset_ptr<Value> db_map::atomic_get(const char* key) {
+relative_offset_ptr<Value> db_map::atomic_get(shmem& mem, const char* key) {
     std::shared_lock<shrwlock> lock_guard(lock);
-    return get(key);
+    return get(mem, key);
 }
 
 //! @onlyInAtomicAccess
-bool db_map::has(const char* key) {
+bool db_map::has(shmem& mem, const char* key) {
     if (this->used_size == 0) {
         return false;
     }
@@ -70,7 +70,7 @@ bool db_map::has(const char* key) {
 }
 
 //! @onlyInAtomicAccess
-relative_offset_ptr<Value> db_map::get(const char* key) {
+relative_offset_ptr<Value> db_map::get(shmem& mem, const char* key) {
     map_entry_type* data = this->data.get(mem);
     offset_t* lookup = this->lookup.get(mem);
     size_t hash = db_map::hash_fn(std::string(key));
@@ -93,14 +93,14 @@ locked_db_map::locked_db_map(db_map* map) : lock(std::shared_lock<shrwlock>{map-
     this->map = map;
 }
 
-relative_offset_ptr<Value> locked_db_map::get(const char* key) {
-    return map->get(key);
+relative_offset_ptr<Value> locked_db_map::get(shmem& mem, const char* key) {
+    return map->get(mem, key);
 }
 
-bool locked_db_map::has(const char* key) {
-    return map->has(key);
+bool locked_db_map::has(shmem& mem, const char* key) {
+    return map->has(mem, key);
 }
 
-std::vector<std::string> locked_db_map::keys() {
-    return map->keys();
+std::vector<std::string> locked_db_map::keys(shmem& mem) {
+    return map->keys(mem);
 }

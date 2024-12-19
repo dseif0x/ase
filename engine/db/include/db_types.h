@@ -106,7 +106,7 @@ struct CopiedValue {
 
 
     //! @onlyInAtomicAccess
-    CopiedValue(const Value& value);
+    CopiedValue(const Value& value, shmem& mem);
 
     /**
      * Returns a python-style representation of the provided CopiedValue.

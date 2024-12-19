@@ -35,7 +35,7 @@ public:
      * @param key bottom level key to retrieve
      * @return the Value corresponding to the key
      */
-    relative_offset_ptr<Value> get(const char *key);
+    relative_offset_ptr<Value> get(shmem& mem, const char *key);
 
     /**
      * Exposes @ref db_map::has
@@ -43,14 +43,14 @@ public:
      * @param key bottom level key to check for
      * @return rather a value corresponding to the given key exists
      */
-    bool has(const char *key);
+    bool has(shmem& mem, const char *key);
 
     /**
      * Exposes @ref db_map::keys
      *
      * @return a list of keys
      */
-    std::vector<std::string> keys();
+    std::vector<std::string> keys(shmem& mem);
 };
 
 /**
@@ -68,7 +68,7 @@ public:
 
     static inline std::hash<std::string> hash_fn;
 
-    db_map(shmem &mem);
+    db_map();
 
     ~db_map();
 
@@ -77,21 +77,21 @@ public:
      *
      * @onlyInAtomicAccess
      */
-    std::vector<std::string> atomic_keys();
+    std::vector<std::string> atomic_keys(shmem& mem);
 
     /**
      * atomic version of @ref db_map::has
      *
      * @onlyInAtomicAccess
      */
-    bool atomic_has(const char *key);
+    bool atomic_has(shmem& mem, const char *key);
 
     /**
      * atomic version of @ref db_map::get
      *
      * @onlyInAtomicAccess
      */
-    relative_offset_ptr<Value> atomic_get(const char *key);
+    relative_offset_ptr<Value> atomic_get(shmem& mem, const char *key);
 
 
     /**
@@ -232,7 +232,7 @@ private:
      * @return list of keys
      * @onlyInAtomicAccess
      */
-    std::vector<std::string> keys();
+    std::vector<std::string> keys(shmem& mem);
 
     /**
      * Checks rather a key is contained in the map. This does not search recursively.
@@ -240,7 +240,7 @@ private:
      * @return indicates if the map contains such a key
      * @onlyInAtomicAccess
      */
-    bool has(const char *key);
+    bool has(shmem& mem, const char *key);
 
     /**
      * Returns the @ref Value to the corresponding key. Does not search recursively.
@@ -248,9 +248,8 @@ private:
      * @return returns the Value corresponding to the key
      * @onlyInAtomicAccess
      */
-    relative_offset_ptr<Value> get(const char *key);
 
-    shmem &mem;
+    relative_offset_ptr<Value> get(shmem& mem, const char *key);
 
     /**
      * Just a little herper function to find the position of a node and its predecessor

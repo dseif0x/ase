@@ -437,7 +437,12 @@ void shmem::deallocate(offset_t ptr, bool lock_held) {
     ensure_mounted();
 
     auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(base) + ptr - sizeof(AllocationHeader));
-
+#if MEM_DEBUG
+    auto* freeblock = reinterpret_cast<FreeBlock*>(header_ptr);
+    if (freeblock->magic[0] == 'F' && freeblock->magic[1] == 'R' && freeblock->magic[2] == 'E' && freeblock->magic[3] == 'E') { \
+        throw std::runtime_error("Double Free Detected");
+    }
+#endif
     VALIDATE_ALLOC_HEADER(header_ptr);
     size_t size = header_ptr->size + header_ptr->padding;
 
