@@ -98,10 +98,11 @@ void follow_and_print(DB &db, const char *key) {
 /**
  * @brief Simply tests a few functionalities of the DB
  */
-int main() {
-    DB::destroy();
-    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    //int pid = 1;
+int main(int argc, char* argv[]) {
+    if (argc <= 1)
+        DB::destroy();
+    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    int pid = 1;
     stopwatch s;
     if (pid != 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -264,10 +265,10 @@ int main() {
 
             CopiedValue arrval1{};
             arrval1.type = ValueType::INT;
-            arrval1.data.emplace<int>(13);
+            arrval1.data.emplace<int>(15);
             CopiedValue arrval2{};
             arrval2.type = ValueType::INT;
-            arrval2.data.emplace<int>(12);
+            arrval2.data.emplace<int>(17);
 
             vector.emplace_back(std::move(arrval1));
             vector.emplace_back(std::move(arrval2));

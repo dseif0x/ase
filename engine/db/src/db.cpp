@@ -11,7 +11,7 @@
 #include <sstream>
 
 auto init_db = [](shmem& mem) {
-    mem.construct<db_key_map>(mem);
+    mem.construct<db_key_map>();
 };
 
 DB::DB() : mem{init_db} {
@@ -52,14 +52,14 @@ std::deque<std::string> split(const char* input) {
     return result;
 }
 
-std::optional<std::reference_wrapper<Value>> get_key(db_map& map, std::deque<std::string>& keys) {
+std::optional<std::reference_wrapper<Value>> get_key(db_map& map, shmem& mem, std::deque<std::string>& keys) {
     if (keys.empty())
         return std::nullopt;
     auto key = keys.front();
     std::optional<std::reference_wrapper<Value>> res{};
     map.transaction([&](locked_db_map* map) {
-        if (map->has(key.c_str())) {
-            res.emplace(*map->get(key.c_str()));
+        if (map->has(mem, key.c_str())) {
+            res.emplace(*map->get(mem, key.c_str()));
         }
     });
     if (!res.has_value())
@@ -70,7 +70,7 @@ std::optional<std::reference_wrapper<Value>> get_key(db_map& map, std::deque<std
     auto& newMap = *res;
     if (newMap.get().type != ValueType::MAP)
         throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
-    return get_key(*std::get<Value::shmem_map_t>(newMap.get().data), keys);
+    return get_key(*std::get<Value::shmem_map_t>(newMap.get().data), mem, keys);
 }
 
 std::optional<CopiedValue> DB::get(const char *key) {
@@ -78,9 +78,9 @@ std::optional<CopiedValue> DB::get(const char *key) {
     auto key_split = split(key);
     std::optional<CopiedValue> res {};
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        auto val = get_key(*entrypoint, key_split);
+        auto val = get_key(*entrypoint, mem, key_split);
         if (val.has_value())
-            res.emplace(val.value().get());
+            res.emplace(val.value().get(), mem);
     });
     return res;
 }
@@ -92,14 +92,14 @@ std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_foll
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
         while(true) {
             auto split_keys = split(next_key.c_str());
-            auto nextNode = get_key(*entrypoint, split_keys);
+            auto nextNode = get_key(*entrypoint, mem, split_keys);
             if (!nextNode.has_value()) break;
             auto nextVal = nextNode.value();
             if (nextVal.get().type == ValueType::REFERENCE && max_chained_follows-- > 0) {
                 auto& str = std::get<Value::shmem_string_t>(nextVal.get().data);
                 next_key = str.get();
             } else {
-                res.emplace(nextVal.get());
+                res.emplace(nextVal.get(), mem);
                 break;
             }
         }
@@ -143,7 +143,7 @@ void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys,
     if (keys.size() == 1) {
         if (!force) {
             map.atomic_access(mem, [&](db_key_map* entrypoint) {
-                if (entrypoint->atomic_has(key.c_str())) {
+                if (entrypoint->atomic_has(mem, key.c_str())) {
                     exists = true;
                 }
             });
@@ -160,8 +160,8 @@ void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys,
     map.atomic_access(mem, [&](db_key_map* entrypoint)
     {
         entrypoint->transaction([&](locked_db_map* map) {
-            if (map->has(key.c_str())) {
-                res.emplace(*map->get(key.c_str()));
+            if (map->has(mem, key.c_str())) {
+                res.emplace(*map->get(mem, key.c_str()));
             }
         });
         if (!res.has_value())
@@ -194,7 +194,7 @@ DB::list_t DB::list(const char* key) {
     auto key_split = split(key);
     list_t res {};
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        auto val = get_key(*entrypoint, key_split);
+        auto val = get_key(*entrypoint, mem, key_split);
         if (val.has_value()) {
             auto& deref_val = val.value().get();
             if (deref_val.type != ValueType::MAP)
@@ -202,8 +202,8 @@ DB::list_t DB::list(const char* key) {
             auto& cur_map = std::get<relative_offset_ptr<db_map>>(deref_val.data);
             list_map_t res_map{};
             cur_map->transaction([&](locked_db_map* locked_map) {
-               for(auto& key : locked_map->keys()) {
-                   auto original_entry = locked_map->get(key.c_str());
+               for(auto& key : locked_map->keys(mem)) {
+                   auto original_entry = locked_map->get(mem, key.c_str());
                    list_map_enty_t entry{original_entry->type, std::monostate{}};
                    if (entry.first == ValueType::INT) {
                        entry.second.emplace<int>(std::get<int>(original_entry->data));
@@ -234,7 +234,7 @@ void DB::remove(const char* key) {
         res.emplace(entrypoint_p);
     } else {
         entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-            auto val = get_key(*entrypoint, key_split);
+            auto val = get_key(*entrypoint, mem, key_split);
             if (val.has_value()) {
                 auto extracted_val = val->get();
                 if (extracted_val.type == ValueType::MAP) {
