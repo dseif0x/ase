@@ -34,7 +34,7 @@ public:
 };
 
 
-TEST_F(MapTest, InsertTest) {
+TEST_F(MapTest, InsertOne) {
     auto entrypoint = get_entrypoint();
 
     CopiedValue new_value{};
@@ -48,6 +48,62 @@ TEST_F(MapTest, InsertTest) {
             ASSERT_TRUE(locked_map->has("test"));
             ASSERT_EQ(locked_map->get("test")->type, ValueType::INT);
             ASSERT_EQ(std::get<int>(locked_map->get("test")->data), 42);
+        });
+    });
+}
+
+// TODO Fix map. If we increase this (or reduce the alloc size in resize) these tests may not pass (possible hash collision not handled correctly)!
+constexpr int ITERATIONS = 32;
+
+TEST_F(MapTest, InsertMany) {
+    auto get_name_from_int = [](int i) {
+        return (std::string("test") + std::to_string(i));
+    };
+    auto entrypoint = get_entrypoint();
+
+    for (int i = 0; i < ITERATIONS; ++i) {
+        CopiedValue new_value{};
+        new_value.type = ValueType::INT;
+        new_value.data = i;
+
+        db_key_map::set(entrypoint, *mem, get_name_from_int(i).c_str(), Value::create_value(*mem, new_value));
+    }
+
+    for (int i = 0; i < ITERATIONS; ++i) {
+        entrypoint.atomic_access(*mem, [&](db_key_map *map) {
+            map->transaction([&](locked_db_map *locked_map) {
+                ASSERT_TRUE(locked_map->has(get_name_from_int(i).c_str()));
+                ASSERT_EQ(locked_map->get(get_name_from_int(i).c_str())->type, ValueType::INT);
+                ASSERT_EQ(std::get<int>(locked_map->get(get_name_from_int(i).c_str())->data), i);
+            });
+        });
+    }
+}
+
+TEST_F(MapTest, InsertAndDeleteMany) {
+    auto get_name_from_int = [](int i) {
+        return (std::string("test") + std::to_string(i));
+    };
+    auto entrypoint = get_entrypoint();
+
+    for (int i = 0; i < ITERATIONS; ++i) {
+        CopiedValue new_value{};
+        new_value.type = ValueType::INT;
+        new_value.data = i;
+
+        db_key_map::set(entrypoint, *mem, get_name_from_int(i).c_str(), Value::create_value(*mem, new_value));
+    }
+
+    for (int i = 0; i < ITERATIONS; ++i) {
+        db_key_map::remove(entrypoint, *mem, get_name_from_int(i).c_str());
+    }
+
+    entrypoint.atomic_access(*mem, [&](db_key_map *map) {
+        map->transaction([&](locked_db_map *locked_map) {
+            ASSERT_EQ(locked_map->keys().size(), 0);
+            for (int i = 0; i < ITERATIONS; ++i) {
+                ASSERT_FALSE(locked_map->has(get_name_from_int(i).c_str()));
+            }
         });
     });
 }
