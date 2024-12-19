@@ -28,6 +28,7 @@ public class DatabaseClient {
 
     /** Reader for reading data from the server based on server-provided size information. */
     private DynamicDataReader dataReader;
+    /** Writer for writing data to the server based on server-provided size information. */
     private DynamicDataWriter dataWriter;
 
     /**

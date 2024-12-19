@@ -1,14 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/pages/AclEditor.css";
 
 const AclEditor = () => {
-    const [value, setValue] = useState("12");
-    const [valueType, setValueType] = useState("Integer");
-    const [permissions, setPermissions] = useState([
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const { keyData } = location.state || {};
+    const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
         { user: "@ALL", read: false, update: false, delete: false },
-    ]);
+    ];
+
+    const [value, setValue] = useState(keyData?.value || "");
+    const [valueType, setValueType] = useState("String");
+    const [permissions, setPermissions] = useState(initialPermissions);
+
+    useEffect(() => {
+        if (keyData) {
+            setValue(keyData.value || "");
+            setValueType(typeof keyData.value === "number" ? "Integer" : "String");
+        }
+    }, [keyData]);
 
     const togglePermission = (index, permissionType) => {
         const updatedPermissions = [...permissions];
@@ -16,9 +30,17 @@ const AclEditor = () => {
         setPermissions(updatedPermissions);
     };
 
+    const handleUpdate = () => {
+        navigate(-1);
+    };
+
+    const handleCancel = () => {
+        navigate(-1);
+    };
+
     return (
         <div className="acl-editor">
-            <h2>Key: Key1</h2>
+            <h2>Key: {keyData?.key || "Unknown Key"}</h2>
             <div className="value-section">
                 <label>Value:</label>
                 <input
@@ -44,7 +66,7 @@ const AclEditor = () => {
                     <th>Read</th>
                     <th>Update</th>
                     <th>Delete</th>
-                    <th>Delete</th>
+                    <th>Remove</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -61,17 +83,42 @@ const AclEditor = () => {
                             </td>
                         ))}
                         <td>
-                            <button className="delete-btn">🗑</button>
+                            <button
+                                className="delete-btn"
+                                onClick={() => {
+                                    const updatedPermissions = permissions.filter(
+                                        (_, i) => i !== index
+                                    );
+                                    setPermissions(updatedPermissions);
+                                }}
+                            >
+                                <span className="trash">&#128465;</span>
+
+                            </button>
                         </td>
                     </tr>
                 ))}
                 </tbody>
             </table>
 
-            <button className="add-btn">Add</button>
+            <button
+                className="add-btn"
+                onClick={() =>
+                    setPermissions([
+                        ...permissions,
+                        { user: `NewUser/Group${permissions.length + 1}`, read: false, update: false, delete: false },
+                    ])
+                }
+            >
+                Add
+            </button>
             <div className="action-buttons">
-                <button className="cancel-btn">Cancel</button>
-                <button className="update-btn">Update</button>
+                <button className="cancel-btn" onClick={handleCancel}>
+                    Cancel
+                </button>
+                <button className="update-btn" onClick={handleUpdate}>
+                    Update
+                </button>
             </div>
         </div>
     );
