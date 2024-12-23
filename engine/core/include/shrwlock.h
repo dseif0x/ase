@@ -7,8 +7,12 @@
 
 #pragma once
 
+#ifdef _WIN32
+#include <atomic>
+#else
 #include <sys/mman.h>
 #include <pthread.h>
+#endif
 
 /**
  * @brief A wrapper for a shared read-write lock.
@@ -37,7 +41,8 @@ public:
 
 private:
 #ifdef _WIN32
-    LONG counter;
+    std::atomic<int> state;              // Positive: readers, -1: writer, 0: free
+    std::atomic_flag lock = ATOMIC_FLAG_INIT; // Spinlock for mutual exclusion
 #else
     pthread_rwlock_t lck;
 #endif
