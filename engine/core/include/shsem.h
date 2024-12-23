@@ -6,11 +6,7 @@
  */
 
 #pragma once
-#include <fcntl.h> // For O_CREAT and O_EXCL
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <pthread.h>
-#include <sys/semaphore.h>
+#include <atomic>
 
 /**
  * @brief A wrapper for a shared read-write lock.
@@ -23,7 +19,7 @@
 class shsem {
 public:
     shsem(uint32_t initial);
-    ~shsem();
+    ~shsem() = default;
     shsem(const shsem&) = delete;
     shsem& operator=(const shsem&) = delete;
     shsem(shsem&&) = delete;
@@ -34,9 +30,6 @@ public:
     int get();
 
 private:
-#ifdef _WIN32
-#error "Not implemented"
-#else
-    sem_t lck;
-#endif
+    std::atomic<int> counter;            // Semaphore counter
+    mutable std::atomic_flag lock = {}; // Spinlock for mutual exclusion
 };
