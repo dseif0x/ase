@@ -22,10 +22,10 @@ class shrwlock {
 public:
     shrwlock();
     ~shrwlock();
-    /*shrwlock(const shrwlock&) = delete;
+    shrwlock(const shrwlock&) = delete;
     shrwlock& operator=(const shrwlock&) = delete;
     shrwlock(shrwlock&&) = delete;
-    shrwlock& operator=(shrwlock&&) = delete;*/
+    shrwlock& operator=(shrwlock&&) = delete;
 
     void lock(); //!< acquires an unique lock
     void unlock(); //!< releases an unique lock
