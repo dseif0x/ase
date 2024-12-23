@@ -14,6 +14,7 @@
 #include "shrwlock.h"
 #include "relative_offset_ptr.h"
 #include "offset_ptr.h"
+#include "shsem.h"
 
 struct Value;
 struct CopiedValue;
@@ -81,12 +82,12 @@ struct Value {
     using shmem_map = db_map;
     using shmem_map_t = relative_offset_ptr<shmem_map>;
     using shmem_string_t = relative_offset_ptr<char>;
+    using shmem_sem_t = relative_offset_ptr<shsem>;
 
     //! The type of the value
     ValueType type = ValueType::UNKNOWN;
-    // TODO semaphore sem_value
     //! The data of the value
-    std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
+    std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t, shmem_sem_t> data;
 };
 
 /**

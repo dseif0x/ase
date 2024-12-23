@@ -31,6 +31,7 @@ public:
 
     void acquire(); //!< acquires an semaphore
     void release(); //!< releases an semaphore
+    int get();
 
 private:
 #ifdef _WIN32

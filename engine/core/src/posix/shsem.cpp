@@ -23,3 +23,9 @@ void shsem::acquire() {
 void shsem::release() {
     sem_post(&lck);
 }
+
+int shsem::get() {
+    int val;
+    assert(sem_getvalue(&lck, &val) == 0 && "Failed to get semaphore value");
+    return val;
+}
