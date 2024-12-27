@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cassert>
+#include <stdexcept>
 
 #ifndef NDEBUG
 #define MEM_DEBUG 1
