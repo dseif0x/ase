@@ -265,11 +265,14 @@ void DB::acquire_lock(const char* key) {
             auto& extracted_val = val->get();
             if (extracted_val.type == ValueType::SEMAPHORE) {
                 auto& sem = std::get<Value::shmem_sem_t>(extracted_val.data);
-                // TODO If this waits it might cause a deadlock since we locked the shmem
-                sem->acquire();
+                res.emplace(mem.relative_to_offset(sem));
             }
         }
     });
+    if (res.has_value()) {
+        auto sem = res.value();
+        shsem::acquire(sem, mem);
+    }
 }
 
 void DB::release_lock(const char *key) {

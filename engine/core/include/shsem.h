@@ -7,6 +7,7 @@
 
 #pragma once
 #include <atomic>
+#include "shmem.h"
 
 /**
  * @brief A wrapper for a shared read-write lock.
@@ -25,7 +26,7 @@ public:
     shsem(shsem&&) = delete;
     shsem& operator=(shsem&&) = delete;
 
-    void acquire(); //!< acquires an semaphore
+    static void acquire(offset_ptr<shsem> sem, shmem& mem); //!< acquires an semaphore
     void release(); //!< releases an semaphore
     int get();
 
