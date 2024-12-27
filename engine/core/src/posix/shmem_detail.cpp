@@ -8,6 +8,7 @@
 #include "shmem.h"
 #include "shmem_util.h"
 
+#include <fcntl.h>
 #include <cstring>
 #include <sys/mman.h>
 #include <unistd.h>

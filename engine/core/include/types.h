@@ -6,5 +6,4 @@
  */
 
 #pragma once
-#include <fcntl.h>
-using offset_t = off_t;
+using offset_t = long long;

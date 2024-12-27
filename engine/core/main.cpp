@@ -10,7 +10,6 @@
 #include <mutex>
 #include <thread>
 #include <unistd.h>
-#include <sys/wait.h>
 
 #include "shmem.h"
 #include "stopwatch.h"
