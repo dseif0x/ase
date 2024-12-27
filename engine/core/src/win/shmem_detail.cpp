@@ -20,14 +20,6 @@ void DeleteFileMapping(const char* name) {
     }
 }
 
-namespace {
-    size_t page_size = []() {
-        SYSTEM_INFO si;
-        GetSystemInfo(&si);
-        return si.dwPageSize;
-    }();
-}
-
 void shmem::attach(std::function<void(shmem&)> on_create) {
     HANDLE meta_handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(shmem_meta), "shmem_meta");
     if (!meta_handle) {
