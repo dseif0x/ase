@@ -38,8 +38,8 @@ CopiedValue::CopiedValue(const Value &value, shmem& mem) {
         auto& str = get<Value::shmem_string_t>(value.data);
         data.emplace<std::string>(str.get());
     } else if (type == ValueType::SEMAPHORE) {
-        // TODO
-        throw std::runtime_error("Not Implemented");
+        auto& sem = get<Value::shmem_sem_t>(value.data);
+        data.emplace<int>(sem->get());
     } else {
         throw std::runtime_error("Unknown ValueType");
     }
@@ -159,8 +159,11 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
             new_value->data.emplace<Value::shmem_string_t>(shmem_string.get_relative(mem));
         });
     } else if (value.type == ValueType::SEMAPHORE) {
-        // TODO
-        throw std::runtime_error("Not Implemented");
+        auto& local_sem = get<int>(value.data);
+        auto shmem_sem = mem.construct<shsem>(local_sem);
+        res.atomic_access(mem, [&](Value* new_value) {
+            new_value->data.emplace<Value::shmem_sem_t>(shmem_sem.get_relative(mem));
+        });
     } else {
         throw std::runtime_error("Unknown ValueType");
     }
