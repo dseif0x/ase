@@ -31,6 +31,7 @@ FetchContent_Declare(
         mingw_toolchain
         URL ${MINGW_TOOLCHAIN_URL}
         SOURCE_DIR ${MINGW_TOOLCHAIN_DIR}
+        DOWNLOAD_EXTRACT_TIMESTAMP true
 )
 FetchContent_MakeAvailable(mingw_toolchain)
 
