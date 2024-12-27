@@ -1,5 +1,8 @@
 include(FetchContent)
 
+set(CMAKE_SYSTEM_NAME Windows) # Cross-compiling to Windows
+set(CMAKE_SYSTEM_PROCESSOR x86_64)
+
 # Detect the host platform
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     set(MINGW_FILE_NAME "llvm-mingw-20241217-ucrt-x86_64.zip")
@@ -31,10 +34,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(mingw_toolchain)
 
-set(TOOLCHAIN_PREFIX x86_64-w64-mingw32)
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    set(TOOLCHAIN_PREFIX aarch64-w64-mingw32)
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    set(TOOLCHAIN_PREFIX x86_64-w64-mingw32)
+else()
+    message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+endif ()
 
-set(CMAKE_SYSTEM_NAME Windows) # Cross-compiling to Windows
-set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
 set(CMAKE_C_COMPILER "${MINGW_TOOLCHAIN_DIR}/bin/${TOOLCHAIN_PREFIX}-gcc")
 set(CMAKE_CXX_COMPILER "${MINGW_TOOLCHAIN_DIR}/bin/${TOOLCHAIN_PREFIX}-g++")
