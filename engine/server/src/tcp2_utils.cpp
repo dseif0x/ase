@@ -255,6 +255,28 @@ int tcp2_utils::command::del(TCP2Decoder &decoder, TCP2Encoder &encoder, Command
     return 0;
 }
 
+int tcp2_utils::command::list(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string key_str = decoder.to_string();
+    auto key = check_and_create_key(key_str);
+
+    if (!key) {
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+
+    if (!info.user->has_permission(*key, permissions::read)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::permission_denied);
+        return -1;
+    }
+
+    auto ret = info.db.list(key_str.c_str());
+    encoder.from_ack();
+    //encoder.from_list_t();
+    return 0;
+}
+
 void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
     std::string username;
     ACLUser *user{nullptr};
