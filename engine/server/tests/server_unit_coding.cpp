@@ -511,3 +511,42 @@ TEST(UnitTests_Coding, general_4) {
     std::ranges::sort(encoded);
     ASSERT_TRUE(vec_equ(data, encoded));
 }
+
+TEST(UnitTests_Coding, list_t_1) {
+    // example from TCP2 Protocol document chapter tcp_list
+    std::string result = "10 02 02 6231 03 03 6c6f6c 02 6232 48"; // {b1: "lol"; b2: <pair>}
+    std::vector<unsigned char> data = make_hex_vector(result.c_str());
+
+    TestGenericDecoder decoder{};
+    TestGenericEncoder encoder{};
+
+    std::unordered_map<std::string, std::pair<ValueType, std::variant<std::monostate, bool, int, std::string, double>>> mapData = {
+        {"b1", {ValueType::STRING, "lol"}},
+        {"b2", {ValueType::PAIR, std::monostate{}}}
+    };
+
+    DB::list_t val = mapData;
+
+    encoder.from_list_t(val);
+    auto encoded = encoder._get_bytes(count_hex_valid_chars(result));
+    ASSERT_TRUE(encoder.is_empty());
+    ASSERT_TRUE(vec_equ(data, encoded));
+}
+
+TEST(UnitTests_Coding, list_t_2) {
+    std::string result = "10 00"; // {}
+    std::vector<unsigned char> data = make_hex_vector(result.c_str());
+
+    TestGenericDecoder decoder{};
+    TestGenericEncoder encoder{};
+
+    std::unordered_map<std::string, std::pair<ValueType, std::variant<std::monostate, bool, int, std::string, double>>> mapData = {
+    };
+
+    DB::list_t val = mapData;
+
+    encoder.from_list_t(val);
+    auto encoded = encoder._get_bytes(count_hex_valid_chars(result));
+    ASSERT_TRUE(encoder.is_empty());
+    ASSERT_TRUE(vec_equ(data, encoded));
+}
