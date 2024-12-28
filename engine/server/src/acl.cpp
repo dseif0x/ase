@@ -18,7 +18,7 @@ ACLUser::ACLUser(const std::string& password, bool isAdmin)
     : pwd(password), admin(isAdmin) {
     CopiedValue perms;
     perms.type = ValueType::INT;
-    perms.data = tcp2_utils::permissions::all;
+    perms.data = isAdmin ? tcp2_utils::permissions::all : tcp2_utils::permissions::none;
     CopiedValue::copied_map_t map;
     map.emplace("$", std::make_unique<CopiedValue>(std::move(perms)));
 
@@ -26,8 +26,6 @@ ACLUser::ACLUser(const std::string& password, bool isAdmin)
     this->permissions.type = ValueType::MAP;
     this->permissions.data.emplace<CopiedValue::copied_map_t>(std::move(map));
 }
-
-ACLUser::ACLUser() : admin(false), permissions() {}
 
 
 ACL::ACL() {
@@ -214,6 +212,13 @@ bool ACL::update_key_permission(std::string user, std::vector<std::string> key, 
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (!this->users.contains(user)) return false;
     this->users[user].update_key_permission(key, permissions);
+    return true;
+}
+
+bool ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
+    std::lock_guard<std::mutex> lock(this->general_lock);
+    if (this->users.contains(username)) return false;
+    this->users[username] = ACLUser(pwd, is_admin);
     return true;
 }
 

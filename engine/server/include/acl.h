@@ -62,6 +62,12 @@ public:
 
     bool update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions);
 
+
+    /**
+    * @brief Creates a user with the provided parameters and returns true on success.
+    */
+    bool create_user(std::string &username, std::string &pwd, bool is_admin);
+
     /**
      * @brief Prints detailed information about all users.
      */
@@ -83,7 +89,7 @@ class ACLUser {
 
 public:
     ACLUser(const std::string& password, bool isAdmin);
-    ACLUser();
+    ACLUser() = default;
 
     /**
      * @brief Checks if a user has the required permissions for a given key.
