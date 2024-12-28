@@ -58,6 +58,10 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             perms = permissions::read;
             break;
         // ACL Commands
+        case 0x80: // Create User
+            func = command::create_user;
+            perms = permissions::admin;
+            break;
         case 0x81: // Update Scope
             func = command::update_scope;
             perms = permissions::admin;
@@ -186,6 +190,34 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
         return -1;
     }
     encoder.from_ack();
+
+    return 0;
+}
+
+int tcp2_utils::command::create_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string username = decoder.to_string();
+    std::string pwd = decoder.to_string();
+    unsigned char options = decoder.to_byte();
+
+    if (info.acl.has_user(username)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::username_already_exists);
+        return -1;
+    }
+
+    if (options > 1) {
+        encoder.from_nak();
+        encoder.encode_error(errors::unknown_option);
+        return -1;
+    }
+
+    bool is_admin = (options & 0x01) > 0;
+    if (!info.acl.create_user(username, pwd, is_admin)) {
+        // should never happen
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
 
     return 0;
 }
