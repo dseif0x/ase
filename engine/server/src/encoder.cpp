@@ -141,6 +141,31 @@ bool GenericEncoder::from_general(CopiedValue &val) {
     }
 }
 
+void GenericEncoder::from_list_t(DB::list_t &val) {
+    unsigned char info{};
+    info |= info_block::map_bit;
+    this->from_byte(info);
+    if (!val) {
+        this->from_expanding_unsigned(0);
+    } else {
+        this->from_expanding_unsigned(val->size());
+        for (const auto& [key, value] : *val) {
+            this->from_string(key);
+            unsigned char val_type = info_block::get_complex_byte(value.first);
+
+            if (std::holds_alternative<std::monostate>(value.second)) val_type |= info_block::type_bit;
+            this->from_byte(val_type);
+
+            if (std::holds_alternative<bool>(value.second)) this->from_bool(std::get<bool>(value.second));
+            else if (std::holds_alternative<int>(value.second)) this->from_int(std::get<int>(value.second));
+            else if (std::holds_alternative<std::string>(value.second)) this->from_string(std::get<std::string>(value.second));
+            else if (std::holds_alternative<double>(value.second)) this->from_double(std::get<double>(value.second));
+            // add other types here if allowed by list_t type
+
+        }
+    }
+}
+
 
 void GenericEncoder::from_basic_general(CopiedValue &val) {
     if (val.type == ValueType::BOOLEAN) {

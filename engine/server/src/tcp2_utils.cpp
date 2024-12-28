@@ -273,7 +273,7 @@ int tcp2_utils::command::list(TCP2Decoder &decoder, TCP2Encoder &encoder, Comman
 
     auto ret = info.db.list(key_str.c_str());
     encoder.from_ack();
-    //encoder.from_list_t();
+    encoder.from_list_t(ret);
     return 0;
 }
 
