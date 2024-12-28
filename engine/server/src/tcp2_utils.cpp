@@ -53,6 +53,10 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::del;
             perms = permissions::del;
             break;
+        case 0x05: //LIST
+            func = command::list;
+            perms = permissions::read;
+            break;
         // ACL Commands
         case 0x81: // Update Scope
             func = command::update_scope;
@@ -252,6 +256,28 @@ int tcp2_utils::command::del(TCP2Decoder &decoder, TCP2Encoder &encoder, Command
         encoder.encode_error(errors::general_server_error);
         return -1;
     }
+    return 0;
+}
+
+int tcp2_utils::command::list(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string key_str = decoder.to_string();
+    auto key = check_and_create_key(key_str);
+
+    if (!key) {
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+
+    if (!info.user->has_permission(*key, permissions::read)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::permission_denied);
+        return -1;
+    }
+
+    auto ret = info.db.list(key_str.c_str());
+    encoder.from_ack();
+    encoder.from_list_t(ret);
     return 0;
 }
 

@@ -109,7 +109,7 @@ namespace tcp2_utils {
         int disconnect(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-         * @brief Executes the get command, returning the looked for data.
+         * @brief Executes the GET command, returning the looked for data.
          *
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -139,7 +139,7 @@ namespace tcp2_utils {
         int testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-        * @brief Executes the set command without forcing the write.
+        * @brief Executes the SET command without forcing the write.
         *
         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -149,7 +149,7 @@ namespace tcp2_utils {
         int safe_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-        * @brief Executes the set command and forces the write.
+        * @brief Executes the SET command and forces the write.
         *
         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -159,7 +159,7 @@ namespace tcp2_utils {
         int forced_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-        * @brief Executes the delete command.
+        * @brief Executes the DELETE command.
         *
         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -167,6 +167,16 @@ namespace tcp2_utils {
         * @return int returns 0 on success or -1 on error.
         */
         int del(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+        * @brief Executes the LIST command.
+        *
+        * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+        * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+        * @param info Reference to the CommandInfo struct containing additional information for the function.
+        * @return int returns 0 on success or -1 on error.
+        */
+        int list(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {
