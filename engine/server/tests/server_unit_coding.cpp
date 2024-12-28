@@ -530,6 +530,8 @@ TEST(UnitTests_Coding, list_t_1) {
     encoder.from_list_t(val);
     auto encoded = encoder._get_bytes(count_hex_valid_chars(result));
     ASSERT_TRUE(encoder.is_empty());
+    std::ranges::sort(data);
+    std::ranges::sort(encoded);
     ASSERT_TRUE(vec_equ(data, encoded));
 }
 

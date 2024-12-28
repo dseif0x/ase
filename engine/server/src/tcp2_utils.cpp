@@ -53,6 +53,10 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::del;
             perms = permissions::del;
             break;
+        case 0x05: //LIST
+            func = command::list;
+            perms = permissions::read;
+            break;
         // ACL Commands
         case 0x81: // Update Scope
             func = command::update_scope;

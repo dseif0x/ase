@@ -706,3 +706,71 @@ TEST_F(IntegrationTests_TCPServer, login_admin_del) {
 
     client.close_connection();
 }
+
+
+TEST_F(IntegrationTests_TCPServer, login_admin_list) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+    /*
+    Add data to db
+                 a2
+               /    \
+              b1     b2
+             /         \
+          "lol"     (3, "test)
+     */
+    auto db = this->get_db();
+    {
+        CopiedValue t{};
+        t.type = ValueType::STRING;
+        t.data = "lol";
+        db->set(".a2.b1", std::move(t));
+    }
+    {
+        auto ta = std::make_unique<CopiedValue>();
+        ta->type = ValueType::INT;
+        ta->data.emplace<int>(3);
+
+        auto tb = std::make_unique<CopiedValue>();
+        tb->type = ValueType::STRING;
+        tb->data.emplace<std::string>("test");
+
+        CopiedValue::copied_pair_t tp;
+        tp.first = std::move(ta);
+        tp.second = std::move(tb);
+
+        CopiedValue t{};
+        t.type = ValueType::PAIR;
+        t.data.emplace<CopiedValue::copied_pair_t>(std::move(tp));
+        db->set(".a2.b2", std::move(t));
+    }
+    // listing key .a2 -> expecting {b1: "lol"; b2: <pair>} [10 02 02 6231 03 03 6c6f6c 02 6232 48]
+    std::string result = "FF 10 02 02 6231 03 03 6c6f6c 02 6232 48"; // ACK {b1: "lol"; b2: <pair>}
+    std::vector<unsigned char> data = make_hex_vector(result.c_str());
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("05 03 2E2432")));
+    auto res = client.receive_message(wait_time_error);
+    print_vec(res);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
+
+    ASSERT_TRUE(client.send_message(make_hex_vector("05 03 2E6132")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == data.size());
+    std::ranges::sort(data);
+    std::ranges::sort(res);
+    ASSERT_TRUE(vec_equ(data, res));
+}
