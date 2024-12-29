@@ -52,8 +52,7 @@ TEST_F(MapTest, InsertOne) {
     });
 }
 
-// TODO Fix map. If we increase this (or reduce the alloc size in resize) these tests may not pass (possible hash collision not handled correctly)!
-constexpr int ITERATIONS = 128;
+constexpr int ITERATIONS = 1024;
 
 TEST_F(MapTest, InsertMany) {
     auto get_name_from_int = [](int i) {

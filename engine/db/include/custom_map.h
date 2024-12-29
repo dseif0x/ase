@@ -9,6 +9,7 @@
 
 #include <utility>
 #include <shared_mutex>
+#include <iostream>
 #include <cstring>
 #include "shrwlock.h"
 #include "shmem.h"
@@ -133,7 +134,7 @@ public:
             if (alloc_size == 0) return;
             auto idx = lookup[hash % alloc_size];
             if (idx >= 0) {
-                auto &ll_node = data[idx];
+                auto ll_node = data[idx];
                 while (strcmp(std::get<0>(ll_node).get(mem), key) != 0) {
                     auto next = std::get<2>(ll_node);
                     if (next < 0)
@@ -172,6 +173,18 @@ public:
             map_p->used_size = used_size;
             map_p->lock.unlock();
         }, true);
+    }
+
+    void print_data(shmem& mem) {
+        map_entry_type* data = this->data.get(mem);
+        for (size_t i = 0; i < used_size; i++) {
+
+            auto key = std::get<0>(data[i]).get(mem);
+            auto value = std::get<1>(data[i]).get(mem);
+            auto next = std::get<2>(data[i]);
+
+            std::cout << key << " : " << value << " : " << next << std::endl;
+        }
     }
 
     /**
@@ -267,7 +280,7 @@ private:
         auto* lookup = map->lookup.get(mem);
         offset_t entrypoint = lookup[hash];
         if (entrypoint >= 0) { // we found an entrypoint for the keys hash
-            auto& ll_node = data[entrypoint];
+            auto ll_node = data[entrypoint];
             if (strcmp(key, std::get<0>(ll_node).get(mem)) == 0) { // the entrypoint was the element we were looking for
                 res.second = entrypoint;
                 return res;
@@ -283,6 +296,7 @@ private:
                     res.second = curr;
                     break;
                 }
+                entrypoint = curr;
             }
         }
         return res;
