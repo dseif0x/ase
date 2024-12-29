@@ -92,19 +92,19 @@ bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permiss
     this->permissions.print();
     auto *cur_node = &this->permissions;
     std::cout << std::endl;
-    int i = 0;
-    for (auto &x : key) {
+    for (int i = 0; i < key.size()+1; i++) {
         cur_node->print();
         std::cout << " -> i: " << i << std::endl;
         auto &cur_map = std::get<CopiedValue::copied_map_t>(cur_node->data);
         if (!cur_map.contains("$")) return false;
         unsigned char cur_perm = std::get<int>(cur_map["$"]->data);
-        if ((cur_perm | permissions) == cur_perm) {
-            // permission found
+        permissions -= permissions & cur_perm;
+        if (permissions == 0) {
+            // permission now filled
             return true;
         }
-        if (!cur_map.contains(x)) return false; // cant go any deeper
-        cur_node = &(*cur_map[x]);
+        if (i >= key.size() || !cur_map.contains(key[i])) return false; // cant go any deeper
+        cur_node = &(*cur_map[key[i]]);
     }
     return false;
 }
@@ -171,7 +171,6 @@ void ACLUser::serialize_user(std::vector<CopiedValue> &value) {
     is_admin.data = this->admin;
     value.emplace_back(std::move(is_admin));
 
-    // TODO create a copy of permissions!!!
     value.emplace_back(std::move(this->permissions));
 }
 
