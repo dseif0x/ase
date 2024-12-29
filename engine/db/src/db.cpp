@@ -247,3 +247,46 @@ void DB::remove(const char* key) {
         db_map::remove(res.value(), mem, last_key.c_str());
     }
 }
+
+void DB::create_lock(const char* key, int max_locks) {
+    CopiedValue new_val{};
+    new_val.type = ValueType::SEMAPHORE;
+    new_val.data.emplace<int>(max_locks);
+    this->set(key, std::move(new_val), true);
+}
+
+void DB::acquire_lock(const char* key) {
+    auto entrypoint_p = get_entrypoint();
+    std::deque<std::string> keys = split(key);
+    std::optional<offset_ptr<db_map>> res {};
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        auto val = get_key(*entrypoint, mem, keys);
+        if (val.has_value()) {
+            auto& extracted_val = val->get();
+            if (extracted_val.type == ValueType::SEMAPHORE) {
+                auto& sem = std::get<Value::shmem_sem_t>(extracted_val.data);
+                res.emplace(mem.relative_to_offset(sem));
+            }
+        }
+    });
+    if (res.has_value()) {
+        auto sem = res.value();
+        shsem::acquire(sem, mem);
+    }
+}
+
+void DB::release_lock(const char *key) {
+    auto entrypoint_p = get_entrypoint();
+    std::deque<std::string> keys = split(key);
+    std::optional<offset_ptr<db_map>> res {};
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        auto val = get_key(*entrypoint, mem, keys);
+        if (val.has_value()) {
+            auto& extracted_val = val->get();
+            if (extracted_val.type == ValueType::SEMAPHORE) {
+                auto& sem = std::get<Value::shmem_sem_t>(extracted_val.data);
+                sem->release();
+            }
+        }
+    });
+}

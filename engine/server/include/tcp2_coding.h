@@ -62,6 +62,7 @@ namespace info_block {
     constexpr unsigned char pair_bit = 0x40;
     constexpr unsigned char complex_bit = 0x20;
     constexpr unsigned char map_bit = 0x10;
+    constexpr unsigned char type_bit = 0x08;
     constexpr unsigned char basic_mask = 0x07;
 
     /**
@@ -98,6 +99,15 @@ namespace info_block {
      */
     constexpr bool is_map(const unsigned char byte) {
         return (byte & map_bit) > 0;
+    }
+
+    /**
+     * @brief Checks if the byte only the type of a value.
+     * @param byte The byte to check.
+     * @return True if the byte represents a map; otherwise false.
+     */
+    constexpr bool is_type(const unsigned char byte) {
+        return (byte & type_bit) > 0;
     }
 
     /**
@@ -145,6 +155,19 @@ namespace info_block {
                 return 6;
             default:
                 return 0;
+        }
+    }
+
+    constexpr unsigned char get_complex_byte(const ValueType type) {
+        switch (type) {
+            case ValueType::ARRAY:
+                return array_bit;
+            case ValueType::PAIR:
+                return pair_bit;
+            case ValueType::MAP:
+                return map_bit;
+            default:
+                return get_basic_byte(type);
         }
     }
 }
