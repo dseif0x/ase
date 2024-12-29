@@ -52,7 +52,7 @@ TEST_F(MapTest, InsertOne) {
     });
 }
 
-constexpr int ITERATIONS = 1024;
+constexpr int ITERATIONS = 1024 * 64;
 
 TEST_F(MapTest, InsertMany) {
     auto get_name_from_int = [](int i) {

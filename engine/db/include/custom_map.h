@@ -319,7 +319,7 @@ private:
             old_data = map->data;
             old_lookup = map->lookup;
         }, true);
-        size_t new_size = std::max(512ul, alloc_size) * 2;
+        size_t new_size = std::max(16ul, alloc_size) * 2;
         auto new_lookup = mem.construct_array_unsafe<offset_t>(new_size);
         map.atomic_access(mem, [&](db_map *map) {
             std::memset(new_lookup.get(mem), -1, new_size * sizeof(offset_t));
