@@ -774,3 +774,39 @@ TEST_F(IntegrationTests_TCPServer, login_admin_list) {
     std::ranges::sort(res);
     ASSERT_TRUE(vec_equ(data, res));
 }
+
+TEST_F(IntegrationTests_TCPServer, login_admin_create_user) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    // create user tobi - testpwd - 0x00 -> success
+    ASSERT_TRUE(client.send_message(make_hex_vector("80 04 746F6269 07 74657374707764 00")));
+    auto res = client.receive_message(wait_time_error);
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    // create user tobi - testpwd - 0x00 -> error username already exists
+    ASSERT_TRUE(client.send_message(make_hex_vector("80 04 746F6269 07 74657374707764 00")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x05);
+
+    // create user test - testpwd - 0xfa -> error invalid options
+    ASSERT_TRUE(client.send_message(make_hex_vector("80 04 74657374 07 74657374707764 fa")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x80 && res[2] == 0x01);
+}

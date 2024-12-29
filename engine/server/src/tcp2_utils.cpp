@@ -219,6 +219,7 @@ int tcp2_utils::command::create_user(TCP2Decoder &decoder, TCP2Encoder &encoder,
         return -1;
     }
 
+    encoder.from_ack();
     return 0;
 }
 
