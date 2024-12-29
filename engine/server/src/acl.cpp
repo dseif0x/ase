@@ -228,8 +228,8 @@ bool ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
 }
 
 bool ACL::delete_user(std::string &username) {
-    std::lock_guard<std::mutex> lock(this->general_lock);
     if (!this->has_user(username) || this->user_is_connected(username)) return false;
+    std::lock_guard<std::mutex> lock(this->general_lock);
     if (this->users.erase(username) != 1) return false;
     return true;
 }

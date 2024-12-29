@@ -22,7 +22,9 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
     unsigned char perms{};
     uint16_t error = 0;
 
-    switch (decoder.to_unsigned(1)) {
+    auto temp = decoder.to_unsigned(1);
+    std::cout << "> current command: " << temp << std::endl;
+    switch (temp) {
         // CONTROL COMMANDS
         case 0xFE: //STOP
             func = command::stop;
@@ -64,6 +66,10 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             break;
         case 0x81: // Update Scope
             func = command::update_scope;
+            perms = permissions::admin;
+            break;
+        case 0x82: // Delete User
+            func = command::delete_user;
             perms = permissions::admin;
             break;
         default:
@@ -239,6 +245,7 @@ int tcp2_utils::command::delete_user(TCP2Decoder &decoder, TCP2Encoder &encoder,
     }
 
     if (!info.acl.delete_user(username)) {
+        // should never happen
         encoder.from_nak();
         encoder.encode_error(errors::general_server_error);
         return -1;
@@ -403,9 +410,8 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             ci = std::make_unique<CommandInfo>(user, acl, db);
         } else if (state == 2) {
             // logged in and ready for commands
-            stopwatch s4{};
-            s4.start();
             int temp_ret = client_command_switch(decoder, encoder, *ci, self_perms);
+            std::cout << "> command result: " << temp_ret << std::endl;
             switch (temp_ret) {
                 case -1: // error, but recovered
                     decoder.clear_buffer();
