@@ -187,6 +187,16 @@ namespace tcp2_utils {
          * @return int returns 0 on success or -1 on error.
         */
         int create_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Deletes a user in the ACL.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int delete_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {

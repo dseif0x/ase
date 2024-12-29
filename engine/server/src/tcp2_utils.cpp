@@ -223,6 +223,31 @@ int tcp2_utils::command::create_user(TCP2Decoder &decoder, TCP2Encoder &encoder,
     return 0;
 }
 
+int tcp2_utils::command::delete_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string username = decoder.to_string();
+
+    if (!info.acl.has_user(username)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::user_not_found);
+        return -1;
+    }
+
+    if (info.acl.user_is_connected(username)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::user_connected);
+        return -1;
+    }
+
+    if (!info.acl.delete_user(username)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+
+    encoder.from_ack();
+    return 0;
+}
+
 int set_helper(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info, bool force) {
     std::string key_str = decoder.to_string();
     auto key = tcp2_utils::check_and_create_key(key_str);
