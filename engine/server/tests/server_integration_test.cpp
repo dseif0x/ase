@@ -57,7 +57,7 @@ public:
         this->db = new DB();
         ServerPort::instance().increment();
         std::cout << "PORT:" << ServerPort::instance().get() << std::endl;
-        this->server = std::make_unique<TCP2Server>(this->acl, *this->db, ServerPort::instance().get(), this->max_clients);
+        this->server = std::make_unique<TCP2Server>(ServerPort::instance().get(), this->max_clients);
         this->server->start();
     }
 
