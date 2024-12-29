@@ -73,6 +73,10 @@ public:
 
     ~db_map();
 
+    shrwlock& get_lock() {
+        return lock;
+    }
+
     /**
      * atomic version of @ref db_map::keys
      *
@@ -123,8 +127,6 @@ public:
         size_t alloc_size;
         auto hash = hash_fn(std::string(key));
 
-        std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
-
         map.atomic_access(mem, [&](db_map *map) {
             map->lock.lock();
             map_entry_type *data = map->data.get(mem);
@@ -136,15 +138,14 @@ public:
             if (idx >= 0) {
                 auto ll_node = data[idx];
                 while (strcmp(std::get<0>(ll_node).get(mem), key) != 0) {
-                    auto next = std::get<2>(ll_node);
-                    if (next < 0)
+                    idx = std::get<2>(ll_node);
+                    if (idx < 0)
                         break;
-                    ll_node = data[next];
+                    ll_node = data[idx];
                 }
                 if (strcmp(std::get<0>(ll_node).get(mem), key) == 0) {
                     found = true;
-                    auto& old_value = std::get<1>(ll_node);
-                    Value::destroy_value(mem, old_value, true);
+                    Value::destroy_value(mem, std::get<1>(ll_node), true);
                     std::get<1>(data[idx]) = value;
                     map->lock.unlock();
                 }
@@ -183,7 +184,7 @@ public:
             auto value = std::get<1>(data[i]).get(mem);
             auto next = std::get<2>(data[i]);
 
-            std::cout << key << " : " << value << " : " << next << std::endl;
+            std::cout << key << " : " << value << " : " << (int)value->type << " : " << next << std::endl;
         }
     }
 
@@ -239,7 +240,7 @@ private:
 
     friend void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held);
 
-
+public:
     /**
      * Returns the keys directly following this node.
      * @return list of keys
@@ -264,6 +265,7 @@ private:
 
     relative_offset_ptr<Value> get(shmem& mem, const char *key);
 
+private:
     /**
      * Just a little herper function to find the position of a node and its predecessor
      * Should only be called when all locks (shmem and map) are acquired.

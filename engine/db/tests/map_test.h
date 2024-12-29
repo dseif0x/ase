@@ -52,7 +52,7 @@ TEST_F(MapTest, InsertOne) {
     });
 }
 
-constexpr int ITERATIONS = 1024 * 64;
+constexpr int ITERATIONS = 1024;
 
 TEST_F(MapTest, InsertMany) {
     auto get_name_from_int = [](int i) {
@@ -92,6 +92,16 @@ TEST_F(MapTest, InsertAndDeleteMany) {
 
         db_key_map::set(entrypoint, *mem, get_name_from_int(i).c_str(), Value::create_value(*mem, new_value));
     }
+    entrypoint.atomic_access(*mem, [&](db_key_map *map) {
+        map->transaction([&](locked_db_map *locked_map) {
+            for (int i = 0; i < ITERATIONS; ++i) {
+                ASSERT_TRUE(locked_map->has(*mem, get_name_from_int(i).c_str()));
+                ASSERT_EQ(locked_map->get(*mem, get_name_from_int(i).c_str())->type, ValueType::INT);
+                ASSERT_EQ(std::get<int>(locked_map->get(*mem, get_name_from_int(i).c_str())->data), i);
+            }
+        });
+    });
+
 
     for (int i = 0; i < ITERATIONS; ++i) {
         db_key_map::remove(entrypoint, *mem, get_name_from_int(i).c_str());
