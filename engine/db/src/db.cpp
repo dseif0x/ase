@@ -153,12 +153,13 @@ CopiedValue generate_subdomain(std::deque<std::string>& keys, CopiedValue&& new_
     return new_val;
 }
 
-void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value, const bool force, std::unique_lock<shrwlock>& shmemlock) {
+void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value, const bool force) {
     if (keys.empty())
         return;
     auto entrypoint = map.get(mem);
-    auto &lock = map.get(mem)->get_lock();
-    lock.lock();
+    // TODO If we dont have a unique lock on the entire shmem this should handle locking more granularly
+    //auto &lock = map.get(mem)->get_lock();
+    //lock.lock();
     auto key = keys.front();
     bool exists = false;
     if (keys.size() == 1) {
@@ -170,35 +171,35 @@ void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys,
             auto tmp = Value::create_value(mem, new_value, true);
             db_key_map::set(map, mem, key.c_str(), tmp);
         }
-        {
-            auto &lock2 = map.get(mem)->get_lock();
-            lock2.unlock();
-        }
+        //{
+        //    auto &lock2 = map.get(mem)->get_lock();
+        //    lock2.unlock();
+        //}
         return;
     }
     keys.pop_front();
     if (entrypoint->has(mem, key.c_str())) {
         auto newMap = *entrypoint->get(mem, key.c_str());
         if (newMap.type != ValueType::MAP) {
-            lock.unlock();
+            //lock.unlock();
             throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
         }
         offset_ptr<db_map> ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.data));
-        set_key_(ptr, mem, keys, std::move(new_value), force, shmemlock);
+        set_key_(ptr, mem, keys, std::move(new_value), force);
     } else {
         auto subdomain = generate_subdomain(keys, std::move(new_value));
         auto tmp = Value::create_value(mem, subdomain, true);
         db_key_map::set(map, mem, key.c_str(), tmp);
     }
-    {
-        auto &lock2 = map.get(mem)->get_lock();
-        lock2.unlock();
-    }
+    //{
+    //    auto &lock2 = map.get(mem)->get_lock();
+    //    lock2.unlock();
+    //}
 }
 
 void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value, const bool force) {
     std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
-    set_key_(map, mem, keys, std::move(new_value), force, lock_guard);
+    set_key_(map, mem, keys, std::move(new_value), force);
 }
 
 void DB::set(const char *key, CopiedValue&& value, const bool force) {
