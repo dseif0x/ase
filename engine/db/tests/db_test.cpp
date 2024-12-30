@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include "db.h"
 #include "utils.h"
+#include "map_test.h"
 
 void insert_test_data(DB& db) {
     { // Integer
