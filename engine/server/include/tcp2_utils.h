@@ -16,8 +16,9 @@
 #include "decoder.h"
 #include "encoder.h"
 
-// todo replace symbol with correct one
-#define UNIX
+#if defined(WIN)
+#include "winsock2.h"
+#endif
 
 struct CommandInfo {
     ACLUser *user;
@@ -34,7 +35,9 @@ namespace tcp2_utils {
 #ifdef UNIX
     // following function needs system dependent implementation as well as possibly different signatures
     void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db);
-#elifdef WIN32
+#elifdef WIN
+    // following function needs system dependent implementation as well as possibly different signatures
+    void client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, ACL &acl, DB &db);
 #endif
 
     // following functions are system independent

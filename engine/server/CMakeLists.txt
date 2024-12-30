@@ -14,6 +14,15 @@ endif()
 
 
 add_library(server_static ${SOURCES} ${SOURCES_PLATFORM})
+
+if (WIN32)
+    target_compile_definitions(server_static PRIVATE WIN)
+elseif(UNIX)
+    target_compile_definitions(server_static PRIVATE UNIX)
+else ()
+    message(FATAL_ERROR "Unsupported platform")
+endif()
+
 target_link_libraries(server_static PUBLIC core_static)
 target_link_libraries(server_static PUBLIC db_static)
 target_include_directories(server_static PUBLIC include)

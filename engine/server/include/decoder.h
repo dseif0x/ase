@@ -15,8 +15,9 @@
 #include "sys/time.h"
 #include "db_types.h"
 
-// todo replace symbol with correct one
-#define UNIX
+#if defined(WIN)
+#include <winsock2.h>
+#endif
 
 constexpr int DECODER_BUFFER_SIZE = 8;
 /**
@@ -138,16 +139,17 @@ class TCP2Decoder : public GenericDecoder {
     // shared lock to protect tcp connection from simultaneous read and write
     std::mutex *pipe_lock;
 
-#ifdef UNIX
+#if defined(UNIX)
     // tcp stuff
     int client_socket;
+#elif defined(WIN)
+    // tcp stuff for win
+    SOCKET client_socket;
+#endif
     struct timeval timeout{};
     fd_set readfds{};
     char tcp_buffer[DECODER_BUFFER_SIZE]{};
     ssize_t bytesReceived{};
-#elif define WIN32
-    // tcp stuff for win
-#endif
 protected:
     /**
      * @brief Retrieves a specified number of bytes from the buffer.
@@ -160,6 +162,8 @@ protected:
 public:
 #ifdef UNIX
     TCP2Decoder(int client_socket, std::mutex *pipe_lock);
+#elifdef WIN
+    TCP2Decoder(SOCKET client_socket, std::mutex *pipe_lock);
 #endif
 
     void read_data() override;
