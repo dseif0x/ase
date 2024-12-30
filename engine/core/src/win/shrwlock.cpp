@@ -8,7 +8,7 @@
 #include "shrwlock.h"
 #include <thread>
 
-shrwlock::shrwlock() : state(0), lock_flag(false) {}
+shrwlock::shrwlock() : state(0) {}
 
 shrwlock::~shrwlock() {
 }

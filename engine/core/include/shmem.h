@@ -128,7 +128,7 @@ public:
 
     template<typename T>
     offset_ptr<T> relative_to_offset(relative_offset_ptr<T> &ptr) const {
-        return offset_ptr<T> (reinterpret_cast<off_t>(ptr.get()) - reinterpret_cast<off_t>(base));
+        return offset_ptr<T> (reinterpret_cast<offset_t>(ptr.get()) - reinterpret_cast<offset_t>(base));
     }
 
     template <typename T>
