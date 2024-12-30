@@ -87,7 +87,6 @@ std::optional<CopiedValue> DB::get(const char *key) {
     auto key_split = split(key);
     std::optional<CopiedValue> res {};
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-        entrypoint->print_data(mem);
         get_key(*entrypoint, mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
             if (val.has_value())
                 res.emplace(*val.value(), mem);
@@ -158,7 +157,8 @@ void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys,
     if (keys.empty())
         return;
     auto entrypoint = map.get(mem);
-    //std::unique_lock<shrwlock> lock_guard(entrypoint->get_lock());
+    auto &lock = map.get(mem)->get_lock();
+    lock.lock();
     auto key = keys.front();
     bool exists = false;
     if (keys.size() == 1) {
@@ -167,36 +167,32 @@ void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys,
         }
         // no force check needed, the condition only does not hold when force is false
         if (!exists) {
-            shmemlock.unlock();
-            auto tmp = Value::create_value(mem, new_value);
-            shmemlock.lock();
+            auto tmp = Value::create_value(mem, new_value, true);
             db_key_map::set(map, mem, key.c_str(), tmp);
+        }
+        {
+            auto &lock2 = map.get(mem)->get_lock();
+            lock2.unlock();
         }
         return;
     }
     keys.pop_front();
-    offset_ptr<db_map> ptr;
-    bool found = false;
-    relative_offset_ptr<Value> res;
     if (entrypoint->has(mem, key.c_str())) {
-        res = entrypoint->get(mem, key.c_str());
-        found = true;
-    } else {
-        return;
-    }
-    auto& newMap = *res;
-    if (newMap.type != ValueType::MAP) {
-        throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
-    }
-    ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.data));
-    if (!found) {
-        auto subdomain = generate_subdomain(keys, std::move(new_value));
-        shmemlock.unlock();
-        auto tmp = Value::create_value(mem, subdomain);
-        shmemlock.lock();
-        db_key_map::set(map, mem, key.c_str(), tmp);
-    } else {
+        auto newMap = *entrypoint->get(mem, key.c_str());
+        if (newMap.type != ValueType::MAP) {
+            lock.unlock();
+            throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
+        }
+        offset_ptr<db_map> ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.data));
         set_key_(ptr, mem, keys, std::move(new_value), force, shmemlock);
+    } else {
+        auto subdomain = generate_subdomain(keys, std::move(new_value));
+        auto tmp = Value::create_value(mem, subdomain, true);
+        db_key_map::set(map, mem, key.c_str(), tmp);
+    }
+    {
+        auto &lock2 = map.get(mem)->get_lock();
+        lock2.unlock();
     }
 }
 

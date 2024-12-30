@@ -128,7 +128,6 @@ public:
         auto hash = hash_fn(std::string(key));
 
         map.atomic_access(mem, [&](db_map *map) {
-            map->lock.lock();
             map_entry_type *data = map->data.get(mem);
             offset_t *lookup = map->lookup.get(mem);
             used_size = map->used_size;
@@ -147,7 +146,6 @@ public:
                     found = true;
                     Value::destroy_value(mem, std::get<1>(ll_node), true);
                     std::get<1>(data[idx]) = value;
-                    map->lock.unlock();
                 }
             }
         }, true);
@@ -172,7 +170,6 @@ public:
             lookup_p[hash % map_p->alloc_size] = used_size;
             data_p[used_size++] = std::make_tuple(new_key, value, next);
             map_p->used_size = used_size;
-            map_p->lock.unlock();
         }, true);
     }
 

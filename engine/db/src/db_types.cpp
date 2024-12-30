@@ -96,32 +96,42 @@ void CopiedValue::print(CopiedValue &val) {
     std::cout << CopiedValue::get_python_style(val) << std::endl;
 }
 
-offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
-    offset_ptr<Value> res = mem.construct<Value>();
+offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value, bool locks_held) {
+    offset_ptr<Value> res;
+    if (locks_held) {
+        res = mem.construct_unsafe<Value>();
+    } else {
+        res = mem.construct<Value>();
+    }
     res.atomic_access(mem, [&](Value* new_value) {
         new_value->type = value.type;
-    });
+    }, locks_held);
 
     if (value.type == ValueType::INT) {
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<int>(get<int>(value.data));
-        });
+        }, locks_held);
     } else if (value.type == ValueType::BOOLEAN) {
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<bool>(get<bool>(value.data));
-        });
+        }, locks_held);
     }  else if (value.type == ValueType::DOUBLE) {
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<double>(get<double>(value.data));
-        });
+        }, locks_held);
     } else if (value.type == ValueType::ARRAY) {
         auto& local_array = get<CopiedValue::copied_array_t>(value.data);
-        auto shmem_array_data = mem.construct_array<Value>(local_array.size());
+        offset_ptr<Value> shmem_array_data;
+        if (locks_held) {
+            shmem_array_data = mem.construct_array_unsafe<Value>(local_array.size());
+        } else {
+            shmem_array_data = mem.construct_array<Value>(local_array.size());
+        }
 
         std::vector<offset_ptr<Value>> shmem_array_data_ptrs;
         shmem_array_data_ptrs.reserve(local_array.size());
         for (const auto& val : local_array) {
-            shmem_array_data_ptrs.push_back(create_value(mem, val));
+            shmem_array_data_ptrs.push_back(create_value(mem, val, locks_held));
         }
 
         res.atomic_access(mem, [&](Value* new_value) {
@@ -133,37 +143,52 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value) {
             for (size_t i = 0; i < array.size; i++) {
                 shmem_array_data_ptr[i] = *shmem_array_data_ptrs[i].get(mem);
             }
-        });
+        }, locks_held);
     } else if (value.type == ValueType::PAIR) {
         auto& local_pair = get<CopiedValue::copied_pair_t>(value.data);
-        auto pair_v1 = create_value(mem, *local_pair.first);
-        auto pair_v2 = create_value(mem, *local_pair.second);
+        auto pair_v1 = create_value(mem, *local_pair.first, locks_held);
+        auto pair_v2 = create_value(mem, *local_pair.second, locks_held);
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<Value::shmem_pair_t>(pair_v1.get_relative(mem), pair_v2.get_relative(mem));
-        });
+        }, locks_held);
     } else if (value.type == ValueType::MAP) {
-        auto shmem_map = mem.construct<Value::shmem_map>();
+        offset_ptr<db_map> shmem_map;
+        if (locks_held) {
+            shmem_map = mem.construct_unsafe<db_map>();
+        } else {
+            shmem_map = mem.construct<db_map>();
+        }
         auto& local_map = get<CopiedValue::copied_map_t>(value.data);
         for (auto& [key, val] : local_map) {
-            auto shmem_value = create_value(mem, *val);
+            auto shmem_value = create_value(mem, *val, locks_held);
             Value::shmem_map::set(shmem_map, mem, key.c_str(), shmem_value);
         }
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<Value::shmem_map_t>(shmem_map.get_relative(mem));
-        });
+        }, locks_held);
     } else if (value.type == ValueType::STRING || value.type == ValueType::REFERENCE) {
         auto& local_string = get<std::string>(value.data);
-        auto shmem_string = mem.construct_array<char>(local_string.size() + 1);
+        offset_ptr<char> shmem_string;
+        if (locks_held) {
+            shmem_string = mem.construct_array_unsafe<char>(local_string.size() + 1);
+        } else {
+            shmem_string = mem.construct_array<char>(local_string.size() + 1);
+        }
         std::strcpy(shmem_string.get(mem), local_string.c_str());
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<Value::shmem_string_t>(shmem_string.get_relative(mem));
-        });
+        }, locks_held);
     } else if (value.type == ValueType::SEMAPHORE) {
         auto& local_sem = get<int>(value.data);
-        auto shmem_sem = mem.construct<shsem>(local_sem);
+        offset_ptr<shsem> shmem_sem;
+        if (locks_held) {
+            shmem_sem = mem.construct_unsafe<shsem>(local_sem);
+        } else {
+            shmem_sem = mem.construct<shsem>(local_sem);
+        }
         res.atomic_access(mem, [&](Value* new_value) {
             new_value->data.emplace<Value::shmem_sem_t>(shmem_sem.get_relative(mem));
-        });
+        }, locks_held);
     } else {
         throw std::runtime_error("Unknown ValueType");
     }
