@@ -22,22 +22,22 @@
 
 struct CommandInfo {
     ACLUser *user;
-    ACL &acl;
+    TCP_ACL &acl;
     DB &db;
 
-    CommandInfo(ACLUser *userPtr, ACL &aclRef, DB &dbRef)
+    CommandInfo(ACLUser *userPtr, TCP_ACL &aclRef, DB &dbRef)
         : user(userPtr), acl(aclRef), db(dbRef) {}
 };
 
 namespace tcp2_utils {
     // client_acceptor needs a system dependent implementation but keeps the same signature
-    void client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients);
+    void client_acceptor(std::atomic<bool> &kys, TCP_ACL &acl, DB &db, int port, int max_clients);
 #ifdef UNIX
     // following function needs system dependent implementation as well as possibly different signatures
-    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db);
+    void client_coding_setup(std::atomic<bool> &kys, int client_socket, TCP_ACL &acl, DB &db);
 #elifdef WIN
     // following function needs system dependent implementation as well as possibly different signatures
-    void client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, ACL &acl, DB &db);
+    void client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, TCP_ACL &acl, DB &db);
 #endif
 
     // following functions are system independent
@@ -47,18 +47,18 @@ namespace tcp2_utils {
      * @param kys Atomic boolean signaling termination.
      * @param decoder Reference to the TCP2Decoder instance for decoding client data.
      * @param encoder Reference to the TCP2Encoder instance for encoding responses.
-     * @param acl Reference to the ACL managing user authentication and permissions.
+     * @param acl Reference to the TCP_ACL managing user authentication and permissions.
      */
-    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
+    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, TCP_ACL &acl, DB &db);
     /**
      * @brief Manages the client state machine, handling authentication and client commands.
      *
      * @param decoder Reference to the TCP2Decoder instance for decoding client data.
      * @param encoder Reference to the TCP2Encoder instance for encoding responses.
-     * @param acl Reference to the ACL (Access Control List) managing user authentication and permissions.
+     * @param acl Reference to the TCP_ACL (Access Control List) managing user authentication and permissions.
      * @param db Reference to the db do access the actual data.
      */
-    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db);
+    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, TCP_ACL &acl, DB &db);
     /**
      * @brief Processes client commands and executes the appropriate function based on the command code.
      *

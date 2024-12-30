@@ -12,16 +12,17 @@
 #include <tcp2_server.h>
 #include <thread>
 #include <unistd.h>
-#include <winsock.h>
+#include <winsock2.h>
 
 #include "encoder.h"
 
 
-void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients) {
+void tcp2_utils::client_acceptor(std::atomic<bool> &kys, TCP_ACL &acl, DB &db, int port, int max_clients) {
     WORD wVersionRequested;
     WSADATA wsaData;
     wVersionRequested = MAKEWORD(2, 2);
     if (WSAStartup(wVersionRequested, &wsaData) != 0) {
+        std::cerr << "Could not find any WinSock DLL.\n";
         return;
     }
     if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
@@ -32,14 +33,14 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int p
 
     // Create server socket
     SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0) {
+    if (serverSocket == SOCKET_ERROR) {
         std::cerr << "Failed to create socket. Error: " << WSAGetLastError() << std::endl;
         return;
         //return false;
     }
 
     int opt = 1;
-    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == -1) {
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR) {
         std::cerr << "setsockopt failed. Error: " << WSAGetLastError() << std::endl;
         closesocket(serverSocket);
         return;
@@ -118,7 +119,7 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int p
     WSACleanup(); // Clean up Winsock
 }
 
-void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, ACL &acl, DB &db) {
+void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, TCP_ACL &acl, DB &db) {
     std::mutex pipe_lock;
     TCP2Decoder decoder{client_socket, &pipe_lock};
     TCP2Encoder encoder{client_socket, &pipe_lock};

@@ -72,7 +72,7 @@ public:
     }
 
 private:
-    ACL acl{};
+    TCP_ACL acl{};
     DB* db;
     int max_clients;
 

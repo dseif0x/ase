@@ -18,16 +18,16 @@ class ACLUser;
 
 
 /**
- * @brief Manages users and their access permissions in the ACL system.
+ * @brief Manages users and their access permissions in the TCP_ACL system.
  */
-class ACL {
+class TCP_ACL {
     std::unordered_map<std::string, ACLUser> users;
     std::set<std::string> open_connections;
 
     std::mutex general_lock; // todo think about locking individual users
     
 public:
-    ACL(); // create default with one admin
+    TCP_ACL(); // create default with one admin
 
     bool load_from_disk(std::string path); // load acl from disk
     bool save_to_disk(std::string path);
@@ -69,7 +69,7 @@ public:
 };
 
 /**
- * @brief Represents a user in the ACL system with specific permissions and attributes.
+ * @brief Represents a user in the TCP_ACL system with specific permissions and attributes.
  */
 class ACLUser {
     //todo might have to add a lock for access of userdata

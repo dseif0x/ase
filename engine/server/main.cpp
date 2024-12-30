@@ -58,7 +58,7 @@ int main() {
 */
     std::cout << "after db" << std::endl;
 
-    ACL acl{};
+    TCP_ACL acl{};
 
     if (acl.load_from_disk("test.bin")) {
         std::cout << "acl loaded from disk" << std::endl;

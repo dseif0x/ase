@@ -23,7 +23,7 @@ bool TCP2Encoder::write_data() {
     {
         std::lock_guard<std::mutex> lock(*this->pipe_lock);
         if (this->client_socket == INVALID_SOCKET) return false;
-        if (send(this->client_socket, data.first.get(), data.second, 0) == SOCKET_ERROR) return false;
+        if (send(this->client_socket, reinterpret_cast<const char*>(data.first.get()), data.second, 0) == SOCKET_ERROR) return false;
     }
     return true;
 }

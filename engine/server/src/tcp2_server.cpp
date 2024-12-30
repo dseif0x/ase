@@ -11,7 +11,7 @@
 #include <atomic>
 
 
-TCP2Server::TCP2Server(ACL &acl, DB &db, int port, int max_clients): port(port), max_clients(max_clients), acl(acl), db(db) {
+TCP2Server::TCP2Server(TCP_ACL &acl, DB &db, int port, int max_clients): port(port), max_clients(max_clients), acl(acl), db(db) {
 }
 
 TCP2Server::~TCP2Server() {

@@ -57,7 +57,7 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::list;
             perms = permissions::read;
             break;
-        // ACL Commands
+        // TCP_ACL Commands
         case 0x81: // Update Scope
             func = command::update_scope;
             perms = permissions::admin;
@@ -281,7 +281,7 @@ int tcp2_utils::command::list(TCP2Decoder &decoder, TCP2Encoder &encoder, Comman
     return 0;
 }
 
-void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
+void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, TCP_ACL &acl, DB &db) {
     std::string username;
     ACLUser *user{nullptr};
     unsigned char self_perms{};
@@ -385,7 +385,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
 }
 
 
-void tcp2_utils::client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
+void tcp2_utils::client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, TCP_ACL &acl, DB &db) {
     std::thread state(tcp2_utils::client_state_thread, std::ref(decoder), std::ref(encoder), std::ref(acl), std::ref(db));
 
     while (!kys && decoder.is_healthy()) {
