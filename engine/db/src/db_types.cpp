@@ -216,6 +216,10 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
     } else if (value.get(mem)->type == ValueType::STRING || value.get(mem)->type == ValueType::REFERENCE) {
         auto& data = std::get<shmem_string_t>(value.get(mem)->data);
         mem.destroy_array(mem.relative_to_offset(data), 0, locks_held);
+    } else if (value.get(mem)->type == ValueType::SEMAPHORE) {
+        auto& data = std::get<shmem_sem_t>(value.get(mem)->data);
+        data->~shsem();
+        mem.destroy(mem.relative_to_offset(data), locks_held);
     }
     mem.destroy(value, locks_held);
 }
