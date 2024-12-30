@@ -53,6 +53,9 @@ void shmem::attach(std::function<void(shmem&)> on_create) {
 
     if (created) {
         FreeBlock* freeList = get_first_free_block(*metadata, base);
+#ifdef MEM_DEBUG
+        new (freeList) FreeBlock();
+#endif
         freeList->size = metadata->alloc_size;
         freeList->next_offset = -1;
         on_create(*this);
@@ -110,7 +113,29 @@ void shmem::ensure_enough_space(std::size_t required_memory, std::size_t require
     memcpy(base, tmp.get(), prev_size);
     CloseHandle(data_handle);
 
+    ++metadata->version;
+    local_version = metadata->version;
     local_size = metadata->alloc_size;
+
+    // Find last block and change size
+    size_t tail = find_tail_block(*metadata, base);
+    FreeBlock* tailblock = get_free_block(base, tail);
+    if (tail != -1 && tail + tailblock->size == prev_size) { // This block is at the end so we can just extend it
+        tailblock->size = metadata->alloc_size - tail;
+    } else { // The block is not at the end so we need to create a new block
+        size_t new_block_offset = prev_size;
+        FreeBlock* newblock = get_free_block(base, new_block_offset);
+#ifdef MEM_DEBUG
+        new (newblock) FreeBlock();
+#endif
+        newblock->next_offset = -1;
+        newblock->size = metadata->alloc_size - prev_size;
+        if (tail != -1) {
+            tailblock->next_offset = new_block_offset;
+        } else {
+            metadata->first_free = new_block_offset;
+        }
+    }
 }
 
 void shmem::ensure_mounted() {
