@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <sys/socket.h>
+#include <fcntl.h>
 #include "encoder.h"
 #include "tcp2_coding.h"
 
