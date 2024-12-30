@@ -68,6 +68,16 @@ public:
         return ptr;
     }
 
+    template <typename T, typename... Args>
+    offset_ptr<T> construct_unsafe(Args&&... args) {
+        auto storage = allocate(sizeof(T), alignof(T), true);
+        offset_ptr<T> ptr{storage};
+        atomic_access(storage, [&args...](void *ptr) {
+            new (ptr) T(std::forward<Args>(args)...);
+        }, true);
+        return ptr;
+    }
+
     //! @neverInAtomicAccess
     template <typename T>
     offset_ptr<T> construct_array(size_t count) {

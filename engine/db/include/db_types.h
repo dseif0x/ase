@@ -68,7 +68,7 @@ struct Value {
      * Only allocate this object using construct_unsafe, as it recursively allocates other objects!
      * This also requires you to have a unique lock on the meta mutex before calling construct_unsafe
      */
-    static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
+    static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value, bool locks_held = false);
 
     /**
      * @brief Destroys a Value object
