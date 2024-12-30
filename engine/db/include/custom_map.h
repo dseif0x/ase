@@ -195,9 +195,7 @@ public:
      */
     static void remove(offset_ptr<db_map> &map, shmem &mem, const char *key) {
         // Potentially shrink the shmem
-        std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
         map.atomic_access(mem, [&](db_map *map) {
-            std::unique_lock<shrwlock> map_lock_guard(map->lock);
             map_entry_type *data = map->data.get(mem);
             auto *lookup = map->lookup.get(mem);
             offset_t removed_idx = hash_fn(std::string(key)) % map->alloc_size;

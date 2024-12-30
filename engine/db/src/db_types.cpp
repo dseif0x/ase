@@ -203,11 +203,9 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
         for(int i = 0; i < shmemap.used_size; i++) {
             auto* dataarr = shmemap.data.get(mem);
             auto& child = std::get<1>(dataarr[i]);
-            // TODO This causes some sort of race condition (invalid free blocks in memory)
-            // destroy_value(mem, child, locks_held);
+            destroy_value(mem, child, locks_held);
         }
-        // TODO This causes some sort deadlock (maybe the lock being destroyed is still locked somewhere?)
-        //data->~db_map();
+        data->~db_map();
     } else if (value.get(mem)->type == ValueType::ARRAY) {
         auto& data = std::get<ArrayType>(value.get(mem)->data);
         mem.destroy_array(mem.relative_to_offset(data.array_value), data.size, locks_held);

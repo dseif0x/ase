@@ -246,28 +246,58 @@ DB::list_t DB::list(const char* key) {
     return res;
 }
 
+template<typename Lambda>
+void remove_key(db_map& map, shmem& mem, std::deque<std::string>& keys, Lambda&& cb) {
+    static_assert(std::is_invocable_v<Lambda, std::optional<relative_offset_ptr<Value>>>, "Lambda must be invocable with std::optional<relative_offset_ptr<Value>>");
+
+    std::unique_lock<shrwlock> lock_guard(map.get_lock());
+
+    if (keys.empty()) {
+        cb(std::nullopt);
+        return;
+    }
+    auto key = keys.front();
+    relative_offset_ptr<Value> res;
+    if (map.has(mem, key.c_str())) {
+        res = map.get(mem, key.c_str());;
+    } else {
+        cb(std::nullopt);
+        return;
+    }
+    if (keys.size() == 1) {
+        cb(res);
+        return;
+    }
+    keys.pop_front();
+    if (res->type != ValueType::MAP) {
+        throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
+    }
+    auto& newMap = std::get<Value::shmem_map_t>(res->data);
+    remove_key(*newMap, mem, keys, cb);
+}
+
 void DB::remove(const char* key) {
     auto entrypoint_p = get_entrypoint();
     auto key_split = split(key);
     auto last_key = key_split.back();
     key_split.pop_back();
-    std::optional<offset_ptr<db_map>> res {};
+
+    std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
+
+    offset_ptr<db_map> res;
     if (key_split.empty()) { // top level key
-        res.emplace(entrypoint_p);
+        std::unique_lock<shrwlock> lock_guard(entrypoint_p.get(mem)->get_lock());
+        db_map::remove(entrypoint_p, mem, last_key.c_str());
     } else {
-        entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
-            get_key(*entrypoint, mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
-                if (val.has_value()) {
-                    auto extracted_val = *val;
-                    if (extracted_val->type == ValueType::MAP) {
-                        res.emplace(mem.relative_to_offset(std::get<Value::shmem_map_t>(extracted_val->data)));
-                    }
+        remove_key(*entrypoint_p.get(mem), mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
+            if (val.has_value()) {
+                auto extracted_val = *val;
+                if (extracted_val->type == ValueType::MAP) {
+                    auto tmp = mem.relative_to_offset(std::get<Value::shmem_map_t>(extracted_val->data));
+                    db_map::remove(tmp, mem, last_key.c_str());
                 }
-            });
+            }
         });
-    }
-    if (res.has_value()) {
-        db_map::remove(res.value(), mem, last_key.c_str());
     }
 }
 
