@@ -11,10 +11,11 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -37,6 +38,12 @@ public class DatabaseClient {
 
     private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
+    /** Executor service for handling asynchronous operations. */
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
+
+    /** List of ongoing futures for asynchronous get and set operations. */
+    private final List<Future<?>> ongoingFutures = Collections.synchronizedList(new ArrayList<>());
+
     /**
      * Constructs a new DatabaseClient and establishes a socket connection.
      *
@@ -58,6 +65,15 @@ public class DatabaseClient {
         this.socket = socket;
         this.reader = new DataInputStream(socket.getInputStream());
         this.writer = new DataOutputStream(socket.getOutputStream());
+    }
+
+    /**
+     * Adds a Future to the list of ongoing get/set operations.
+     *
+     * @param future The Future to add.
+     */
+    private void addOngoingFuture(Future<?> future) {
+        ongoingFutures.add(future);
     }
 
     /**
@@ -167,6 +183,22 @@ public class DatabaseClient {
     }
 
     /**
+     * Asynchronously performs a SET operation.
+     * @see #set(String, TcpGeneral, boolean) set() for more Information.
+     *
+     * @param key    The key to set.
+     * @param value  The value to associate with the key.
+     * @param force  Whether to force the set operation.
+     * @return A Future representing the pending result of the SET operation.
+     */
+    public Future<WebReturn<Integer>> setAsync(String key, TcpGeneral value, boolean force) {
+        Callable<WebReturn<Integer>> task = () -> set(key, value, force);
+        Future<WebReturn<Integer>> future = executorService.submit(task);
+        addOngoingFuture(future);
+        return future;
+    }
+
+    /**
      * Sends a command to the server to set a key-value pair.
      *
      * @param key   The key of the key-value pair to be set. Must not be {@code null} or empty.
@@ -205,17 +237,35 @@ public class DatabaseClient {
             dataWriter.writeString(key);
             dataWriter.writeGeneral(value);
 
-            byte response = reader.readByte();
-            if (response == Utility.NAK) {
-                return readError();
-            } else if (response == Utility.ACK) {
-                return WebReturn.success();
-            } else return WebReturn.error("Server responded with unknown response.", (int) response);
-        } catch (IOException e) {
-            return WebReturn.error("Failed to send set command.");
-        } catch (TCPClientException e) {
-            return WebReturn.error(e.getMessage());
+            while (true) {
+                if (isStopped.get()) {
+                    return WebReturn.error("SET operation was stopped.");
+                }
+
+                int available = reader.available();
+                if (available > 0) {
+                    byte response = reader.readByte();
+                    if (response == Utility.ACK) {
+                        return WebReturn.success();
+                    } else if (response == Utility.NAK) {
+                        return readError();
+                    } else {
+                        return WebReturn.error("Server responded with unknown response.", (int) response);
+                    }
+                } else {
+                    Thread.sleep(50);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return WebReturn.error("SET operation interrupted.");
+        } catch (TCPClientException | IOException e) {
+            if (isStopped.get()) {
+                return WebReturn.error("SET operation was stopped.");
+            }
+            return WebReturn.error("Failed to send SET command: " + e.getMessage());
         }
+
     }
 
     /**
@@ -428,6 +478,13 @@ public class DatabaseClient {
     public WebReturn<Integer> stop(long packageToSend) {
         if (isStopped.getAndSet(true)) {
             return WebReturn.error("Stop command has already been issued.");
+        }
+
+        synchronized (ongoingFutures) {
+            for (Future<?> future : ongoingFutures) {
+                future.cancel(true);
+            }
+            ongoingFutures.clear();
         }
 
         try {
