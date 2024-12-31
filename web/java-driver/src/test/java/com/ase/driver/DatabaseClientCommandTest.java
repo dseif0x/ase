@@ -868,7 +868,7 @@ public class DatabaseClientCommandTest {
         assertNotNull(result.getMessage(), "Expected an error message.");
         assertTrue(result.getMessage().contains("unknown response"),
             "Expected the error message to indicate unknown response.");
-        assertNull(result.getData(), "Expected no data on failure.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
     }
 
     /**
@@ -895,7 +895,7 @@ public class DatabaseClientCommandTest {
 
         // Verify error
         assertFalse(result.isOk(), "Expected get to fail due to TCPClientException.");
-        assertEquals("Read failed. Failed to read string.", result.getMessage(),
+        assertEquals("Failed to send GET command: Read failed. Failed to read string.", result.getMessage(),
             "Expected the message from the thrown TCPClientException.");
         assertNull(result.getData(), "Expected no data on failure.");
     }
