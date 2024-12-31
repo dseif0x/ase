@@ -8,6 +8,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -202,14 +205,24 @@ public class DatabaseClientCommandTest {
     @Test
     void testStopSuccess() throws Exception {
         ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+
         serverResponseOut.write(0x03);
         serverResponseOut.write(0x01);
         serverResponseOut.write(0x01);
         serverResponseOut.write(Utility.ACK);
+        serverResponseOut.write(Utility.ACK);
+
+        Random random = new Random();
+        long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
+
+        ByteBuffer buffer = ByteBuffer.allocate(4);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+        buffer.putInt((int) unsignedInt);
+        serverResponseOut.write(buffer.array());
 
         setServerResponse(serverResponseOut.toByteArray());
 
-        WebReturn<Integer> result = databaseClient.stop();
+        WebReturn<Integer> result = databaseClient.stop(unsignedInt);
 
         assertTrue(result.isOk(), "Expected stop to succeed with ACK.");
         assertNull(result.getMessage(), "Expected no message on success.");
@@ -230,7 +243,7 @@ public class DatabaseClientCommandTest {
 
         setServerResponse(unknownBytes);
 
-        WebReturn<Integer> result = databaseClient.stop();
+        WebReturn<Integer> result = databaseClient.stop(1L);
 
         assertFalse(result.isOk(), "Expected stop to fail due to no ACK/NAK received.");
         assertNotNull(result.getMessage(), "Expected an error message.");

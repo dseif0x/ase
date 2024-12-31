@@ -12,6 +12,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.io.*;
 import java.net.Socket;
 import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Manages the TCP connection and communication with a database server.
@@ -30,6 +34,8 @@ public class DatabaseClient {
     private DynamicDataReader dataReader;
     /** Writer for writing data to the server based on server-provided size information. */
     private DynamicDataWriter dataWriter;
+
+    private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
     /**
      * Constructs a new DatabaseClient and establishes a socket connection.
@@ -78,8 +84,8 @@ public class DatabaseClient {
                     writer.write(Utility.NAK);
                     throw new HandshakeException("Validation failed for server information. Sizes of server are too large.");
                 } else {
-                    this.dataReader = new DynamicDataReader(serverInfo, reader);
-                    this.dataWriter = new DynamicDataWriter(serverInfo, writer);
+                    this.dataReader = new DynamicDataReader(serverInfo, reader, isStopped);
+                    this.dataWriter = new DynamicDataWriter(serverInfo, writer, isStopped);
                     writer.write(Utility.ACK);
                     writer.flush();
                 }
@@ -401,6 +407,7 @@ public class DatabaseClient {
 
     /**
      * Sends a STOP command to the server to halt any ongoing data transmission.
+     * @param packageToSend The unsigned integer data payload to send with the STOP command. Used to check synchronization.
      *
      * @return A {@link WebReturn} object indicating the outcome of the STOP operation:
      *         <ul>
@@ -418,7 +425,11 @@ public class DatabaseClient {
      *             </li>
      *         </ul>
      */
-    public WebReturn<Integer> stop() {
+    public WebReturn<Integer> stop(long packageToSend) {
+        if (isStopped.getAndSet(true)) {
+            return WebReturn.error("Stop command has already been issued.");
+        }
+
         try {
             writer.writeByte(Utility.STOP_COMMAND);
             writer.flush();
@@ -431,7 +442,15 @@ public class DatabaseClient {
                     bytesRead++;
 
                     if (responseByte == Utility.ACK) {
-                        return WebReturn.success();
+                        WebReturn<Integer> pingResult = ping(packageToSend);
+                        isStopped.set(false);
+
+                        if (pingResult.isOk()) {
+                            return WebReturn.success();
+                        } else {
+                            return WebReturn.error("Ping failed and thus not in sync with server. " +
+                                "Restart may be needed (try ping again). Error: " + pingResult.getMessage(), pingResult.getData());
+                        }
                     }
                 } else {
                     try {
@@ -499,5 +518,13 @@ public class DatabaseClient {
      */
     public void setDataWriter(DynamicDataWriter dataWriter) {
         this.dataWriter = dataWriter;
+    }
+
+    /**
+     * Resets the stop flag to allow new operations.
+     * Must be called after ensuring all ongoing operations have been stopped.
+     */
+    public void resetStop() {
+        isStopped.set(false);
     }
 }
