@@ -167,19 +167,50 @@ public class DatabaseClient {
 
             dataWriter.writeString(key);
 
-            byte response = reader.readByte();
-            if (response == Utility.NAK) {
-                WebReturn<Integer> error = readError();
-                return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
-            } else if (response == Utility.ACK) {
-                TcpGeneral tcpGeneral = dataReader.readGeneral();
-                return WebReturn.success(tcpGeneral);
-            } else return WebReturn.error("Server responded with unknown response: " + String.format("0x%02X", response));
-        } catch (IOException e) {
-            return WebReturn.error("Failed to send get command.");
-        } catch (TCPClientException e) {
-            return WebReturn.error(e.getMessage());
+            while (true) {
+                if (isStopped.get()) {
+                    return WebReturn.error("GET operation was stopped.");
+                }
+
+                int available = reader.available();
+                if (available > 0) {
+                    byte response = reader.readByte();
+                    if (response == Utility.ACK) {
+                        TcpGeneral tcpGeneral = dataReader.readGeneral();
+                        return WebReturn.success(tcpGeneral);
+                    } else if (response == Utility.NAK) {
+                        WebReturn<Integer> error = readError();
+                        return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
+                    } else {
+                        return WebReturn.error("Server responded with unknown response.", TcpGeneral.ofSimple(SimpleType.INT, (int) response));
+                    }
+                } else {
+                    Thread.sleep(50);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return WebReturn.error("GET operation interrupted.");
+        } catch (TCPClientException | IOException e) {
+            if (isStopped.get()) {
+                return WebReturn.error("GET operation was stopped.");
+            }
+            return WebReturn.error("Failed to send GET command: " + e.getMessage());
         }
+    }
+
+    /**
+     * Asynchronously performs a GET operation.
+     * @see #get(String) get() for more Information.
+     *
+     * @param key The key to retrieve.
+     * @return A Future representing the pending result of the GET operation.
+     */
+    public Future<WebReturn<TcpGeneral>> getAsync(String key) {
+        Callable<WebReturn<TcpGeneral>> task = () -> get(key);
+        Future<WebReturn<TcpGeneral>> future = executorService.submit(task);
+        addOngoingFuture(future);
+        return future;
     }
 
     /**
