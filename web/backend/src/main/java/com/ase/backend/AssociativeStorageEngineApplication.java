@@ -1,5 +1,6 @@
 package com.ase.backend;
 
+import com.ase.driver.DatabaseClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -12,15 +13,5 @@ public class AssociativeStorageEngineApplication {
 	 */
 	public static void main(String[] args) {
 		SpringApplication.run(AssociativeStorageEngineApplication.class, args);
-	}
-
-	/**
-	 * Multiply a and b and returns the value.
-	 *
-	 * @param a Int to multiply
-	 * @param b Int to multiply
-	 */
-	public static int testMul(int a, int b) {
-		return a * b;
 	}
 }
