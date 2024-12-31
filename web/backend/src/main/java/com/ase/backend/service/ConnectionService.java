@@ -2,7 +2,6 @@ package com.ase.backend.service;
 
 import com.ase.driver.DatabaseClient;
 import com.ase.exception.TCPClientException;
-import com.ase.utility.WebReturn;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -32,26 +31,17 @@ public class ConnectionService {
      */
     public void createClient(String host, int port, int version, byte flags, String username, String password) throws IOException, TCPClientException {
         DatabaseClient newClient = new DatabaseClient(host, port);
-        newClient.connect(1, (byte) 0);
+        newClient.connect(version, flags);
         newClient.login(username, password);
         this.currentClient.set(newClient);
     }
 
     /**
+     * Retrieves the active DatabaseClient instance.
+     *
      * @return The active DatabaseClient instance, or null if not yet created/logged in.
      */
     public DatabaseClient getClient() {
         return currentClient.get();
-    }
-
-    /**
-     * Optionally, a method to stop ongoing operations or disconnect.
-     */
-    public WebReturn<Integer> stopAll(long packageToSend) {
-        DatabaseClient client = currentClient.get();
-        if (client == null) {
-            return WebReturn.error("No client is currently connected.");
-        }
-        return client.stop(packageToSend);
     }
 }

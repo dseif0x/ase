@@ -1,6 +1,5 @@
 package com.ase.backend;
 
-import com.ase.driver.DatabaseClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 

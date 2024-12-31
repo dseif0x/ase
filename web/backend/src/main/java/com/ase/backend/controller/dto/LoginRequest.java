@@ -1,11 +1,12 @@
 package com.ase.backend.controller.dto;
 
 public class LoginRequest {
-    private String host;
-    private int port;
-    private int version;
-    private byte flags;
-    private String username;
+    private final String host;
+    private final int port;
+    private final int version;
+    private final byte flags;
+    private final String username;
+    private final String password;
 
     /**
      * Constructs a new LoginRequest.
@@ -19,7 +20,6 @@ public class LoginRequest {
         this.password = password;
     }
 
-    private String password;
 
     // getters/setters
     public String getHost() { return host; }

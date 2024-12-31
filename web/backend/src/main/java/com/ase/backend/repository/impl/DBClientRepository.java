@@ -4,7 +4,6 @@ import com.ase.backend.repository.DBClientDao;
 import com.ase.backend.service.ConnectionService;
 import com.ase.driver.DatabaseClient;
 import com.ase.utility.WebReturn;
-import com.ase.utility.tcp.SimpleType;
 import com.ase.utility.tcp.TcpGeneral;
 import org.springframework.stereotype.Repository;
 
