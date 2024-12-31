@@ -52,13 +52,11 @@
 			<optional>true</optional>
 		</dependency>
 
-		<!--
 		<dependency>
-			<groupId>com.ase</groupId> Replace with your TCP driver’s groupId
-			<artifactId>java-driver</artifactId> Replace with your TCP driver’s artifactId
-			<version>1.0.0</version> Replace with your TCP driver’s version
+			<groupId>com.ase</groupId>
+			<artifactId>java-driver</artifactId>
+			<version>1.0.0</version>
 		</dependency>
-		-->
 
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
