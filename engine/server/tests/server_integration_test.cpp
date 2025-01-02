@@ -12,12 +12,18 @@
 #include "TestCoding.h"
 
 #include <string>
-#include <poll.h>
 #include <cstring>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <utils.h>
+
+#if defined(UNIX)
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <poll.h>
+#elif defined(WIN)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 
 void safe_sleep(unsigned int milliseconds) {
     auto start_time = std::chrono::steady_clock::now();
@@ -115,81 +121,11 @@ public:
         return true;
     }
 
-    bool is_connection_open() {
-        safe_sleep(100); // extra time for pipeline
-        struct pollfd pfd;
-        pfd.fd = this->sock_fd_;
-        pfd.events = POLLIN; // Monitor for incoming data
+    bool is_connection_open();
 
-        int result = poll(&pfd, 1, 0); // Non-blocking poll
+    bool send_message(const std::vector<unsigned char>& message) const;
 
-        if (result > 0 && (pfd.revents & POLLIN)) {
-            char buffer[1];
-            ssize_t bytes = recv(this->sock_fd_, buffer, sizeof(buffer), MSG_PEEK);
-            if (bytes == 0) {
-                return false; // Server closed the connection
-            }
-        }
-
-        return true;
-    }
-
-    bool send_message(const std::vector<unsigned char>& message) const {
-        if (send(sock_fd_, message.data(), message.size(), 0) == -1) {
-            perror("Send failed");
-            return false;
-        }
-        return true;
-    }
-
-    std::vector<unsigned char> receive_message(int timeout_ms) const {
-        std::vector<unsigned char> buffer;
-        const int chunk_size = 1024; // Size of each read
-        auto start_time = std::chrono::steady_clock::now();
-
-        while (true) {
-            // Calculate remaining time
-            auto elapsed_time = std::chrono::steady_clock::now() - start_time;
-            int remaining_time_ms = timeout_ms - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
-            if (remaining_time_ms <= 0) {
-                break; // Timeout expired
-            }
-
-            // Set up select with the remaining time
-            fd_set read_fds;
-            FD_ZERO(&read_fds);
-            FD_SET(sock_fd_, &read_fds);
-
-            struct timeval timeout;
-            timeout.tv_sec = remaining_time_ms / 1000;
-            timeout.tv_usec = (remaining_time_ms % 1000) * 1000;
-
-            int activity = select(sock_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
-
-            if (activity == -1) {
-                perror("Select failed");
-                return {};
-            } else if (activity == 0) {
-                // No data ready, but time still remains
-                continue;
-            }
-
-            // Socket is ready to read
-            std::vector<unsigned char> temp_buffer(chunk_size, 0);
-            int bytes_received = recv(sock_fd_, temp_buffer.data(), temp_buffer.size(), 0);
-            if (bytes_received < 0) {
-                perror("Receive failed");
-                return {};
-            } else if (bytes_received == 0) {
-                break; // Socket was closed by the peer
-            }
-
-            // Append received data to the main buffer
-            buffer.insert(buffer.end(), temp_buffer.begin(), temp_buffer.begin() + bytes_received);
-        }
-
-        return buffer;
-    }
+    std::vector<unsigned char> receive_message(int timeout_ms) const;
 
     void close_connection() {
         if (sock_fd_ != -1) {
@@ -203,6 +139,169 @@ private:
     int port_;
     int sock_fd_;
 };
+
+#if defined(UNIX)
+bool DumbTCPClient::is_connection_open() {
+    safe_sleep(100); // extra time for pipeline
+    struct pollfd pfd;
+    pfd.fd = this->sock_fd_;
+    pfd.events = POLLIN; // Monitor for incoming data
+
+    int result = poll(&pfd, 1, 0); // Non-blocking poll
+
+    if (result > 0 && (pfd.revents & POLLIN)) {
+        char buffer[1];
+        ssize_t bytes = recv(this->sock_fd_, buffer, sizeof(buffer), MSG_PEEK);
+        if (bytes == 0) {
+            return false; // Server closed the connection
+        }
+    }
+
+    return true;
+}
+
+bool DumbTCPClient::send_message(const std::vector<unsigned char>& message) const {
+    if (send(sock_fd_, message.data(), message.size(), 0) == -1) {
+        perror("Send failed");
+        return false;
+    }
+    return true;
+}
+
+std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms) const {
+    std::vector<unsigned char> buffer;
+    const int chunk_size = 1024; // Size of each read
+    auto start_time = std::chrono::steady_clock::now();
+
+    while (true) {
+        // Calculate remaining time
+        auto elapsed_time = std::chrono::steady_clock::now() - start_time;
+        int remaining_time_ms = timeout_ms - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
+        if (remaining_time_ms <= 0) {
+            break; // Timeout expired
+        }
+
+        // Set up select with the remaining time
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(sock_fd_, &read_fds);
+
+        struct timeval timeout;
+        timeout.tv_sec = remaining_time_ms / 1000;
+        timeout.tv_usec = (remaining_time_ms % 1000) * 1000;
+
+        int activity = select(sock_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
+
+        if (activity == -1) {
+            perror("Select failed");
+            return {};
+        } else if (activity == 0) {
+            // No data ready, but time still remains
+            continue;
+        }
+
+        // Socket is ready to read
+        std::vector<unsigned char> temp_buffer(chunk_size, 0);
+        int bytes_received = recv(sock_fd_, temp_buffer.data(), temp_buffer.size(), 0);
+        if (bytes_received < 0) {
+            perror("Receive failed");
+            return {};
+        } else if (bytes_received == 0) {
+            break; // Socket was closed by the peer
+        }
+
+        // Append received data to the main buffer
+        buffer.insert(buffer.end(), temp_buffer.begin(), temp_buffer.begin() + bytes_received);
+    }
+
+    return buffer;
+}
+#elif defined(WIN)
+bool DumbTCPClient::is_connection_open() {
+    safe_sleep(100); // extra time for pipeline
+
+    short flag = POLLRDNORM | POLLRDBAND;
+
+    WSAPOLLFD pfd;
+    pfd.fd = this->sock_fd_;
+    pfd.events = flag; // Equivalent to POLLIN for normal data
+    pfd.revents = 0;
+
+    int result = WSAPoll(&pfd, 1, 0); // Non-blocking poll
+
+    if (result > 0 && (pfd.revents & flag)) {
+        char buffer[1];
+        int bytes = recv(this->sock_fd_, buffer, sizeof(buffer), MSG_PEEK);
+        if (bytes == 0) {
+            return false; // Server closed the connection
+        }
+    }
+
+    if (pfd.revents & (POLLERR | POLLHUP)) return false;
+
+    return result >= 0; // Connection is open if WSAPoll did not fail
+}
+
+bool DumbTCPClient::send_message(const std::vector<unsigned char>& message) const {
+    int result = send(sock_fd_, reinterpret_cast<const char*>(message.data()), message.size(), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms) const {
+    std::vector<unsigned char> buffer;
+    const int chunk_size = 1024; // Size of each read
+    auto start_time = std::chrono::steady_clock::now();
+
+    while (true) {
+        // Calculate remaining time
+        auto elapsed_time = std::chrono::steady_clock::now() - start_time;
+        int remaining_time_ms = timeout_ms - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
+        if (remaining_time_ms <= 0) {
+            break; // Timeout expired
+        }
+
+        // Set up fd_set for select
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(sock_fd_, &read_fds);
+
+        // Set up timeout for select
+        struct timeval timeout;
+        timeout.tv_sec = remaining_time_ms / 1000;
+        timeout.tv_usec = (remaining_time_ms % 1000) * 1000;
+
+        // Check for readability
+        int activity = select(0, &read_fds, nullptr, nullptr, &timeout); // "0" is ignored in Winsock
+
+        if (activity == SOCKET_ERROR) {
+            std::cerr << "Select failed: " << WSAGetLastError() << std::endl;
+            return {};
+        } else if (activity == 0) {
+            // No data ready, but time still remains
+            continue;
+        }
+
+        // Socket is ready to read
+        std::vector<unsigned char> temp_buffer(chunk_size, 0);
+        int bytes_received = recv(sock_fd_, reinterpret_cast<char*>(temp_buffer.data()), temp_buffer.size(), 0);
+        if (bytes_received == SOCKET_ERROR) {
+            std::cerr << "Receive failed: " << WSAGetLastError() << std::endl;
+            return {};
+        } else if (bytes_received == 0) {
+            break; // Socket was closed by the peer
+        }
+
+        // Append received data to the main buffer
+        buffer.insert(buffer.end(), temp_buffer.begin(), temp_buffer.begin() + bytes_received);
+    }
+
+    return buffer;
+}
+#endif
 
 constexpr int wait_time_success = 150;
 constexpr int wait_time_error = wait_time_success + 250; // the server will wait for 250 seconds, therefore we have to also wait 250 more
