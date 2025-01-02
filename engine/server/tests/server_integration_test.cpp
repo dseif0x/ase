@@ -1020,3 +1020,48 @@ TEST_F(IntegrationTests_TCPServerManual, load_acl_from_disk) {
 
     this->server_stop();
 }
+
+
+TEST_F(IntegrationTests_TCPServer, login_admin_change_pwd) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    // change password of admin to "123"
+    ASSERT_TRUE(client.send_message(make_hex_vector("83 03 313233")));
+    auto res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    client.close_connection();
+
+    safe_sleep(wait_time_error);
+
+    // try to log in with new passwd
+    DumbTCPClient client2("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client2.connect_to_server());
+
+    std::vector<unsigned char> client_information_package2{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack2 = make_hex_vector("FF 05 61646D696E 03 313233");
+
+    ASSERT_TRUE(client2.send_message(client_information_package2));
+    auto server_information_package2 = client2.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client2.send_message(user_info_pack2));
+    auto logged_in2 = client2.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+}

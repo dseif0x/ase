@@ -114,6 +114,11 @@ public:
      * @return True if the password matches the stored password, otherwise false.
      */
     bool check_pwd(const std::string& pwd);
+
+    /**
+    * @brief Update the password of the user.
+    */
+    void update_pwd(const std::string& pwd);
     bool is_admin();
 
     void set_permissions(CopiedValue &value);

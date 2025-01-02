@@ -240,3 +240,7 @@ void ACL::print_full_info() {
     }
 }
 
+void ACLUser::update_pwd(const std::string& pwd) {
+    this->pwd = pwd;
+}
+
