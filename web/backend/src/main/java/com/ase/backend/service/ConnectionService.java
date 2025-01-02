@@ -2,6 +2,7 @@ package com.ase.backend.service;
 
 import com.ase.driver.DatabaseClient;
 import com.ase.exception.TCPClientException;
+import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -43,5 +44,23 @@ public class ConnectionService {
      */
     public DatabaseClient getClient() {
         return currentClient.get();
+    }
+
+    /**
+     * Removes the stored DatabaseClient (if present) and disconnects it.
+     */
+    public void logout() {
+        DatabaseClient client = currentClient.getAndSet(null);
+        if (client != null) {
+            client.disconnect();
+        }
+    }
+
+    @PreDestroy
+    public void onShutdown() {
+        DatabaseClient client = currentClient.get();
+        if (client != null) {
+            client.disconnect();
+        }
     }
 }

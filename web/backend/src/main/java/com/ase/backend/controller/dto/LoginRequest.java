@@ -21,11 +21,45 @@ public class LoginRequest {
     }
 
 
-    // getters/setters
+    /**
+     * Gets the hostname or IP address of the in-memory DB.
+     *
+     * @return The hostname or IP address of the in-memory DB.
+     */
     public String getHost() { return host; }
+
+    /**
+     * Gets the port for the in-memory DB.
+     *
+     * @return The port for the in-memory DB.
+     */
     public int getPort() { return port; }
+
+    /**
+     * Gets the version of the in-memory DB.
+     *
+     * @return The version of the in-memory DB.
+     */
     public int getVersion() { return version; }
+
+    /**
+     * Gets the flags for the in-memory DB.
+     *
+     * @return The flags for the in-memory DB.
+     */
     public byte getFlags() { return flags; }
+
+    /**
+     * Gets the username for login.
+     *
+     * @return The username for login.
+     */
     public String getUsername() { return username; }
+
+    /**
+     * Gets the password for login.
+     *
+     * @return The password for login.
+     */
     public String getPassword() { return password; }
 }
