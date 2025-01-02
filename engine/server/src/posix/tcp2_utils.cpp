@@ -20,7 +20,7 @@
 #include "encoder.h"
 
 
-void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients) {
+void tcp2_utils::client_acceptor(std::atomic<bool> &kys, TCP_ACL &acl, DB &db, int port, int max_clients) {
     // Create server socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
