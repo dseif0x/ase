@@ -18,7 +18,7 @@ ACLUser::ACLUser(const std::string& password, bool isAdmin)
     : pwd(password), admin(isAdmin) {
     CopiedValue perms;
     perms.type = ValueType::INT;
-    perms.data = tcp2_utils::permissions::all;
+    perms.data = isAdmin ? tcp2_utils::permissions::all : tcp2_utils::permissions::none;
     CopiedValue::copied_map_t map;
     map.emplace("$", std::make_unique<CopiedValue>(std::move(perms)));
 
@@ -26,8 +26,6 @@ ACLUser::ACLUser(const std::string& password, bool isAdmin)
     this->permissions.type = ValueType::MAP;
     this->permissions.data.emplace<CopiedValue::copied_map_t>(std::move(map));
 }
-
-ACLUser::ACLUser() : admin(false), permissions() {}
 
 
 ACL::ACL() {
@@ -94,19 +92,19 @@ bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permiss
     this->permissions.print();
     auto *cur_node = &this->permissions;
     std::cout << std::endl;
-    int i = 0;
-    for (auto &x : key) {
+    for (int i = 0; i < key.size()+1; i++) {
         cur_node->print();
         std::cout << " -> i: " << i << std::endl;
         auto &cur_map = std::get<CopiedValue::copied_map_t>(cur_node->data);
         if (!cur_map.contains("$")) return false;
         unsigned char cur_perm = std::get<int>(cur_map["$"]->data);
-        if ((cur_perm | permissions) == cur_perm) {
-            // permission found
+        permissions -= permissions & cur_perm;
+        if (permissions == 0) {
+            // permission now filled
             return true;
         }
-        if (!cur_map.contains(x)) return false; // cant go any deeper
-        cur_node = &(*cur_map[x]);
+        if (i >= key.size() || !cur_map.contains(key[i])) return false; // cant go any deeper
+        cur_node = &(*cur_map[key[i]]);
     }
     return false;
 }
@@ -173,7 +171,6 @@ void ACLUser::serialize_user(std::vector<CopiedValue> &value) {
     is_admin.data = this->admin;
     value.emplace_back(std::move(is_admin));
 
-    // TODO create a copy of permissions!!!
     value.emplace_back(std::move(this->permissions));
 }
 
@@ -210,10 +207,29 @@ bool ACL::has_user(std::string &username) {
     return this->users.contains(username);
 }
 
+bool ACL::user_is_connected(std::string &username) {
+    std::lock_guard<std::mutex> lock(this->general_lock);
+    return this->open_connections.contains(username);
+}
+
 bool ACL::update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (!this->users.contains(user)) return false;
     this->users[user].update_key_permission(key, permissions);
+    return true;
+}
+
+bool ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
+    std::lock_guard<std::mutex> lock(this->general_lock);
+    if (this->users.contains(username)) return false;
+    this->users[username] = ACLUser(pwd, is_admin);
+    return true;
+}
+
+bool ACL::delete_user(std::string &username) {
+    if (!this->has_user(username) || this->user_is_connected(username)) return false;
+    std::lock_guard<std::mutex> lock(this->general_lock);
+    if (this->users.erase(username) != 1) return false;
     return true;
 }
 
@@ -222,5 +238,9 @@ void ACL::print_full_info() {
     for (auto &x : this->users) {
         std::cout << x.first << ":" << x.second.print_user_data() << std::endl;
     }
+}
+
+void ACLUser::update_pwd(const std::string& pwd) {
+    this->pwd = pwd;
 }
 
