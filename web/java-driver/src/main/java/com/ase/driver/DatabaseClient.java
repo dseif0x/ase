@@ -444,6 +444,91 @@ public class DatabaseClient {
         }
     }
 
+    /** Sends a command to the server to change a user's password.
+     *
+     * @param username The username of the user whose password is to be changed.
+     * @param password The new password for the user.
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
+     *             </li>
+     *         </ul>
+     */
+    public WebReturn<Integer> changePassword(String username, String password) {
+        try {
+            writer.write(Utility.CHANGE_PASSWORD_COMMAND);
+
+            writer.flush();
+
+            dataWriter.writeString(username);
+            dataWriter.writeString(password);
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else if (response == Utility.NAK) {
+                return readError();
+            } else return WebReturn.error("Server responded with unknown response", (int) response);
+        } catch (IOException e) {
+            return WebReturn.error("Failed to send change password command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Sends a command to the server to delete a user.
+     *
+     * @param username The username of the user to be deleted.
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
+     *             </li>
+     *         </ul>
+     */
+    public WebReturn<Integer> deleteUser(String username) {
+        try {
+            writer.write(Utility.DELETE_USER_COMMAND);
+
+            writer.flush();
+
+            dataWriter.writeString(username);
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else if (response == Utility.NAK) {
+                return readError();
+            } else return WebReturn.error("Server responded with unknown response", (int) response);
+        } catch (IOException e) {
+            return WebReturn.error("Failed to send delete user command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
+        }
+    }
+
     /**
      * Sends a PING command to the server to verify communication and synchronization.
      *
@@ -606,13 +691,5 @@ public class DatabaseClient {
      */
     public void setDataWriter(DynamicDataWriter dataWriter) {
         this.dataWriter = dataWriter;
-    }
-
-    /**
-     * Resets the stop flag to allow new operations.
-     * Must be called after ensuring all ongoing operations have been stopped.
-     */
-    public void resetStop() {
-        isStopped.set(false);
     }
 }
