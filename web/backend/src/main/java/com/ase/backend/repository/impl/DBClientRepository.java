@@ -8,6 +8,7 @@ import com.ase.utility.tcp.TcpGeneral;
 import org.springframework.stereotype.Repository;
 
 import java.util.Random;
+import java.util.concurrent.Future;
 
 /**
  * Concrete implementation of the {@link DBClientDao} interface that uses
@@ -31,18 +32,18 @@ public class DBClientRepository implements DBClientDao {
      * {@inheritDoc}
      */
     @Override
-    public WebReturn<TcpGeneral> getByKey(String key) {
+    public Future<WebReturn<TcpGeneral>> getByKey(String key){
         DatabaseClient databaseClient = connectionService.getClient();
-        return databaseClient.get(key);
+        return databaseClient.getAsync(key);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public WebReturn<Integer> setByKey(String key, TcpGeneral value, boolean force) {
+    public Future<WebReturn<Integer>> setByKey(String key, TcpGeneral value, boolean force) {
         DatabaseClient databaseClient = connectionService.getClient();
-        return databaseClient.set(key, value, force);
+        return databaseClient.setAsync(key, value, force);
     }
 
     /**
@@ -56,5 +57,25 @@ public class DBClientRepository implements DBClientDao {
         long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
 
         return databaseClient.stop(unsignedInt);
+    }
+
+    @Override
+    public WebReturn<Integer> deleteKey(String key) {
+        return connectionService.getClient().delete(key);
+    }
+
+    @Override
+    public WebReturn<Integer> ping(long packageToSend) {
+        return connectionService.getClient().ping(packageToSend);
+    }
+
+    @Override
+    public WebReturn<Integer> updateScope(String username, String key, byte options) {
+        return connectionService.getClient().updateScope(username, key, options);
+    }
+
+    @Override
+    public WebReturn<Integer> createUser(String username, String password, byte options) {
+        return connectionService.getClient().createUser(username, password, options);
     }
 }
