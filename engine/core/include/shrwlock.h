@@ -42,7 +42,6 @@ public:
 private:
 #ifdef _WIN32
     std::atomic<int> state;              // Positive: readers, -1: writer, 0: free
-    std::atomic_flag lock = ATOMIC_FLAG_INIT; // Spinlock for mutual exclusion
 #else
     pthread_rwlock_t lck;
 #endif

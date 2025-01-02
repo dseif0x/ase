@@ -7,8 +7,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <utility>
 #include <shared_mutex>
+#include <iostream>
 #include <cstring>
 #include "shrwlock.h"
 #include "shmem.h"
@@ -72,6 +74,10 @@ public:
 
     ~db_map();
 
+    shrwlock& get_lock() {
+        return lock;
+    }
+
     /**
      * atomic version of @ref db_map::keys
      *
@@ -122,10 +128,7 @@ public:
         size_t alloc_size;
         auto hash = hash_fn(std::string(key));
 
-        std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
-
         map.atomic_access(mem, [&](db_map *map) {
-            map->lock.lock();
             map_entry_type *data = map->data.get(mem);
             offset_t *lookup = map->lookup.get(mem);
             used_size = map->used_size;
@@ -133,19 +136,17 @@ public:
             if (alloc_size == 0) return;
             auto idx = lookup[hash % alloc_size];
             if (idx >= 0) {
-                auto &ll_node = data[idx];
+                auto ll_node = data[idx];
                 while (strcmp(std::get<0>(ll_node).get(mem), key) != 0) {
-                    auto next = std::get<2>(ll_node);
-                    if (next < 0)
+                    idx = std::get<2>(ll_node);
+                    if (idx < 0)
                         break;
-                    ll_node = data[next];
+                    ll_node = data[idx];
                 }
                 if (strcmp(std::get<0>(ll_node).get(mem), key) == 0) {
                     found = true;
-                    auto& old_value = std::get<1>(ll_node);
-                    Value::destroy_value(mem, old_value, true);
-                    std::get<1>(ll_node) = value;
-                    map->lock.unlock();
+                    Value::destroy_value(mem, std::get<1>(ll_node), true);
+                    std::get<1>(data[idx]) = value;
                 }
             }
         }, true);
@@ -170,8 +171,19 @@ public:
             lookup_p[hash % map_p->alloc_size] = used_size;
             data_p[used_size++] = std::make_tuple(new_key, value, next);
             map_p->used_size = used_size;
-            map_p->lock.unlock();
         }, true);
+    }
+
+    void print_data(shmem& mem) {
+        map_entry_type* data = this->data.get(mem);
+        for (size_t i = 0; i < used_size; i++) {
+
+            auto key = std::get<0>(data[i]).get(mem);
+            auto value = std::get<1>(data[i]).get(mem);
+            auto next = std::get<2>(data[i]);
+
+            std::cout << key << " : " << value << " : " << (int)value->type << " : " << next << std::endl;
+        }
     }
 
     /**
@@ -184,9 +196,7 @@ public:
      */
     static void remove(offset_ptr<db_map> &map, shmem &mem, const char *key) {
         // Potentially shrink the shmem
-        std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
         map.atomic_access(mem, [&](db_map *map) {
-            std::unique_lock<shrwlock> map_lock_guard(map->lock);
             map_entry_type *data = map->data.get(mem);
             auto *lookup = map->lookup.get(mem);
             offset_t removed_idx = hash_fn(std::string(key)) % map->alloc_size;
@@ -226,7 +236,7 @@ private:
 
     friend void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held);
 
-
+public:
     /**
      * Returns the keys directly following this node.
      * @return list of keys
@@ -251,6 +261,7 @@ private:
 
     relative_offset_ptr<Value> get(shmem& mem, const char *key);
 
+private:
     /**
      * Just a little herper function to find the position of a node and its predecessor
      * Should only be called when all locks (shmem and map) are acquired.
@@ -267,7 +278,7 @@ private:
         auto* lookup = map->lookup.get(mem);
         offset_t entrypoint = lookup[hash];
         if (entrypoint >= 0) { // we found an entrypoint for the keys hash
-            auto& ll_node = data[entrypoint];
+            auto ll_node = data[entrypoint];
             if (strcmp(key, std::get<0>(ll_node).get(mem)) == 0) { // the entrypoint was the element we were looking for
                 res.second = entrypoint;
                 return res;
@@ -283,6 +294,7 @@ private:
                     res.second = curr;
                     break;
                 }
+                entrypoint = curr;
             }
         }
         return res;
@@ -305,7 +317,7 @@ private:
             old_data = map->data;
             old_lookup = map->lookup;
         }, true);
-        size_t new_size = std::max(2ul, alloc_size) * 2;
+        size_t new_size = std::max(static_cast<std::size_t>(16ul), alloc_size) * 2;
         auto new_lookup = mem.construct_array_unsafe<offset_t>(new_size);
         map.atomic_access(mem, [&](db_map *map) {
             std::memset(new_lookup.get(mem), -1, new_size * sizeof(offset_t));
