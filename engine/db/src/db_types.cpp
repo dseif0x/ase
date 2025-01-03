@@ -55,6 +55,10 @@ std::string CopiedValue::get_python_style(CopiedValue &val) {
         res += std::to_string(std::get<double>(val.data));
     } else if (val.type == ValueType::BOOLEAN) {
         res += std::to_string(std::get<bool>(val.data));
+    } else if (val.type == ValueType::SEMAPHORE) {
+        res += "sem<" + std::to_string(std::get<int>(val.data)) + ">";
+    } else if (val.type == ValueType::REFERENCE) {
+        res += "ref<" + std::get<std::string>(val.data) + ">";
     } else if (val.type == ValueType::PAIR) {
         auto &temp = std::get<CopiedValue::copied_pair_t>(val.data);
         res += "(";
