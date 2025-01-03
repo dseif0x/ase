@@ -33,6 +33,9 @@ FetchContent_Declare(
         SOURCE_DIR ${MINGW_TOOLCHAIN_DIR}
         DOWNLOAD_EXTRACT_TIMESTAMP true
 )
+
+message(STATUS "Downloading MinGW toolchain from ${MINGW_TOOLCHAIN_URL}")
+
 FetchContent_MakeAvailable(mingw_toolchain)
 
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
