@@ -157,6 +157,7 @@ offset_t shmem::get_management_offset() const {
 }
 
 offset_t shmem::get_used_memory() {
+    std::shared_lock<shrwlock> lock_guard(metadata->meta_mutex);
     ensure_mounted();
 
     auto free = 0;
