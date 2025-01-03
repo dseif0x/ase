@@ -149,6 +149,9 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value, bool
                 shmem_array_data_ptr[i] = *shmem_array_data_ptrs[i].get(mem);
             }
         }, locks_held);
+        for (auto& ptr : shmem_array_data_ptrs) {
+            mem.destroy(ptr, locks_held);
+        }
     } else if (value.type == ValueType::PAIR) {
         auto& local_pair = get<CopiedValue::copied_pair_t>(value.data);
         auto pair_v1 = create_value(mem, *local_pair.first, locks_held);
@@ -205,12 +208,19 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
     if (value.get(mem)->type == ValueType::MAP) {
         auto& data = std::get<shmem_map_t>(value.get(mem)->data);
         auto& shmemap = *data;
+        auto* dataarr = shmemap.data.get(mem);
         for(int i = 0; i < shmemap.used_size; i++) {
-            auto* dataarr = shmemap.data.get(mem);
-            auto& child = std::get<1>(dataarr[i]);
-            destroy_value(mem, child, locks_held);
+            auto& key = std::get<0>(dataarr[i]);
+            auto& value = std::get<1>(dataarr[i]);
+            destroy_value(mem, value, locks_held);
+            mem.destroy_array(key, 0, true);
         }
-        data->~db_map();
+        if (shmemap.alloc_size > 0) {
+            mem.destroy_array(shmemap.lookup, 0, true);
+            mem.destroy_array(shmemap.data, 0, true);
+        }
+        shmemap.~db_map();
+        mem.destroy(mem.relative_to_offset(data), locks_held);
     } else if (value.get(mem)->type == ValueType::ARRAY) {
         auto& data = std::get<ArrayType>(value.get(mem)->data);
         mem.destroy_array(mem.relative_to_offset(data.array_value), data.size, locks_held);

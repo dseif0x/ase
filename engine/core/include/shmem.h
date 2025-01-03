@@ -56,6 +56,7 @@ public:
     shrwlock& get_meta_mutex();
 
     offset_t get_management_offset() const;
+    offset_t get_used_memory();
 
     //! @neverInAtomicAccess
     template <typename T, typename... Args>
