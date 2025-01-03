@@ -156,6 +156,21 @@ offset_t shmem::get_management_offset() const {
     return sizeof(AllocationHeader);
 }
 
+offset_t shmem::get_used_memory() {
+    ensure_mounted();
+
+    auto free = 0;
+    size_t current = metadata->first_free;
+    while (current != -1) {
+        auto* currentblock = get_free_block(base, current);
+        VALIDATE_FREE_BLOCK(currentblock);
+        free += currentblock->size;
+        current = currentblock->next_offset;
+    }
+    return metadata->alloc_size - free;
+}
+
+
 shrwlock &shmem::get_meta_mutex() {
     return metadata->meta_mutex;
 }

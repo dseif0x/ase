@@ -144,6 +144,9 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value, bool
                 shmem_array_data_ptr[i] = *shmem_array_data_ptrs[i].get(mem);
             }
         }, locks_held);
+        for (auto& ptr : shmem_array_data_ptrs) {
+            mem.destroy(ptr, locks_held);
+        }
     } else if (value.type == ValueType::PAIR) {
         auto& local_pair = get<CopiedValue::copied_pair_t>(value.data);
         auto pair_v1 = create_value(mem, *local_pair.first, locks_held);
