@@ -8,9 +8,11 @@
 #include "test_data.h"
 #include <db.h>
 
-int main() {
+template<typename T>
+int run_test(const char* name, T&& generate_test_data) {
+    std::cout << "Running ASE Test: " << name << std::endl;
     DB::destroy();
-    auto test_data = get_test_data();
+    auto test_data = generate_test_data();
     DB db;
     stopwatch s;
     for (const auto& [key, value] : test_data) {
@@ -19,10 +21,14 @@ int main() {
         newval.data.emplace<std::string>(value);
         db.set(key.c_str(), std::move(newval));
     }
-    print_stopwatch(s, "Set Time: ");
+    print_stopwatch(s, "\tSet Time: ");
+    std::cout << "\tUsed Memory: " << db.get_used_memory() / 1024. / 1024. << " Mib" << std::endl;
     s.reset();
     for (const auto& [key, _] : test_data) {
         auto val = db.get(key.c_str());
     }
-    print_stopwatch(s, "Get Time: ");
+    print_stopwatch(s, "\tGet Time: ");
+    return 0;
 }
+
+#include "entrypoint.h"
