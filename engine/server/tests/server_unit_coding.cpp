@@ -512,6 +512,29 @@ TEST(UnitTests_Coding, general_4) {
     ASSERT_TRUE(vec_equ(data, encoded));
 }
 
+TEST(UnitTests_Coding, general_all_values) {
+    std::string python_rep = "[false, 1, \"2\", 3.000, sem<4>, ref<5>, {6: \"7\"}, (8, 9)]";
+    std::string encoded_rep = "a0 08 01 00 02 00000001 03 01 32 04 4008000000000000 05 00000004 06 01 35 10 01 01 36 03 01 37 42 00000008 02 00000009";
+    std::vector<unsigned char> data = make_hex_vector(encoded_rep.c_str());
+
+    TestGenericDecoder decoder{};
+    TestGenericEncoder encoder{};
+
+    decoder._add_to_buffer(data);
+    auto val = decoder.to_general();
+    ASSERT_TRUE(val);
+    ASSERT_TRUE(decoder.is_empty());
+    std::string pyres = CopiedValue::get_python_style(*val);
+    val->print();
+    std::cout << std::endl << python_rep << std::endl;
+
+    ASSERT_TRUE(python_rep.compare(pyres) == 0);
+    encoder.from_general(*val);
+    auto encoded = encoder._get_bytes(count_hex_valid_chars(encoded_rep));
+    ASSERT_TRUE(encoder.is_empty());
+    ASSERT_TRUE(vec_equ(data, encoded));
+}
+
 TEST(UnitTests_Coding, list_t_1) {
     // example from TCP2 Protocol document chapter tcp_list
     std::string result = "10 02 02 6231 03 03 6c6f6c 02 6232 48"; // {b1: "lol"; b2: <pair>}
