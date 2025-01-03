@@ -294,6 +294,8 @@ int main(int argc, char* argv[]) {
         list_and_print(db, "test8");
         follow_and_print(db, "test9");
         get_and_print(db, "test10");
+
+        std::cout << "Memory in use: " << db.get_used_memory() << " bytes" << std::endl;
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" <<
             std::endl;

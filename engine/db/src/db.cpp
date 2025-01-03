@@ -26,6 +26,10 @@ void DB::destroy() {
     shmem::destroy_data();
 }
 
+std::size_t DB::get_used_memory() {
+    return mem.get_used_memory();
+}
+
 offset_ptr<db_key_map> DB::get_entrypoint() {
     return {mem.get_management_offset()};
 }

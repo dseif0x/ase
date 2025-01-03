@@ -29,6 +29,8 @@ public:
 
     static void destroy();
 
+    std::size_t get_used_memory();
+
     // Core Commands
 
     /**
