@@ -27,6 +27,7 @@ void DB::destroy() {
 }
 
 std::size_t DB::get_used_memory() {
+    std::shared_lock<shrwlock> lock_guard(mem.get_meta_mutex());
     return mem.get_used_memory();
 }
 
