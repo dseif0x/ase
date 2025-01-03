@@ -117,15 +117,15 @@ int main(int argc, char* argv[]) {
     get_and_print(db, "test1");
     get_and_print(db, "test2");
 
-    bool doInteger = false;
-    bool doString = false;
-    bool doBoolean = false;
-    bool doDouble = false;
-    bool doArray = false;
-    bool doPair = false;
-    bool doMap = true; // Leaks
-    bool doReference = false;
-    bool doDelete = false; // Leaks
+    bool doInteger = true;
+    bool doString = true;
+    bool doBoolean = true;
+    bool doDouble = true;
+    bool doArray = true;
+    bool doPair = true;
+    bool doMap = true;
+    bool doReference = true;
+    bool doDelete = true;
 
     for (int i: std::views::iota(0, 1024 * 1024)) {
         if (doInteger) {
@@ -222,8 +222,8 @@ int main(int argc, char* argv[]) {
 
             db.set("test8", std::move(newval6), true);
 
-            //db.set("test8.key1", std::move(map_val), true);
-            //db.set("test8.key2", std::move(map_val2), true);
+            db.set("test8.key1", std::move(map_val), true);
+            db.set("test8.key2", std::move(map_val2), true);
         }
 
         if (doReference) {
@@ -282,7 +282,7 @@ int main(int argc, char* argv[]) {
         }
 
 
-        /*get_and_print(db, "test");
+        get_and_print(db, "test");
         get_and_print(db, "test2");
         get_and_print(db, "test3");
         get_and_print(db, "test4");
@@ -293,9 +293,9 @@ int main(int argc, char* argv[]) {
         get_and_print(db, "test8.key2");
         list_and_print(db, "test8");
         follow_and_print(db, "test9");
-        get_and_print(db, "test10");*/
+        get_and_print(db, "test10");
 
-        std::cout << db.get_used_memory() << "b" << std::endl;
+        std::cout << "Memory in use: " << db.get_used_memory() << " bytes" << std::endl;
     }
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" <<
             std::endl;
