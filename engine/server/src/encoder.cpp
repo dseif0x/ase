@@ -181,9 +181,11 @@ void GenericEncoder::from_basic_general(CopiedValue &val) {
         double temp = std::get<double>(val.data);
         this->from_double(temp);
     } else if (val.type == ValueType::SEMAPHORE) {
-        // todo implement sem
+        int temp = std::get<int>(val.data);
+        this->from_int(temp);
     } else if (val.type == ValueType::REFERENCE) {
-        // todo implement ref
+        std::string temp = std::get<std::string>(val.data);
+        this->from_string(temp);
     } else {
         throw std::invalid_argument("Invalid datatype");
     }
