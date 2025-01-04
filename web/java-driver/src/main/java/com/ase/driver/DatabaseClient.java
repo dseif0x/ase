@@ -11,7 +11,12 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Manages the TCP connection and communication with a database server.
@@ -30,6 +35,14 @@ public class DatabaseClient {
     private DynamicDataReader dataReader;
     /** Writer for writing data to the server based on server-provided size information. */
     private DynamicDataWriter dataWriter;
+
+    private final AtomicBoolean isStopped = new AtomicBoolean(false);
+
+    /** Executor service for handling asynchronous operations. */
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
+
+    /** List of ongoing futures for asynchronous get and set operations. */
+    private final List<Future<?>> ongoingFutures = Collections.synchronizedList(new ArrayList<>());
 
     /**
      * Constructs a new DatabaseClient and establishes a socket connection.
@@ -52,6 +65,15 @@ public class DatabaseClient {
         this.socket = socket;
         this.reader = new DataInputStream(socket.getInputStream());
         this.writer = new DataOutputStream(socket.getOutputStream());
+    }
+
+    /**
+     * Adds a Future to the list of ongoing get/set operations.
+     *
+     * @param future The Future to add.
+     */
+    private void addOngoingFuture(Future<?> future) {
+        ongoingFutures.add(future);
     }
 
     /**
@@ -78,8 +100,8 @@ public class DatabaseClient {
                     writer.write(Utility.NAK);
                     throw new HandshakeException("Validation failed for server information. Sizes of server are too large.");
                 } else {
-                    this.dataReader = new DynamicDataReader(serverInfo, reader);
-                    this.dataWriter = new DynamicDataWriter(serverInfo, writer);
+                    this.dataReader = new DynamicDataReader(serverInfo, reader, isStopped);
+                    this.dataWriter = new DynamicDataWriter(serverInfo, writer, isStopped);
                     writer.write(Utility.ACK);
                     writer.flush();
                 }
@@ -145,19 +167,66 @@ public class DatabaseClient {
 
             dataWriter.writeString(key);
 
-            byte response = reader.readByte();
-            if (response == Utility.NAK) {
-                WebReturn<Integer> error = readError();
-                return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
-            } else if (response == Utility.ACK) {
-                TcpGeneral tcpGeneral = dataReader.readGeneral();
-                return WebReturn.success(tcpGeneral);
-            } else return WebReturn.error("Server responded with unknown response: " + String.format("0x%02X", response));
-        } catch (IOException e) {
-            return WebReturn.error("Failed to send get command.");
-        } catch (TCPClientException e) {
-            return WebReturn.error(e.getMessage());
+            while (true) {
+                if (isStopped.get()) {
+                    return WebReturn.error("GET operation was stopped.");
+                }
+
+                int available = reader.available();
+                if (available > 0) {
+                    byte response = reader.readByte();
+                    if (response == Utility.ACK) {
+                        TcpGeneral tcpGeneral = dataReader.readGeneral();
+                        return WebReturn.success(tcpGeneral);
+                    } else if (response == Utility.NAK) {
+                        WebReturn<Integer> error = readError();
+                        return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
+                    } else {
+                        return WebReturn.error("Server responded with unknown response.", TcpGeneral.ofSimple(SimpleType.INT, (int) response));
+                    }
+                } else {
+                    Thread.sleep(50);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return WebReturn.error("GET operation interrupted.");
+        } catch (TCPClientException | IOException e) {
+            if (isStopped.get()) {
+                return WebReturn.error("GET operation was stopped.");
+            }
+            return WebReturn.error("Failed to send GET command: " + e.getMessage());
         }
+    }
+
+    /**
+     * Asynchronously performs a GET operation.
+     * @see #get(String) get() for more Information.
+     *
+     * @param key The key to retrieve.
+     * @return A Future representing the pending result of the GET operation.
+     */
+    public Future<WebReturn<TcpGeneral>> getAsync(String key) {
+        Callable<WebReturn<TcpGeneral>> task = () -> get(key);
+        Future<WebReturn<TcpGeneral>> future = executorService.submit(task);
+        addOngoingFuture(future);
+        return future;
+    }
+
+    /**
+     * Asynchronously performs a SET operation.
+     * @see #set(String, TcpGeneral, boolean) set() for more Information.
+     *
+     * @param key    The key to set.
+     * @param value  The value to associate with the key.
+     * @param force  Whether to force the set operation.
+     * @return A Future representing the pending result of the SET operation.
+     */
+    public Future<WebReturn<Integer>> setAsync(String key, TcpGeneral value, boolean force) {
+        Callable<WebReturn<Integer>> task = () -> set(key, value, force);
+        Future<WebReturn<Integer>> future = executorService.submit(task);
+        addOngoingFuture(future);
+        return future;
     }
 
     /**
@@ -199,17 +268,35 @@ public class DatabaseClient {
             dataWriter.writeString(key);
             dataWriter.writeGeneral(value);
 
-            byte response = reader.readByte();
-            if (response == Utility.NAK) {
-                return readError();
-            } else if (response == Utility.ACK) {
-                return WebReturn.success();
-            } else return WebReturn.error("Server responded with unknown response.", (int) response);
-        } catch (IOException e) {
-            return WebReturn.error("Failed to send set command.");
-        } catch (TCPClientException e) {
-            return WebReturn.error(e.getMessage());
+            while (true) {
+                if (isStopped.get()) {
+                    return WebReturn.error("SET operation was stopped.");
+                }
+
+                int available = reader.available();
+                if (available > 0) {
+                    byte response = reader.readByte();
+                    if (response == Utility.ACK) {
+                        return WebReturn.success();
+                    } else if (response == Utility.NAK) {
+                        return readError();
+                    } else {
+                        return WebReturn.error("Server responded with unknown response.", (int) response);
+                    }
+                } else {
+                    Thread.sleep(50);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return WebReturn.error("SET operation interrupted.");
+        } catch (TCPClientException | IOException e) {
+            if (isStopped.get()) {
+                return WebReturn.error("SET operation was stopped.");
+            }
+            return WebReturn.error("Failed to send SET command: " + e.getMessage());
         }
+
     }
 
     /**
@@ -357,6 +444,91 @@ public class DatabaseClient {
         }
     }
 
+    /** Sends a command to the server to change a user's password.
+     *
+     * @param username The username of the user whose password is to be changed.
+     * @param password The new password for the user.
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
+     *             </li>
+     *         </ul>
+     */
+    public WebReturn<Integer> changePassword(String username, String password) {
+        try {
+            writer.write(Utility.CHANGE_PASSWORD_COMMAND);
+
+            writer.flush();
+
+            dataWriter.writeString(username);
+            dataWriter.writeString(password);
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else if (response == Utility.NAK) {
+                return readError();
+            } else return WebReturn.error("Server responded with unknown response", (int) response);
+        } catch (IOException e) {
+            return WebReturn.error("Failed to send change password command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Sends a command to the server to delete a user.
+     *
+     * @param username The username of the user to be deleted.
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} is {@code null}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure: </strong>
+     *                  <ul>
+     *                      <li>See {@link #readError()}</li>
+     *                  </ul>
+     *             </li>
+     *         </ul>
+     */
+    public WebReturn<Integer> deleteUser(String username) {
+        try {
+            writer.write(Utility.DELETE_USER_COMMAND);
+
+            writer.flush();
+
+            dataWriter.writeString(username);
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                return WebReturn.success();
+            } else if (response == Utility.NAK) {
+                return readError();
+            } else return WebReturn.error("Server responded with unknown response", (int) response);
+        } catch (IOException e) {
+            return WebReturn.error("Failed to send delete user command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
+        }
+    }
+
     /**
      * Sends a PING command to the server to verify communication and synchronization.
      *
@@ -401,6 +573,7 @@ public class DatabaseClient {
 
     /**
      * Sends a STOP command to the server to halt any ongoing data transmission.
+     * @param packageToSend The unsigned integer data payload to send with the STOP command. Used to check synchronization.
      *
      * @return A {@link WebReturn} object indicating the outcome of the STOP operation:
      *         <ul>
@@ -418,7 +591,18 @@ public class DatabaseClient {
      *             </li>
      *         </ul>
      */
-    public WebReturn<Integer> stop() {
+    public WebReturn<Integer> stop(long packageToSend) {
+        if (isStopped.getAndSet(true)) {
+            return WebReturn.error("Stop command has already been issued.");
+        }
+
+        synchronized (ongoingFutures) {
+            for (Future<?> future : ongoingFutures) {
+                future.cancel(true);
+            }
+            ongoingFutures.clear();
+        }
+
         try {
             writer.writeByte(Utility.STOP_COMMAND);
             writer.flush();
@@ -431,7 +615,15 @@ public class DatabaseClient {
                     bytesRead++;
 
                     if (responseByte == Utility.ACK) {
-                        return WebReturn.success();
+                        WebReturn<Integer> pingResult = ping(packageToSend);
+                        isStopped.set(false);
+
+                        if (pingResult.isOk()) {
+                            return WebReturn.success();
+                        } else {
+                            return WebReturn.error("Ping failed and thus not in sync with server. " +
+                                "Restart may be needed (try ping again). Error: " + pingResult.getMessage(), pingResult.getData());
+                        }
                     }
                 } else {
                     try {

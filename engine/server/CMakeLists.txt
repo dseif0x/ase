@@ -28,8 +28,8 @@ target_link_libraries(server_static PUBLIC core_static)
 target_link_libraries(server_static PUBLIC db_static)
 target_include_directories(server_static PUBLIC include)
 
-add_executable(tcp_test main.cpp)
-target_link_libraries(tcp_test server_static)
+add_executable(ase_server main.cpp)
+target_link_libraries(ase_server server_static)
 
 #gTest
 enable_testing()

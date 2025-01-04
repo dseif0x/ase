@@ -23,8 +23,8 @@ constexpr int BUFFER_SIZE = 8;
 class TCP2Server {
     int port;
     int max_clients;
-    TCP_ACL &acl;
-    DB &db;
+    TCP_ACL acl = TCP_ACL{};
+    DB db = DB{};
     std::atomic<bool> kill_acceptor{false};
     std::atomic<int> socket_error{0};
 
@@ -32,22 +32,23 @@ class TCP2Server {
     bool running = false;
 
 public:
-    TCP2Server(TCP_ACL &acl, DB &db, int port, int max_clients);
+    TCP2Server(int port, int max_clients);
     ~TCP2Server();
 
     /**
-    * @brief Loads an acl from file.
+    * @brief Loads an acl from file. Must only be called if server is not running.
     *
     * @param path The path of the file.
     */
-    bool load_acl_from_disk(std::string path);
+    bool load_acl_from_disk(const std::string &path);
 
     /**
-    * @brief Saves the acl to a file.
+    * @brief Saves the acl to a file. Must only be called if server is not running.
     *
     * @param path The path of the file.
     */
-    bool save_acl_to_disk(std::string path);
+    bool save_acl_to_disk(const std::string &path);
+
     /**
      * @brief Starts the TCP server and begins accepting client connections.
      *
@@ -55,6 +56,7 @@ public:
      * `tcp2_utils::client_acceptor` utility function.
      */
     void start();
+
     /**
      * @brief Stops the TCP server.
      *

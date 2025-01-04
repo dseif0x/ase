@@ -9,7 +9,6 @@
 #include <thread>
 
 #include "tcp2_server.h"
-#include "acl.h"
 
 
 int main() {
@@ -58,7 +57,7 @@ int main() {
 */
     std::cout << "after db" << std::endl;
 
-    TCP_ACL acl{};
+    ACL acl{};
 
     if (acl.load_from_disk("test.bin")) {
         std::cout << "acl loaded from disk" << std::endl;
@@ -66,17 +65,21 @@ int main() {
         std::cout << "could not load from disk" << std::endl;
     }
 
+    // load acl from disk
+    if (server.load_acl_from_disk(file_path)) std::cout << "acl loaded from disk" << std::endl;
+    else std::cout << "could not load from disk" << std::endl;
 
-
-    TCP2Server server{acl, db, 42069, 10};
-
+    // start server
     server.start();
 
     std::string temp;
     std::cin >> temp;
 
+    // stop server
     server.stop();
-    acl.save_to_disk("test.bin");
+
+    // save result to disk
+    server.save_acl_to_disk(file_path);
 
     return 0;
 }

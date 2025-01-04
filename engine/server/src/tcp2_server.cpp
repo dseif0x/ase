@@ -11,11 +11,21 @@
 #include <atomic>
 
 
-TCP2Server::TCP2Server(TCP_ACL &acl, DB &db, int port, int max_clients): port(port), max_clients(max_clients), acl(acl), db(db) {
+TCP2Server::TCP2Server(int port, int max_clients): port(port), max_clients(max_clients) {
 }
 
 TCP2Server::~TCP2Server() {
     this->stop();
+}
+
+bool TCP2Server::load_acl_from_disk(const std::string &path) {
+    if (this->running) return false;
+    return this->acl.load_from_disk(path);
+}
+
+bool TCP2Server::save_acl_to_disk(const std::string &path) {
+    if (this->running) return false;
+    return this->acl.save_to_disk(path);
 }
 
 void TCP2Server::start() {

@@ -17,12 +17,14 @@
 // returns 0: command executed fine
 // returns 1: soft shutdown
 // returns 2: hard shutdown
-int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, unsigned char self_perms) {
+int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci) {
     int (*func)(TCP2Decoder&, TCP2Encoder&, CommandInfo&);
     unsigned char perms{};
     uint16_t error = 0;
 
-    switch (decoder.to_unsigned(1)) {
+    auto temp = decoder.to_unsigned(1);
+    std::cout << "> current command: " << temp << std::endl;
+    switch (temp) {
         // CONTROL COMMANDS
         case 0xFE: //STOP
             func = command::stop;
@@ -58,16 +60,28 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             perms = permissions::read;
             break;
         // TCP_ACL Commands
+        case 0x80: // Create User
+            func = command::create_user;
+            perms = permissions::admin;
+            break;
         case 0x81: // Update Scope
             func = command::update_scope;
             perms = permissions::admin;
+            break;
+        case 0x82: // Delete User
+            func = command::delete_user;
+            perms = permissions::admin;
+            break;
+        case 0x83: // Change User pwd
+            func = command::change_pwd;
+            perms = permissions::none; // additional admin check in the
             break;
         default:
             error = errors::unknown_command;
             break;
     }
     if (error == 0) {
-        if ((self_perms | perms) != self_perms) {
+        if ((ci.self_perms | perms) != ci.self_perms) {
             // check connection permissions
             error = errors::permission_denied_self;
         } else if ((perms & permissions::admin) > 0) {
@@ -79,7 +93,7 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
     }
 
     if (error == 0) {
-        return func(decoder, encoder, ci);;
+        return func(decoder, encoder, ci);
     } else {
         encoder.from_nak();
         encoder.encode_error(error);
@@ -187,6 +201,69 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
     }
     encoder.from_ack();
 
+    return 0;
+}
+
+int tcp2_utils::command::create_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string username = decoder.to_string();
+    std::string pwd = decoder.to_string();
+    unsigned char options = decoder.to_byte();
+
+    if (info.acl.has_user(username)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::username_already_exists);
+        return -1;
+    }
+
+    if (options > 1) {
+        encoder.from_nak();
+        encoder.encode_error(errors::unknown_option);
+        return -1;
+    }
+
+    bool is_admin = (options & 0x01) > 0;
+    if (!info.acl.create_user(username, pwd, is_admin)) {
+        // should never happen
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+
+    encoder.from_ack();
+    return 0;
+}
+
+int tcp2_utils::command::delete_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string username = decoder.to_string();
+
+    if (!info.acl.has_user(username)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::user_not_found);
+        return -1;
+    }
+
+    if (info.acl.user_is_connected(username)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::user_connected);
+        return -1;
+    }
+
+    if (!info.acl.delete_user(username)) {
+        // should never happen
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+
+    encoder.from_ack();
+    return 0;
+}
+
+int tcp2_utils::command::change_pwd(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string new_pwd = decoder.to_string();
+
+    info.user->update_pwd(new_pwd);
+    encoder.from_ack();
     return 0;
 }
 
@@ -342,12 +419,11 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             user = acl.get_user(username);
             encoder.from_ack();
             state = 2;
-            ci = std::make_unique<CommandInfo>(user, acl, db);
+            ci = std::make_unique<CommandInfo>(user, acl, db, self_perms);
         } else if (state == 2) {
             // logged in and ready for commands
-            stopwatch s4{};
-            s4.start();
-            int temp_ret = client_command_switch(decoder, encoder, *ci, self_perms);
+            int temp_ret = client_command_switch(decoder, encoder, *ci);
+            std::cout << "> command result: " << temp_ret << std::endl;
             switch (temp_ret) {
                 case -1: // error, but recovered
                     decoder.clear_buffer();
@@ -359,7 +435,6 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
                 case 2: // hard shutdown
                     decoder.set_kys();
                     continue;
-                    break;
                 default: // undefined -> soft shutdown
                     state = -1;
             }

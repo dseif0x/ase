@@ -13,11 +13,6 @@ db_map::db_map()  {
 }
 
 db_map::~db_map() {
-    // LOCKS HAVE TO BE HELD WHEN THIS IS CALLED
-    /*if (alloc_size > 0) {
-        mem.destroy_array(lookup, alloc_size, true);
-        mem.destroy_array(data, alloc_size, true);
-    }*/
 }
 
 

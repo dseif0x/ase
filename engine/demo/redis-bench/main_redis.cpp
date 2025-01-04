@@ -8,11 +8,13 @@
 #include "test_data.h"
 #include <hiredis.h>
 
-int main() {
-    auto test_data = get_test_data();
+template<typename T>
+int run_test(const char* name, T&& generate_test_data) {
+    std::cout << "Running Redis Test: " << name << std::endl;
+    auto test_data = generate_test_data();
     redisContext* c = redisConnect("127.0.0.1", 6379);
     if (c->err) {
-        std::cout << "error: " << c->errstr << std::endl;
+        std::cerr << "error: " << c->errstr << std::endl;
         return 1;
     }
 
@@ -27,7 +29,7 @@ int main() {
         }
         freeReplyObject(reply);
     }
-    print_stopwatch(s, "Set Time: ");
+    print_stopwatch(s, "\tSet Time: ");
     s.reset();
     for (const auto& [key, _] : test_data) {
         redisReply* reply = (redisReply*)redisCommand(c, "GET %s", key.c_str());
@@ -39,5 +41,8 @@ int main() {
         }
         freeReplyObject(reply);
     }
-    print_stopwatch(s, "Get Time: ");
+    print_stopwatch(s, "\tGet Time: ");
+    return 0;
 }
+
+#include "entrypoint.h"

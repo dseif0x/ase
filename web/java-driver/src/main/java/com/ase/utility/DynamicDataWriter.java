@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Dynamic reading of various data types from a DataInputStream based on server-provided size information.
@@ -31,14 +32,36 @@ public class DynamicDataWriter {
      */
     private final ServerInformation serverInfo;
 
+
     /**
-     * Constructs a DynamicDataWriter with the specified data output stream.
+     * Flag to indicate if the client has been stopped.
+     */
+    private final AtomicBoolean isStopped;
+
+    /**
+     * Constructs a DynamicDataWriter with the specified server information and output stream and stop flag used for threaded writing.
      *
+     * @param serverInformation The server information containing size limits for data types.
+     * @param outputStream The output stream to write to.
+     * @param isStopped Flag to indicate if the client has been stopped.
+     */
+    public DynamicDataWriter(ServerInformation serverInformation, OutputStream outputStream, AtomicBoolean isStopped) {
+        this.serverInfo = serverInformation;
+        this.dataOutputStream = new DataOutputStream(outputStream);
+        this.isStopped = isStopped;
+    }
+
+
+    /**
+     * Constructs a DynamicDataWriter with the specified server information and output stream and stop flag used for threaded writing.
+     *
+     * @param serverInformation The server information containing size limits for data types.
      * @param outputStream The output stream to write to.
      */
     public DynamicDataWriter(ServerInformation serverInformation, OutputStream outputStream) {
         this.serverInfo = serverInformation;
         this.dataOutputStream = new DataOutputStream(outputStream);
+        this.isStopped = new AtomicBoolean(false);
     }
 
     /**
@@ -269,6 +292,7 @@ public class DynamicDataWriter {
      * @throws TCPClientException if an I/O error occurs or the encoding is invalid.
      */
     public void writeGeneral(TcpGeneral value) throws TCPClientException {
+        checkStop();
         writeTypeDefinition(value);
 
         switch (value.getType()) {
@@ -385,5 +409,16 @@ public class DynamicDataWriter {
         buffer.order(ByteOrder.BIG_ENDIAN);
         buffer.putDouble(value);
         return buffer.array();
+    }
+
+    /**
+     * Checks if the client has been stopped and throws an exception if so.
+     *
+     * @throws TCPClientReadException if the client has been stopped
+     */
+    private void checkStop() throws TCPClientReadException {
+        if (isStopped.get()) {
+            throw new TCPClientReadException("Operation aborted due to stop command.");
+        }
     }
 }

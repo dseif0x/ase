@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Dynamic reading of various data types from a DataInputStream based on server-provided size information.
@@ -31,6 +32,25 @@ public class DynamicDataReader {
     private final DataInputStream dataInputStream;
 
     /**
+     * Flag to indicate if the client has been stopped.
+     */
+    private final AtomicBoolean isStopped;
+
+    /**
+     * Constructs a DynamicDataReader with the specified server information and data input stream and stop flag used for threaded reading.
+     *
+     * @param serverInfo      the server information containing size limits
+     * @param dataInputStream the data input stream to read from
+     * @param isStopped       the flag indicating if the stop command has been issued
+     */
+    public DynamicDataReader(ServerInformation serverInfo, DataInputStream dataInputStream, AtomicBoolean isStopped) {
+        this.serverInfo = serverInfo;
+        this.dataInputStream = dataInputStream;
+        this.isStopped = isStopped;
+    }
+
+
+    /**
      * Constructs a DynamicDataReader with the specified server information and data input stream.
      *
      * @param serverInfo      the server information containing size limits
@@ -39,6 +59,7 @@ public class DynamicDataReader {
     public DynamicDataReader(ServerInformation serverInfo, DataInputStream dataInputStream) {
         this.serverInfo = serverInfo;
         this.dataInputStream = dataInputStream;
+        this.isStopped = new AtomicBoolean(false);
     }
 
     /**
@@ -248,6 +269,7 @@ public class DynamicDataReader {
      * @throws TCPClientReadException if an I/O error occurs or the encoding is invalid.
      */
     public TcpGeneral readGeneral() throws TCPClientException {
+        checkStop();
         TypeDefinition typeDef = readTypeDefinition();
 
         if (typeDef.isKey()) {
@@ -399,5 +421,16 @@ public class DynamicDataReader {
         }
 
         return Float.intBitsToFloat(bits);
+    }
+
+    /**
+     * Checks if the client has been stopped and throws an exception if so.
+     *
+     * @throws TCPClientReadException if the client has been stopped
+     */
+    private void checkStop() throws TCPClientReadException {
+        if (isStopped.get()) {
+            throw new TCPClientReadException("Operation aborted due to stop command.");
+        }
     }
 }

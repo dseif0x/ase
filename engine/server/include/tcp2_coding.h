@@ -37,6 +37,8 @@ namespace errors {
     constexpr uint16_t key_already_exists           = 0x0200;
     constexpr uint16_t invalid_value                = 0x0201;
     constexpr uint16_t unsafe_write                 = 0x0202;
+    constexpr uint16_t unknown_option               = 0x8001;
+    constexpr uint16_t user_connected               = 0x8201;
 
     static std::unordered_map<uint16_t, std::string> messages{
         {general_protocol_error, "General Protocol Error."},
@@ -53,7 +55,9 @@ namespace errors {
         {unknown_command, "The provided command code is unknown."},
         {general_server_error, "An unexpected error occurred."},
         {invalid_value, "Invalid value. Could not extract a valid value."},
-        {unsafe_write, "The selected key exists. Use forced-SET to override."}
+        {unsafe_write, "The selected key exists. Use forced-SET to override."},
+        {unknown_option, "The provided option is not known by the server."},
+        {user_connected, "The user is currently connected and can therefore not be deleted."},
     };
 }
 

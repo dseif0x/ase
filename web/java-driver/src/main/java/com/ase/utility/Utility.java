@@ -37,6 +37,12 @@ public class Utility {
 
     /** Command to update scope. */
     public static final byte UPDATE_SCOPE_COMMAND = (byte) 0x81;
+
+    /** Command to delete a user. */
+    public static final byte DELETE_USER_COMMAND = (byte) 0x82;
+
+    /** Command to change a user's password. */
+    public static final byte CHANGE_PASSWORD_COMMAND = (byte) 0x83;
     // --- END USER COMMANDS ---
 
 
