@@ -6,46 +6,49 @@
  */
 
 #include "shrwlock.h"
+#include <thread>
 
-shrwlock::shrwlock() {
-    counter = 0;
-
-}
+shrwlock::shrwlock() : state(0) {}
 
 shrwlock::~shrwlock() {
 }
 
 void shrwlock::lock() {
-    while (InterlockedCompareExchange(&counter, -1, 0) != 0) {
-        Sleep(0);  // Yield execution to reduce busy-waiting
+    while (!try_lock()) {
+        std::this_thread::yield(); // Avoid busy-waiting
     }
 }
 
 void shrwlock::unlock() {
-    InterlockedExchange(&counter, 0);
+    if (state != -1) {
+        throw std::runtime_error("Unlock called without an exclusive lock");
+    }
+    state = 0; // Release the lock
 }
 
 bool shrwlock::try_lock() {
-    return InterlockedCompareExchange(&counter, -1, 0) == 0;
+    int expected = 0;
+    return state.compare_exchange_strong(expected, -1, std::memory_order_acquire);
 }
 
 void shrwlock::lock_shared() {
-    LONG value;
-    do {
-        // Spin until the counter is non-negative and increment it
-        value = counter;
-        while (value < 0) {  // Wait if a writer holds the lock
-            Sleep(0);  // Yield execution to avoid busy-waiting
-            value = counter;
-        }
-    } while (InterlockedCompareExchange(&counter, value + 1, value) != value);
+    while (!try_lock_shared()) {
+        std::this_thread::yield(); // Avoid busy-waiting
+    }
 }
 
 void shrwlock::unlock_shared() {
-    InterlockedDecrement(&counter);
+    int current_state = state.load(std::memory_order_acquire);
+    if (current_state <= 0) {
+        throw std::runtime_error("Unlock_shared called without a shared lock");
+    }
+    state.fetch_sub(1, std::memory_order_release); // Decrement reader count
 }
 
 bool shrwlock::try_lock_shared() {
-    LONG value = counter;
-    return (value >= 0) && (InterlockedCompareExchange(&counter, value + 1, value) == value);
+    int current_state = state.load(std::memory_order_acquire);
+    if (current_state >= 0) { // No writer holding the lock
+        return state.fetch_add(1, std::memory_order_acquire) >= 0;
+    }
+    return false;
 }

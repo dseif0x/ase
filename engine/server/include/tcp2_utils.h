@@ -23,9 +23,10 @@ struct CommandInfo {
     ACLUser *user;
     ACL &acl;
     DB &db;
+    unsigned char self_perms;
 
-    CommandInfo(ACLUser *userPtr, ACL &aclRef, DB &dbRef)
-        : user(userPtr), acl(aclRef), db(dbRef) {}
+    CommandInfo(ACLUser *userPtr, ACL &aclRef, DB &dbRef, unsigned char self_perms)
+        : user(userPtr), acl(aclRef), db(dbRef), self_perms(self_perms) {}
 };
 
 namespace tcp2_utils {
@@ -69,7 +70,7 @@ namespace tcp2_utils {
      *         -  1: Soft shutdown.
      *         -  2: Hard shutdown.
      */
-    int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, unsigned char self_perms);
+    int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci);
 
     /**
     * @brief splits the key into the domain parts.
@@ -109,7 +110,7 @@ namespace tcp2_utils {
         int disconnect(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-         * @brief Executes the get command, returning the looked for data.
+         * @brief Executes the GET command, returning the looked for data.
          *
          * @param decoder Reference to the TCP2Decoder instance for decoding client data.
          * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -117,16 +118,6 @@ namespace tcp2_utils {
          * @return int returns 0 on success or -1 on error.
         */
         int get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
-
-        /**
-         * @brief Updates the access permissions of a user.
-
-         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
-         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
-         * @param info Reference to the CommandInfo struct containing additional information for the function.
-         * @return int returns 0 on success or -1 on error.
-*/
-        int update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
          * @brief Executes a test command for debugging and verification purposes.
@@ -139,7 +130,7 @@ namespace tcp2_utils {
         int testing(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-        * @brief Executes the set command without forcing the write.
+        * @brief Executes the SET command without forcing the write.
         *
         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -149,7 +140,7 @@ namespace tcp2_utils {
         int safe_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-        * @brief Executes the set command and forces the write.
+        * @brief Executes the SET command and forces the write.
         *
         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -159,7 +150,7 @@ namespace tcp2_utils {
         int forced_set(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
-        * @brief Executes the delete command.
+        * @brief Executes the DELETE command.
         *
         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
@@ -167,6 +158,56 @@ namespace tcp2_utils {
         * @return int returns 0 on success or -1 on error.
         */
         int del(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+        * @brief Executes the LIST command.
+        *
+        * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+        * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+        * @param info Reference to the CommandInfo struct containing additional information for the function.
+        * @return int returns 0 on success or -1 on error.
+        */
+        int list(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Updates the access permissions of a user.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Creates a new user in the ACL.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int create_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Deletes a user in the ACL.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int delete_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Changes the password of a user in the ACL.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int change_pwd(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {

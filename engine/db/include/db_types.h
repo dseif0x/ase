@@ -14,6 +14,7 @@
 #include "shrwlock.h"
 #include "relative_offset_ptr.h"
 #include "offset_ptr.h"
+#include "shsem.h"
 
 struct Value;
 struct CopiedValue;
@@ -67,7 +68,7 @@ struct Value {
      * Only allocate this object using construct_unsafe, as it recursively allocates other objects!
      * This also requires you to have a unique lock on the meta mutex before calling construct_unsafe
      */
-    static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value);
+    static offset_ptr<Value> create_value(shmem& mem, const CopiedValue& value, bool locks_held = false);
 
     /**
      * @brief Destroys a Value object
@@ -81,12 +82,12 @@ struct Value {
     using shmem_map = db_map;
     using shmem_map_t = relative_offset_ptr<shmem_map>;
     using shmem_string_t = relative_offset_ptr<char>;
+    using shmem_sem_t = relative_offset_ptr<shsem>;
 
     //! The type of the value
     ValueType type = ValueType::UNKNOWN;
-    // TODO semaphore sem_value
     //! The data of the value
-    std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t> data;
+    std::variant<bool, int, shmem_string_t, double, ArrayType, shmem_pair_t, shmem_map_t, shmem_sem_t> data;
 };
 
 /**
@@ -106,7 +107,7 @@ struct CopiedValue {
 
 
     //! @onlyInAtomicAccess
-    CopiedValue(const Value& value);
+    CopiedValue(const Value& value, shmem& mem);
 
     /**
      * Returns a python-style representation of the provided CopiedValue.

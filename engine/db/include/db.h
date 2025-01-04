@@ -29,6 +29,8 @@ public:
 
     static void destroy();
 
+    std::size_t get_used_memory();
+
     // Core Commands
 
     /**
@@ -74,7 +76,7 @@ public:
     void remove(const char* key);
 
     // Semaphore Commands
-    void create_lock(const char* key, uint16_t max_locks); //!< CREATE_LOCK command of the database, will create a lock on a key
+    void create_lock(const char* key, int max_locks); //!< CREATE_LOCK command of the database, will create a lock on a key
     void acquire_lock(const char* key /*, uint16 timeout*/); //!< ACQUIRE_LOCK command of the database, will acquire a lock on a key
     void release_lock(const char* key); //!< RELEASE_LOCK command of the database, will release a lock on a key
 

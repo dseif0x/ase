@@ -10,7 +10,6 @@
 #include <mutex>
 #include <thread>
 #include <unistd.h>
-#include <sys/wait.h>
 
 #include "shmem.h"
 #include "stopwatch.h"
@@ -28,8 +27,8 @@ int main() {
         shmem test;
         test.destroy();
     }
-    pid_t pid = fork();
-    //pid_t pid = 1;
+    //pid_t pid = fork();
+    pid_t pid = 1;
     stopwatch s;
     if (pid == 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));

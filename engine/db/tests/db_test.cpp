@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include "db.h"
 #include "utils.h"
+#include "map_test.h"
 
 void insert_test_data(DB& db) {
     { // Integer
@@ -133,6 +134,20 @@ public:
         db = new DB();
 
         insert_test_data(*db);
+    }
+
+    void TearDown() override {
+        delete db;
+    }
+
+    DB* db{nullptr};
+};
+
+class DatabaseWithoutData : public ::testing::Test {
+public:
+    void SetUp() override {
+        DB::destroy();
+        db = new DB();
     }
 
     void TearDown() override {
@@ -329,4 +344,63 @@ TEST_F(DatabaseWithData, List) {
 TEST_F(DatabaseWithData, ListNonExistentKey) {
     auto test = db->list("test_123");
     ASSERT_FALSE(test.has_value());
+}
+
+TEST_F(DatabaseWithoutData, CreateLock) {
+    constexpr auto init = 4;
+    db->create_lock("lock", init);
+    auto lock = db->get("lock");
+    ASSERT_TRUE(lock.has_value());
+    ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
+    ASSERT_EQ(std::get<int>(lock.value().data), init);
+}
+
+TEST_F(DatabaseWithoutData, CreateAndAquireLock) {
+    constexpr auto init = 4;
+    db->create_lock("lock", init);
+    auto lock = db->get("lock");
+    ASSERT_TRUE(lock.has_value());
+    ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
+    ASSERT_EQ(std::get<int>(lock.value().data), init);
+
+    db->acquire_lock("lock");
+
+    lock = db->get("lock");
+    ASSERT_TRUE(lock.has_value());
+    ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
+    ASSERT_EQ(std::get<int>(lock.value().data), init - 1);
+
+    db->release_lock("lock");
+
+    lock = db->get("lock");
+    ASSERT_TRUE(lock.has_value());
+    ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
+    ASSERT_EQ(std::get<int>(lock.value().data), init);
+}
+
+TEST_F(DatabaseWithoutData, CreateAndAquireLockMultiple) {
+    constexpr auto init = 4;
+    db->create_lock("lock", init);
+    auto lock = db->get("lock");
+    ASSERT_TRUE(lock.has_value());
+    ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
+    ASSERT_EQ(std::get<int>(lock.value().data), init);
+
+    for (int i = 0; i < init; i++) {
+        db->acquire_lock("lock");
+    }
+
+    lock = db->get("lock");
+    ASSERT_TRUE(lock.has_value());
+    ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
+    ASSERT_EQ(std::get<int>(lock.value().data), 0);
+
+    for (int i = 0; i < init; i++) {
+        db->release_lock("lock");
+    }
+
+    lock = db->get("lock");
+    ASSERT_TRUE(lock.has_value());
+    ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
+    ASSERT_EQ(std::get<int>(lock.value().data), init);
 }

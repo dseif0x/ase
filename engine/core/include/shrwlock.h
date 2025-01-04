@@ -7,8 +7,12 @@
 
 #pragma once
 
+#ifdef _WIN32
+#include <atomic>
+#else
 #include <sys/mman.h>
 #include <pthread.h>
+#endif
 
 /**
  * @brief A wrapper for a shared read-write lock.
@@ -22,10 +26,10 @@ class shrwlock {
 public:
     shrwlock();
     ~shrwlock();
-    /*shrwlock(const shrwlock&) = delete;
+    shrwlock(const shrwlock&) = delete;
     shrwlock& operator=(const shrwlock&) = delete;
     shrwlock(shrwlock&&) = delete;
-    shrwlock& operator=(shrwlock&&) = delete;*/
+    shrwlock& operator=(shrwlock&&) = delete;
 
     void lock(); //!< acquires an unique lock
     void unlock(); //!< releases an unique lock
@@ -37,7 +41,7 @@ public:
 
 private:
 #ifdef _WIN32
-    LONG counter;
+    std::atomic<int> state;              // Positive: readers, -1: writer, 0: free
 #else
     pthread_rwlock_t lck;
 #endif

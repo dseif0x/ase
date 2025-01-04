@@ -37,6 +37,8 @@ namespace errors {
     constexpr uint16_t key_already_exists           = 0x0200;
     constexpr uint16_t invalid_value                = 0x0201;
     constexpr uint16_t unsafe_write                 = 0x0202;
+    constexpr uint16_t unknown_option               = 0x8001;
+    constexpr uint16_t user_connected               = 0x8201;
 
     static std::unordered_map<uint16_t, std::string> messages{
         {general_protocol_error, "General Protocol Error."},
@@ -53,7 +55,9 @@ namespace errors {
         {unknown_command, "The provided command code is unknown."},
         {general_server_error, "An unexpected error occurred."},
         {invalid_value, "Invalid value. Could not extract a valid value."},
-        {unsafe_write, "The selected key exists. Use forced-SET to override."}
+        {unsafe_write, "The selected key exists. Use forced-SET to override."},
+        {unknown_option, "The provided option is not known by the server."},
+        {user_connected, "The user is currently connected and can therefore not be deleted."},
     };
 }
 
@@ -62,6 +66,7 @@ namespace info_block {
     constexpr unsigned char pair_bit = 0x40;
     constexpr unsigned char complex_bit = 0x20;
     constexpr unsigned char map_bit = 0x10;
+    constexpr unsigned char type_bit = 0x08;
     constexpr unsigned char basic_mask = 0x07;
 
     /**
@@ -98,6 +103,15 @@ namespace info_block {
      */
     constexpr bool is_map(const unsigned char byte) {
         return (byte & map_bit) > 0;
+    }
+
+    /**
+     * @brief Checks if the byte only the type of a value.
+     * @param byte The byte to check.
+     * @return True if the byte represents a map; otherwise false.
+     */
+    constexpr bool is_type(const unsigned char byte) {
+        return (byte & type_bit) > 0;
     }
 
     /**
@@ -145,6 +159,19 @@ namespace info_block {
                 return 6;
             default:
                 return 0;
+        }
+    }
+
+    constexpr unsigned char get_complex_byte(const ValueType type) {
+        switch (type) {
+            case ValueType::ARRAY:
+                return array_bit;
+            case ValueType::PAIR:
+                return pair_bit;
+            case ValueType::MAP:
+                return map_bit;
+            default:
+                return get_basic_byte(type);
         }
     }
 }

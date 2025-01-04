@@ -17,6 +17,7 @@
 #include <deque>
 #include <unordered_map>
 #include <vector>
+#include "db.h"
 
 constexpr int ENCODER_BUFFER_SIZE = 8;
 
@@ -174,6 +175,15 @@ public:
      * @return True if encoding succeeds, false otherwise.
      */
     bool from_general(CopiedValue &val);
+    /**
+     * @brief Encodes a list_t data value into the buffer.
+     *
+     * Attempts to encode the given value, catching any exceptions that occur
+     * during the process.
+     *
+     * @param val The value to encode.
+     */
+    void from_list_t(DB::list_t &val);
 };
 
 
