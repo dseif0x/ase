@@ -36,9 +36,9 @@ public class DatabaseController {
      */
     @GetMapping("/list/{key}")
     public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key) {
-        WebReturn<TcpGeneral> future = service.list(key);
+        Future<WebReturn<TcpGeneral>> future = service.list(key);
         try {
-            return ResponseEntity.ok(future);
+            return ResponseEntity.ok(future.get());
         } catch (Exception e) {
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
