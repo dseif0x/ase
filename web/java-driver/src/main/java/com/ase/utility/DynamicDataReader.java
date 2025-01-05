@@ -191,51 +191,12 @@ public class DynamicDataReader {
     }
 
     /**
-     * Reads a tcp_list structure from the input stream.
-     *
-     * @return A Map representing the key-value pairs in the tcp_list.
-     * @throws TCPClientException if an error occurs during reading.
-     */
-    public TcpGeneral readTcpList() throws TCPClientException {
-        TypeDefinition typeDef = readTypeDefinition();
-
-        if (!typeDef.isKeyMap()) {
-            throw new TCPClientReadException("Expected only type byte set for tcp_list, but it is not.");
-        }
-
-        long numKeysLong = readTCPEUI();
-        if (numKeysLong > Integer.MAX_VALUE) {
-            throw new TCPClientReadException("Too many keys in tcp_list: " + numKeysLong);
-        }
-        int numKeys = (int) numKeysLong;
-
-        HashMap<String, TcpGeneral> keyMap = new HashMap<>(numKeys);
-
-        for (int i = 0; i < numKeys; i++) {
-            checkStop();
-
-            String key = readString();
-
-            TypeDefinition valueTypeDef = readTypeDefinition();
-
-            TcpGeneral value = null;
-            if (!valueTypeDef.isOnlyType()) {
-                value = readGeneral();
-            }
-
-            keyMap.put(key, value);
-        }
-
-        return TcpGeneral.ofKeyMap(keyMap);
-    }
-
-    /**
      * Reads a key-value map from the input stream based on the Type-Definition-Block.
      *
      * @return A {@link TcpGeneral} instance representing the Key-Value Map.
      * @throws TCPClientReadException if an I/O error occurs or the reading fails.
      */
-    private TcpGeneral readKeyMap() throws TCPClientException {
+    public TcpGeneral readKeyMap() throws TCPClientException {
         long keyLength = readTCPEUI();
         int len = (int) keyLength;
 
@@ -308,7 +269,9 @@ public class DynamicDataReader {
         checkStop();
         TypeDefinition typeDef = readTypeDefinition();
 
-        if (typeDef.isKeyMap()) {
+        if (typeDef.isOnlyType()) {
+            return generateEmptyGeneral(typeDef);
+        } else if (typeDef.isKeyMap()) {
             return readKeyMap();
         } else if (typeDef.isArray()) {
             return readArray(typeDef.isComplex(), typeDef.getSimpleType());
@@ -468,6 +431,19 @@ public class DynamicDataReader {
     private void checkStop() throws TCPClientReadException {
         if (isStopped.get()) {
             throw new TCPClientReadException("Operation aborted due to stop command.");
+        }
+    }
+
+
+    private TcpGeneral generateEmptyGeneral(TypeDefinition typeDef) {
+        if (typeDef.isKeyMap()) {
+            return TcpGeneral.ofKeyMap(null);
+        } else if (typeDef.isArray()) {
+            return TcpGeneral.ofArray(null);
+        } else if (typeDef.isPair()) {
+            return TcpGeneral.ofPair(null,null);
+        } else {
+            return TcpGeneral.ofSimple(typeDef.getSimpleType(), null);
         }
     }
 }

@@ -41,8 +41,6 @@ public class TcpGeneral {
      * @return A TcpGeneral instance.
      */
     public static TcpGeneral ofSimple(SimpleType simpleType, Object value) {
-        Objects.requireNonNull(simpleType, "SimpleType cannot be null for SIMPLE TcpGeneral.");
-        Objects.requireNonNull(value, "Value cannot be null for SIMPLE TcpGeneral.");
         return new TcpGeneral(TcpGeneralType.SIMPLE, simpleType, value, null, null, null);
     }
 
@@ -53,7 +51,6 @@ public class TcpGeneral {
      * @return A TcpGeneral instance.
      */
     public static TcpGeneral ofArray(List<TcpGeneral> array) {
-        Objects.requireNonNull(array, "Array cannot be null for ARRAY TcpGeneral.");
         return new TcpGeneral(TcpGeneralType.ARRAY, null, null, array, null, null);
     }
 
@@ -65,8 +62,6 @@ public class TcpGeneral {
      * @return A TcpGeneral instance.
      */
     public static TcpGeneral ofPair(TcpGeneral first, TcpGeneral second) {
-        Objects.requireNonNull(first, "First element cannot be null for PAIR TcpGeneral.");
-        Objects.requireNonNull(second, "Second element cannot be null for PAIR TcpGeneral.");
         return new TcpGeneral(TcpGeneralType.PAIR, null, null, null, Pair.of(first, second), null);
     }
 
@@ -77,7 +72,6 @@ public class TcpGeneral {
      * @return A TcpGeneral instance.
      */
     public static TcpGeneral ofKeyMap(HashMap<String, TcpGeneral> keyMap) {
-        Objects.requireNonNull(keyMap, "KeyMap cannot be null for KEY_MAP TcpGeneral.");
         return new TcpGeneral(TcpGeneralType.KEY_MAP, null, null, null, null, keyMap);
     }
 

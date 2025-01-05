@@ -337,7 +337,7 @@ public class DatabaseClient {
             byte response = reader.readByte();
 
             if (response == Utility.ACK) {
-                TcpGeneral keyMap = dataReader.readTcpList();
+                TcpGeneral keyMap = dataReader.readGeneral();
                 return WebReturn.success(keyMap);
             } else if (response == Utility.NAK) {
                 WebReturn<Integer> error = readError();
