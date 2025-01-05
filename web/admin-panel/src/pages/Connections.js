@@ -126,6 +126,31 @@ function App() {
         setConnections(loadedConnections);
     }, []);
 
+    const deleteConnection = async (id) => {
+        await disconnect().then(r => console.log("logged out"));
+
+        const updatedConnections = connections.filter((connection) => connection.id !== id);
+
+        setConnections(updatedConnections);
+        localStorage.setItem("connections", JSON.stringify(updatedConnections));
+
+        let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+        const testConnection = savedConnections.find((connection) => connection.id === 0);
+        setSelectedConnection(testConnection);
+    };
+
+    useEffect(() => {
+        if (selectedConnection?.id === 0) {
+            const hierarchy = buildHierarchy(keyDataStructure);
+            setHierarchicalData(hierarchy);
+        } else if (selectedConnection) {
+            const hierarchy = buildHierarchy(otherDataStructure);
+            setHierarchicalData(hierarchy);
+        } else {
+            setHierarchicalData([]);
+        }
+    }, [selectedConnection, otherDataStructure]);
+
     const toggleCollapse = (node) => {
         node.collapsed = !node.collapsed;
         setHierarchicalData([...hierarchicalData]);
