@@ -32,6 +32,43 @@ export async function get(key) {
     }
 }
 
+export async function set(key, value, force) {
+    if (!loggedIn) {
+        return;
+    }
+    try {
+        console.log(`set key: ${key} with value: ${JSON.stringify(value)}`);
+
+        const response = await fetch(`${API_BASE_URL}/db/set`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                "key": key,
+                "value": {
+                    "type": "SIMPLE",
+                    "value": value,
+                    "simpleType": 2
+                },
+                "force": force
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log("response:", data);
+
+        return data;
+    } catch (error) {
+        console.error("Error: ", error);
+        throw error;
+    }
+}
+
 export async function connect(config:ConnectionConfigDTO) {
     if (loggedIn) {
         return;
