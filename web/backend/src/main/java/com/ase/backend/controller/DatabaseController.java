@@ -35,12 +35,12 @@ public class DatabaseController {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} or an error message.
      */
     @GetMapping("/get/{key}")
-    public WebReturn<TcpGeneral> getValue(@PathVariable String key) {
+    public ResponseEntity<WebReturn<TcpGeneral>> getValue(@PathVariable String key) {
         Future<WebReturn<TcpGeneral>> future = service.getValue(key);
         try {
-            return future.get();
+            return ResponseEntity.ok(future.get());
         } catch (Exception e) {
-            return WebReturn.error(e.getMessage());
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
 

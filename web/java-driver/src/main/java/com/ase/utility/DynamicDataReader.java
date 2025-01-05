@@ -10,10 +10,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -199,7 +196,7 @@ public class DynamicDataReader {
      * @return A {@link TcpGeneral} instance representing the Key-Value Map.
      * @throws TCPClientReadException if an I/O error occurs or the reading fails.
      */
-    private TcpGeneral readKeyMap() throws TCPClientException {
+    public TcpGeneral readKeyMap() throws TCPClientException {
         long keyLength = readTCPEUI();
         int len = (int) keyLength;
 
@@ -272,7 +269,9 @@ public class DynamicDataReader {
         checkStop();
         TypeDefinition typeDef = readTypeDefinition();
 
-        if (typeDef.isKey()) {
+        if (typeDef.isOnlyType()) {
+            return generateEmptyGeneral(typeDef);
+        } else if (typeDef.isKeyMap()) {
             return readKeyMap();
         } else if (typeDef.isArray()) {
             return readArray(typeDef.isComplex(), typeDef.getSimpleType());
@@ -300,13 +299,14 @@ public class DynamicDataReader {
             boolean isPair = (typeByte & TypeFlag.PAIR.getBitmask()) != 0;
             boolean isComplex = (typeByte & TypeFlag.COMPLEX.getBitmask()) != 0 && (isPair || isArray);
             boolean isKey = (typeByte & TypeFlag.KEY.getBitmask()) != 0;
+            boolean isOnlyType = (typeByte & TypeFlag.ONLY_TYPE.getBitmask()) != 0;
 
             if (isArray && isPair) {
                 throw new TCPClientReadException("Type-Definition-Block cannot have both Array and Pair flags set.");
             }
 
             SimpleType simpleType = SimpleType.fromTypeId(typeByte & 0x07);
-            return new TypeDefinition(isArray, isPair, isComplex, isKey, simpleType);
+            return new TypeDefinition(isArray, isPair, isComplex, isKey, isOnlyType, simpleType);
         } catch (IOException e) {
             throw new TCPClientReadException("Failed to read Type-Definition-Block.", e);
         } catch (IllegalArgumentException e) {
@@ -431,6 +431,19 @@ public class DynamicDataReader {
     private void checkStop() throws TCPClientReadException {
         if (isStopped.get()) {
             throw new TCPClientReadException("Operation aborted due to stop command.");
+        }
+    }
+
+
+    private TcpGeneral generateEmptyGeneral(TypeDefinition typeDef) {
+        if (typeDef.isKeyMap()) {
+            return TcpGeneral.ofKeyMap(null);
+        } else if (typeDef.isArray()) {
+            return TcpGeneral.ofArray(null);
+        } else if (typeDef.isPair()) {
+            return TcpGeneral.ofPair(null,null);
+        } else {
+            return TcpGeneral.ofSimple(typeDef.getSimpleType(), null);
         }
     }
 }
