@@ -97,6 +97,17 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
+        const dataToUse =
+            selectedConnection?.id === 0
+                ? keyDataStructure
+                : otherDataStructure;
+
+        const hierarchy = buildHierarchy(dataToUse);
+        setHierarchicalData(hierarchy);
+    }, [selectedConnection]);
+
+
+    useEffect(() => {
         let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
 
         if (!savedConnections.some((connection) => connection.id === 0)) {
