@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
+import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
+import {connect} from "../api/Api";
 
 const keyDataStructure = {
     a: {
@@ -65,7 +67,7 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
                 <td>
                     <button
                         className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, {state: {keyData: node}})}
+                        onClick={() => navigate(`/edit/${node.key}`, {state: {keyData: node.key}})}
                     >
                         Edit
                     </button>
@@ -97,7 +99,7 @@ function App() {
         setHierarchicalData(hierarchy);
 
         const connectionsDataStructure = [
-            { ip: "127.0.0.1", port: "65836", username: "user1" },
+            { ip: "127.0.0.1", port: "25565", username: "user1" },
             { ip: "192.168.1.100", port: "12345", username: "user2" },
             { ip: "10.0.0.1", port: "45678", username: "user3" },
         ];
@@ -128,14 +130,20 @@ function App() {
     };
 
     const addConnection = () => {
-        const newIp = prompt("Enter IP Address:");
-        const newPort = prompt("Enter Port:");
-        const newUsername = prompt("Enter Username:");
-        if (newIp && newPort && newUsername) {
+        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
+        config.host = prompt("Enter Host:");
+        config.port = parseInt(prompt("Enter Port:"));
+        config.username = prompt("Enter Username:");
+        config.password = prompt("Enter Password:");
+        if (config.host && config.port && config.username && config.password) {
+            console.log("here\n" + config);
+            connect(config).then(r => console.log(r));
             setConnections([
                 ...connections,
-                { id: connections.length + 1, ip: newIp, port: newPort, username: newUsername },
+                { id: connections.length + 1, ip: config.host, port: config.port, username: config.username },
             ]);
+        } else {
+            // TODO add error
         }
     };
 
