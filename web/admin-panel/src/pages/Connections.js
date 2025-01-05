@@ -91,10 +91,26 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
 function App() {
     const [connections, setConnections] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
+    const [selectedConnection, setSelectedConnection] = useState(0);
+    const [otherDataStructure, setOtherDataStructure] = useState({});
 
     const navigate = useNavigate();
 
     useEffect(() => {
+        let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+
+        if (!savedConnections.some((connection) => connection.id === 0)) {
+            const testConnection = {
+                id: 0,
+                ip: "testconn.ase",
+                port: "25565",
+                username: "test",
+            };
+            savedConnections = [testConnection];
+            localStorage.setItem("connections", JSON.stringify(savedConnections));
+        }
+
+        setConnections(savedConnections);
         const hierarchy = buildHierarchy(keyDataStructure);
         setHierarchicalData(hierarchy);
 
