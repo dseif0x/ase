@@ -204,6 +204,23 @@ function App() {
         }
     };
 
+    function loadData() {
+        if (!isLoggedIn()) {
+            return;
+        }
+        get("x").then((response) => {
+            console.log(response);
+            const updatedDataStructure = {
+                x: response.data?.value,
+            };
+            setOtherDataStructure(updatedDataStructure);
+            if (selectedConnection?.id !== 0) {
+                const hierarchy = buildHierarchy(updatedDataStructure);
+                setHierarchicalData(hierarchy);
+            }
+        });
+    }
+
     return (
         <div className="app-container">
             <div className="connections-panel">
