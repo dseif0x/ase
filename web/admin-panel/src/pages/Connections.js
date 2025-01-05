@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect} from "../api/Api";
+import {connect, disconnect, get, set, isLoggedIn} from "../api/Api";
 
 const keyDataStructure = {
     a: {
