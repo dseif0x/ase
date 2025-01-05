@@ -2,7 +2,12 @@ import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
+let loggedIn = false;
+
 export async function get(key) {
+    if (!loggedIn) {
+        return;
+    }
     try {
         const response = fetch(`${API_BASE_URL}/db/get/` + key).then((response) => {
             if (!response.ok) {
@@ -28,6 +33,9 @@ export async function get(key) {
 }
 
 export async function connect(config:ConnectionConfigDTO) {
+    if (loggedIn) {
+        return;
+    }
     try {
         console.log("connecting with: " + JSON.stringify(config));
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -43,7 +51,8 @@ export async function connect(config:ConnectionConfigDTO) {
             throw new Error(`HTTP error ${response.status}`);
         }
 
-        const data = await response.json();
+        loggedIn = true;
+        const data = await response.text();
         console.log("response:", data);
         return data;
     } catch (error) {
