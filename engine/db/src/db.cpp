@@ -220,30 +220,36 @@ DB::list_t DB::list(const char* key) {
     auto key_split = split(key);
     list_t res {};
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        list_map_t res_map{};
+        auto collect_keys_cb = [&](locked_db_map* locked_map) {
+            for(auto& key : locked_map->keys(mem)) {
+                auto original_entry = locked_map->get(mem, key.c_str());
+                list_map_enty_t entry{original_entry->type, std::monostate{}};
+                if (entry.first == ValueType::INT) {
+                    entry.second.emplace<int>(std::get<int>(original_entry->data));
+                } else if (entry.first == ValueType::BOOLEAN) {
+                    entry.second.emplace<bool>(std::get<bool>(original_entry->data));
+                } else if (entry.first == ValueType::DOUBLE) {
+                    entry.second.emplace<double>(std::get<double>(original_entry->data));
+                } else if (entry.first == ValueType::STRING) {
+                    auto& string_val = std::get<Value::shmem_string_t>(original_entry->data);
+                    entry.second.emplace<std::string>(string_val.get());
+                }
+                res_map.emplace(key, entry);
+            }
+        };
+        if (key_split.empty()) { // get root
+            entrypoint->transaction(collect_keys_cb);
+            res.emplace(std::move(res_map));
+            return;
+        }
         get_key(*entrypoint, mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
             if (val.has_value()) {
                 auto& deref_val = val.value();
                 if (deref_val->type != ValueType::MAP)
                     return;
                 auto& cur_map = std::get<relative_offset_ptr<db_map>>(deref_val->data);
-                list_map_t res_map{};
-                cur_map->transaction([&](locked_db_map* locked_map) {
-                    for(auto& key : locked_map->keys(mem)) {
-                        auto original_entry = locked_map->get(mem, key.c_str());
-                        list_map_enty_t entry{original_entry->type, std::monostate{}};
-                        if (entry.first == ValueType::INT) {
-                            entry.second.emplace<int>(std::get<int>(original_entry->data));
-                        } else if (entry.first == ValueType::BOOLEAN) {
-                            entry.second.emplace<bool>(std::get<bool>(original_entry->data));
-                        } else if (entry.first == ValueType::DOUBLE) {
-                            entry.second.emplace<double>(std::get<double>(original_entry->data));
-                        } else if (entry.first == ValueType::STRING) {
-                            auto& string_val = std::get<Value::shmem_string_t>(original_entry->data);
-                            entry.second.emplace<std::string>(string_val.get());
-                        }
-                        res_map.emplace(key, entry);
-                    }
-                });
+                cur_map->transaction(collect_keys_cb);
                 res.emplace(std::move(res_map));
             }
         });
