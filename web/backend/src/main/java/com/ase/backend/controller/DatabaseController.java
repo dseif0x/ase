@@ -29,6 +29,22 @@ public class DatabaseController {
     }
 
     /**
+     * Retrieves a list of first level sub keys in a map.
+     *
+     * @param key The unique identifier for the value to be fetched.
+     * @return A {@link WebReturn} wrapping the {@link TcpGeneral} or an error message.
+     */
+    @GetMapping("/list/{key}")
+    public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key) {
+        WebReturn<TcpGeneral> future = service.list(key);
+        try {
+            return ResponseEntity.ok(future);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
+    }
+
+    /**
      * Retrieves a value from the in-memory database by key.
      *
      * @param key The unique identifier for the value to be fetched.
