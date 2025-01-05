@@ -1,5 +1,6 @@
 package com.ase.backend.controller;
 
+import com.ase.backend.controller.dto.SetValueRequest;
 import com.ase.backend.service.DatabaseService;
 import com.ase.utility.WebReturn;
 import com.ase.utility.tcp.TcpGeneral;
@@ -13,6 +14,7 @@ import java.util.concurrent.Future;
  */
 @RestController
 @RequestMapping("/api/db")
+@CrossOrigin(origins = "http://localhost:3000")
 public class DatabaseController {
 
     private final DatabaseService service;
@@ -33,27 +35,24 @@ public class DatabaseController {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} or an error message.
      */
     @GetMapping("/get/{key}")
-    public WebReturn<TcpGeneral> getValue(@PathVariable String key) {
+    public ResponseEntity<WebReturn<TcpGeneral>> getValue(@PathVariable String key) {
         Future<WebReturn<TcpGeneral>> future = service.getValue(key);
         try {
-            return future.get();
+            return ResponseEntity.ok(future.get());
         } catch (Exception e) {
-            return WebReturn.error(e.getMessage());
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
 
     /**
      * Sets a value in the in-memory database.
      *
-     * @param key   The unique key to associate with the given value.
-     * @param value The {@link TcpGeneral} value which will be stores in the in-memory database.
-     * @param force Whether to overwrite an existing value.
      *
      * @return A {@link WebReturn} with success code or error details.
      */
     @PostMapping("/set")
-    public ResponseEntity<WebReturn<Integer>> setValue(@RequestParam String key, @RequestParam TcpGeneral value, @RequestParam boolean force) {
-        Future<WebReturn<Integer>> future = service.setValue(key, value, force);
+    public ResponseEntity<?> setValue(@RequestBody SetValueRequest request) {
+        Future<WebReturn<Integer>> future = service.setValue(request.getKey(), request.getValue(), request.isForce());
         try {
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
