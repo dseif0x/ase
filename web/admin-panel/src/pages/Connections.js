@@ -261,7 +261,7 @@ function App() {
                 <div className="keys-header">
                     <h3>Keys</h3>
                     <span>
-                        <button className="refresh-button">
+                        <button className="refresh-button" onClick={loadData}>
                             Refresh
                         </button>
                     </span>
