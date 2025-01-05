@@ -11,12 +11,15 @@ import java.util.Objects;
  */
 public class TcpGeneral {
 
-    private final TcpGeneralType type;
-    private final SimpleType simpleType; // Applicable if type == SIMPLE
-    private final Object value; // The actual value for SIMPLE type
-    private final List<TcpGeneral> array; // Applicable if type == ARRAY
-    private final Pair<TcpGeneral, TcpGeneral> pair; // Applicable if type == PAIR
-    private final HashMap<String, TcpGeneral> keyMap; // Applicable if type == KEY_MAP
+    private TcpGeneralType type;
+    private SimpleType simpleType; // Applicable if type == SIMPLE
+    private Object value; // The actual value for SIMPLE type
+    private List<TcpGeneral> array; // Applicable if type == ARRAY
+    private Pair<TcpGeneral, TcpGeneral> pair; // Applicable if type == PAIR
+
+    private HashMap<String, TcpGeneral> keyMap; // Applicable if type == KEY_MAP
+
+    public TcpGeneral() {}
 
     /**
      * Private constructor to enforce the use of factory methods.
@@ -102,20 +105,12 @@ public class TcpGeneral {
     }
 
     public SimpleType getElementType() {
-        if (type == TcpGeneralType.SIMPLE || type == TcpGeneralType.KEY_MAP || isComplex()) {
-            throw new IllegalStateException("Cannot get element type for empty array or pair.");
-        } else {
-            switch (type) {
-                case ARRAY:
-                    return array.get(0).getSimpleType();
-                case PAIR:
-                    return pair.getLeft().getSimpleType();
-                default:
-                    throw new IllegalStateException("Cannot get element type for non-array or non-pair TcpGeneral.");
-            }
+        if (type == TcpGeneralType.ARRAY && array != null && !array.isEmpty()) {
+            return array.get(0).getSimpleType();
+        } else if (type == TcpGeneralType.PAIR && pair != null) {
+            return pair.getLeft().getSimpleType();
         }
-
-
+        return null;
     }
 
     public boolean isComplex() {
@@ -190,5 +185,31 @@ public class TcpGeneral {
     @Override
     public int hashCode() {
         return Objects.hash(type, simpleType, value, array, pair, keyMap);
+    }
+
+
+    // Setters
+    public void setType(TcpGeneralType type) {
+        this.type = type;
+    }
+
+    public void setSimpleType(SimpleType simpleType) {
+        this.simpleType = simpleType;
+    }
+
+    public void setValue(Object value) {
+        this.value = value;
+    }
+
+    public void setArray(List<TcpGeneral> array) {
+        this.array = array;
+    }
+
+    public void setPair(Pair<TcpGeneral, TcpGeneral> pair) {
+        this.pair = pair;
+    }
+
+    public void setKeyMap(HashMap<String, TcpGeneral> keyMap) {
+        this.keyMap = keyMap;
     }
 }
