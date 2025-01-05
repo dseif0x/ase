@@ -10,10 +10,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -194,6 +191,47 @@ public class DynamicDataReader {
     }
 
     /**
+     * Reads a tcp_list structure from the input stream.
+     *
+     * @return A Map representing the key-value pairs in the tcp_list.
+     * @throws TCPClientException if an error occurs during reading.
+     */
+    public Map<String, TcpGeneral> readTcpList() throws TCPClientException {
+
+        // Read the TypeDefinition byte for the map
+        TypeDefinition typeDef = readTypeDefinition();
+
+        if (!typeDef.isOnlyType()) {
+            throw new TCPClientReadException("Expected only type byte set for tcp_list, but it is not.");
+        }
+
+        long numKeysLong = readTCPEUI();
+        if (numKeysLong > Integer.MAX_VALUE) {
+            throw new TCPClientReadException("Too many keys in tcp_list: " + numKeysLong);
+        }
+        int numKeys = (int) numKeysLong;
+
+        Map<String, TcpGeneral> keyMap = new HashMap<>(numKeys);
+
+        for (int i = 0; i < numKeys; i++) {
+            checkStop();
+
+            String key = readString();
+
+            TypeDefinition valueTypeDef = readTypeDefinition();
+
+            TcpGeneral value = null;
+            if (!valueTypeDef.isOnlyType()) {
+                value = readGeneral();
+            }
+
+            keyMap.put(key, value);
+        }
+
+        return keyMap;
+    }
+
+    /**
      * Reads a key-value map from the input stream based on the Type-Definition-Block.
      *
      * @return A {@link TcpGeneral} instance representing the Key-Value Map.
@@ -300,13 +338,14 @@ public class DynamicDataReader {
             boolean isPair = (typeByte & TypeFlag.PAIR.getBitmask()) != 0;
             boolean isComplex = (typeByte & TypeFlag.COMPLEX.getBitmask()) != 0 && (isPair || isArray);
             boolean isKey = (typeByte & TypeFlag.KEY.getBitmask()) != 0;
+            boolean isOnlyType = (typeByte & TypeFlag.ONLY_TYPE.getBitmask()) != 0;
 
             if (isArray && isPair) {
                 throw new TCPClientReadException("Type-Definition-Block cannot have both Array and Pair flags set.");
             }
 
             SimpleType simpleType = SimpleType.fromTypeId(typeByte & 0x07);
-            return new TypeDefinition(isArray, isPair, isComplex, isKey, simpleType);
+            return new TypeDefinition(isArray, isPair, isComplex, isKey, isOnlyType, simpleType);
         } catch (IOException e) {
             throw new TCPClientReadException("Failed to read Type-Definition-Block.", e);
         } catch (IllegalArgumentException e) {
