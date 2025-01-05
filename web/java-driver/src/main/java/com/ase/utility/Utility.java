@@ -28,6 +28,9 @@ public class Utility {
 
     /** Command to delete a key. */
     public static final byte DELETE_COMMAND = (byte) 0x04;
+
+    /** Command to list a key. */
+    public static final byte LIST_COMMAND = (byte) 0x05;
     // --- END DATA COMMANDS ---
 
 

@@ -196,9 +196,7 @@ public class DynamicDataReader {
      * @return A Map representing the key-value pairs in the tcp_list.
      * @throws TCPClientException if an error occurs during reading.
      */
-    public Map<String, TcpGeneral> readTcpList() throws TCPClientException {
-
-        // Read the TypeDefinition byte for the map
+    public TcpGeneral readTcpList() throws TCPClientException {
         TypeDefinition typeDef = readTypeDefinition();
 
         if (!typeDef.isOnlyType()) {
@@ -211,7 +209,7 @@ public class DynamicDataReader {
         }
         int numKeys = (int) numKeysLong;
 
-        Map<String, TcpGeneral> keyMap = new HashMap<>(numKeys);
+        HashMap<String, TcpGeneral> keyMap = new HashMap<>(numKeys);
 
         for (int i = 0; i < numKeys; i++) {
             checkStop();
@@ -228,7 +226,7 @@ public class DynamicDataReader {
             keyMap.put(key, value);
         }
 
-        return keyMap;
+        return TcpGeneral.ofKeyMap(keyMap);
     }
 
     /**

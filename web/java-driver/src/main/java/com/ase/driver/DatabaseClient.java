@@ -300,6 +300,66 @@ public class DatabaseClient {
     }
 
     /**
+     * Sends the LIST command asynchronously.
+     *
+     * @param key The key to list sub-keys for.
+     * @return A Future representing the pending result of the LIST operation.
+     */
+    public Future<WebReturn<TcpGeneral>> listAsync(String key) {
+        Callable<WebReturn<TcpGeneral>> task = () -> {
+            return list(key);
+        };
+        Future<WebReturn<TcpGeneral>> future = executorService.submit(task);
+        addOngoingFuture(future);
+        return future;
+    }
+
+    /**
+     * Sends the LIST command synchronously.
+     *
+     * @param key The key to list sub-keys for.
+     * @return A WebReturn containing the map of sub-keys to TcpGeneral values.
+     */
+    public WebReturn<TcpGeneral> list(String key) {
+        if (key == null || key.isEmpty()) {
+            return WebReturn.error("Key must not be null or empty.");
+        }
+
+        if (isStopped.get()) {
+            return WebReturn.error("Operation aborted due to stop command.");
+        }
+
+        try {
+            writer.writeByte(Utility.LIST_COMMAND);
+            dataWriter.writeString(key);
+            writer.flush();
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                TcpGeneral keyMap = dataReader.readTcpList();
+                return WebReturn.success(keyMap);
+            } else if (response == Utility.NAK) {
+                WebReturn<Integer> error = readError();
+                return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
+            } else {
+                return WebReturn.error("Server responded with unknown response", TcpGeneral.ofSimple(SimpleType.INT, (int) response));
+            }
+
+        } catch (IOException e) {
+            if (isStopped.get()) {
+                return WebReturn.error("LIST operation was stopped.");
+            }
+            return WebReturn.error("Failed to send LIST command: " + e.getMessage());
+        } catch (TCPClientException e) {
+            if (isStopped.get()) {
+                return WebReturn.error("LIST operation was stopped.");
+            }
+            return WebReturn.error("Failed to execute LIST command: " + e.getMessage());
+        }
+    }
+
+    /**
      * Sends a command to the server to delete a key-value pair.
      *
      * @param key The key of the value to be deleted from the server.
