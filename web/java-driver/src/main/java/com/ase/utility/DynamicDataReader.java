@@ -199,7 +199,7 @@ public class DynamicDataReader {
     public TcpGeneral readTcpList() throws TCPClientException {
         TypeDefinition typeDef = readTypeDefinition();
 
-        if (!typeDef.isOnlyType()) {
+        if (!typeDef.isKeyMap()) {
             throw new TCPClientReadException("Expected only type byte set for tcp_list, but it is not.");
         }
 
@@ -308,7 +308,7 @@ public class DynamicDataReader {
         checkStop();
         TypeDefinition typeDef = readTypeDefinition();
 
-        if (typeDef.isKey()) {
+        if (typeDef.isKeyMap()) {
             return readKeyMap();
         } else if (typeDef.isArray()) {
             return readArray(typeDef.isComplex(), typeDef.getSimpleType());

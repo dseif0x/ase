@@ -4,15 +4,15 @@ public class TypeDefinition {
     private final boolean isArray;
     private final boolean isPair;
     private final boolean isComplex;
-    private final boolean isKey;
+    private final boolean isKeyMap;
     private final boolean isOnlyType;
     private final SimpleType simpleType;
 
-    public TypeDefinition(boolean isArray, boolean isPair, boolean isComplex, boolean isKey, boolean isOnlyType, SimpleType simpleType) {
+    public TypeDefinition(boolean isArray, boolean isPair, boolean isComplex, boolean isKeyMap, boolean isOnlyType, SimpleType simpleType) {
         this.isArray = isArray;
         this.isPair = isPair;
         this.isComplex = isComplex;
-        this.isKey = isKey;
+        this.isKeyMap = isKeyMap;
         this.isOnlyType = isOnlyType;
         this.simpleType = simpleType;
     }
@@ -21,8 +21,8 @@ public class TypeDefinition {
         return isArray;
     }
 
-    public boolean isKey() {
-        return isKey;
+    public boolean isKeyMap() {
+        return isKeyMap;
     }
 
     public boolean isPair() {
