@@ -226,8 +226,31 @@ function App() {
             <div className="connections-panel">
                 <h3>Connections</h3>
                 {connections.map((connection) => (
-                    <div key={connection.id} className="connection">
+                    <div
+                        key={connection.id}
+                        className={`connection ${selectedConnection?.id === connection.id ? "selected" : ""}`}
+                        onClick={() => {
+                                setSelectedConnection(connection);
+                                loadData();
+                            }
+                        }
+                    >
+                        <input
+                            type="radio"
+                            name="connection"
+                            value={connection.id}
+                            checked={selectedConnection?.id === connection.id}
+                            onChange={() => setSelectedConnection(connection)}
+                        />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
+                        {connection.id !== 0 && (
+                            <button
+                                className="delete-button"
+                                onClick={() => deleteConnection(connection.id)}
+                            >
+                                X
+                            </button>
+                        )}
                     </div>
                 ))}
                 <button className="add-connection-button" onClick={addConnection}>
