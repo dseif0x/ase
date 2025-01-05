@@ -20,10 +20,35 @@ export async function get(key) {
         if (!response.ok) {
             throw new Error(`Msg: ${response.status}`);
         }
-        const data = await response.json();
-        return data;
+        return await response.json();
     } catch (error) {
         console.error("Error fetching data:", error);
+        throw error;
+    }
+}
+
+export async function connect(config:ConnectionConfigDTO) {
+    try {
+        console.log("connecting with: " + JSON.stringify(config));
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(config),
+        });
+
+        if (!response.ok) {
+            console.log(response);
+            throw new Error(`HTTP error ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("response:", data);
+        return data;
+    } catch (error) {
+        console.log("error: " + error);
+        console.error("Error logging in to server ", error);
         throw error;
     }
 }
