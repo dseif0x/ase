@@ -1033,4 +1033,210 @@ public class DatabaseClientCommandTest {
             "Error message should indicate failure to read string.");
         assertNull(listResult.getData(), "Data should be null on failure.");
     }
+
+    /**
+     * Test the changePassword method with a successful response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testChangePasswordSuccess() throws Exception {
+        String username = "testuser";
+        String newPassword = "newpassword";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.changePassword(username, newPassword);
+
+        assertTrue(result.isOk(), "changePassword should succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+    /**
+     * Test the changePassword method with a failed response from the server.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testChangePasswordFailure() throws Exception {
+        String username = "testuser";
+        String newPassword = "newpassword";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeShort(0x5678);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+        serverDataWriter.writeString("Password policy violation.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.changePassword(username, newPassword);
+
+        assertFalse(result.isOk(), "changePassword should fail with NAK.");
+        assertNotNull(result.getMessage(), "Error message should not be null.");
+        assertTrue(result.getMessage().contains("Password policy violation."),
+            "Error message should contain 'Password policy violation.'");
+        assertNotNull(result.getData(), "Expected data to contain the error code.");
+        assertEquals(0x5678, result.getData(), "Error code should match.");
+    }
+
+    /**
+     * Test the changePassword method with an unknown server response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testChangePasswordUnknownResponse() throws Exception {
+        String username = "testuser";
+        String newPassword = "newpassword";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x1A);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.changePassword(username, newPassword);
+
+        assertFalse(result.isOk(), "changePassword should fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Error message should not be null.");
+        assertTrue(result.getMessage().contains("unknown response"),
+            "Error message should indicate unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+        assertEquals(0x1A, result.getData(), "Response byte should match.");
+    }
+
+    /**
+     * Test the changePassword method causing a TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testChangePasswordTcpClientException() throws Exception {
+        String username = "testuser";
+        String newPassword = "newpassword";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeShort(0xFFFF);
+        serverResponseOut.write(0x05);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.changePassword(username, newPassword);
+
+        assertFalse(result.isOk(), "changePassword should fail due to TCPClientException.");
+        assertNotNull(result.getMessage(), "Error message should not be null.");
+        assertTrue(result.getMessage().contains("Failed to read string."),
+            "Error message should indicate failure to read string.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    /**
+     * Test the deleteUser method with a successful response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testDeleteUserSuccess() throws Exception {
+        String username = "testuser";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.deleteUser(username);
+
+        assertTrue(result.isOk(), "deleteUser should succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertNull(result.getData(), "Expected no data on success.");
+    }
+
+    /**
+     * Test the deleteUser method with a failed response from the server.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testDeleteUserFailure() throws Exception {
+        String username = "testuser";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeShort(0xFF02);
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+        serverDataWriter.writeString("User not found.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.deleteUser(username);
+
+        assertFalse(result.isOk(), "deleteUser should fail with NAK.");
+        assertNotNull(result.getMessage(), "Error message should not be null.");
+        assertTrue(result.getMessage().contains("User not found."),
+            "Error message should contain 'User not found.'");
+        assertNotNull(result.getData(), "Expected data to contain the error code.");
+        assertEquals(0xFF02, result.getData(), "Error code should match.");
+    }
+
+    /**
+     * Test the deleteUser method with an unknown server response.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testDeleteUserUnknownResponse() throws Exception {
+        String username = "testuser";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x1A);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.deleteUser(username);
+
+        assertFalse(result.isOk(), "deleteUser should fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Error message should not be null.");
+        assertTrue(result.getMessage().contains("unknown response"),
+            "Error message should indicate unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+        assertEquals(0x1A, result.getData(), "Response byte should match.");
+    }
+
+    /**
+     * Test the deleteUser method causing a TCPClientException during reading.
+     *
+     * @throws Exception If an error occurs during the test.
+     */
+    @Test
+    void testDeleteUserTcpClientException() throws Exception {
+        String username = "testuser";
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeShort(0xFFFF);
+        serverResponseOut.write(0x05);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<Integer> result = databaseClient.deleteUser(username);
+
+        assertFalse(result.isOk(), "deleteUser should fail due to TCPClientException.");
+        assertNotNull(result.getMessage(), "Error message should not be null.");
+        assertTrue(result.getMessage().contains("Failed to read string."),
+            "Error message should indicate failure to read string.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
 }
