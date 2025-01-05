@@ -29,9 +29,9 @@ set(MINGW_TOOLCHAIN_URL "${MINGW_BASE_URL}${MINGW_FILE_NAME}")
 
 FetchContent_Declare(
         mingw_toolchain
+        DOWNLOAD_EXTRACT_TIMESTAMP true
         URL ${MINGW_TOOLCHAIN_URL}
         SOURCE_DIR ${MINGW_TOOLCHAIN_DIR}
-        DOWNLOAD_EXTRACT_TIMESTAMP true
 )
 
 message(STATUS "Downloading MinGW toolchain from ${MINGW_TOOLCHAIN_URL}")
