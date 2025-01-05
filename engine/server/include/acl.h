@@ -60,7 +60,20 @@ public:
 
     bool has_user(std::string &username);
 
+    bool user_is_connected(std::string &username);
+
     bool update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions);
+
+
+    /**
+    * @brief Creates a user with the provided parameters and returns true on success.
+    */
+    bool create_user(std::string &username, std::string &pwd, bool is_admin);
+
+    /**
+    * @brief Deletes a user from the acl.
+    */
+    bool delete_user(std::string &username);
 
     /**
      * @brief Prints detailed information about all users.
@@ -83,7 +96,7 @@ class ACLUser {
 
 public:
     ACLUser(const std::string& password, bool isAdmin);
-    ACLUser();
+    ACLUser() = default;
 
     /**
      * @brief Checks if a user has the required permissions for a given key.
@@ -101,6 +114,11 @@ public:
      * @return True if the password matches the stored password, otherwise false.
      */
     bool check_pwd(const std::string& pwd);
+
+    /**
+    * @brief Update the password of the user.
+    */
+    void update_pwd(const std::string& pwd);
     bool is_admin();
 
     void set_permissions(CopiedValue &value);

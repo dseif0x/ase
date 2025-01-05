@@ -56,6 +56,7 @@ public:
     shrwlock& get_meta_mutex();
 
     offset_t get_management_offset() const;
+    offset_t get_used_memory();
 
     //! @neverInAtomicAccess
     template <typename T, typename... Args>
@@ -65,6 +66,16 @@ public:
         atomic_access(storage, [&args...](void *ptr) {
             new (ptr) T(std::forward<Args>(args)...);
         });
+        return ptr;
+    }
+
+    template <typename T, typename... Args>
+    offset_ptr<T> construct_unsafe(Args&&... args) {
+        auto storage = allocate(sizeof(T), alignof(T), true);
+        offset_ptr<T> ptr{storage};
+        atomic_access(storage, [&args...](void *ptr) {
+            new (ptr) T(std::forward<Args>(args)...);
+        }, true);
         return ptr;
     }
 
@@ -118,7 +129,7 @@ public:
 
     template<typename T>
     offset_ptr<T> relative_to_offset(relative_offset_ptr<T> &ptr) const {
-        return offset_ptr<T> (reinterpret_cast<off_t>(ptr.get()) - reinterpret_cast<off_t>(base));
+        return offset_ptr<T> (reinterpret_cast<offset_t>(ptr.get()) - reinterpret_cast<offset_t>(base));
     }
 
     template <typename T>

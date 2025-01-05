@@ -107,9 +107,9 @@ CopiedValue GenericDecoder::to_basic_general(ValueType type) {
     } else if (type == ValueType::DOUBLE) {
         val.data = this->to_double();
     } else if (type == ValueType::SEMAPHORE) {
-        // todo implement sem
+        val.data = this->to_int();
     } else if (type == ValueType::REFERENCE) {
-        // todo implement ref
+        val.data = this->to_string();
     } else {
         throw std::invalid_argument("unkown type");
     }
