@@ -9,23 +9,23 @@ export async function get(key) {
         return;
     }
     try {
-        const response = fetch(`${API_BASE_URL}/db/get/` + key).then((response) => {
-            if (!response.ok) {
-                console.log("error getting the value of " + key);
-            }
-            return response.json();
-        })
-            .then((data) => {
-                console.log('Server response:', data);
-            })
-            .catch((error) => {
-                console.error('Fetch failed:', error);
-            });
-        console.log(response);
+        const response = await fetch(`${API_BASE_URL}/db/get/` + key);
+
         if (!response.ok) {
             throw new Error(`Msg: ${response.status}`);
         }
-        return await response.json();
+
+        const contentType = response.headers.get("Content-Type");
+        let data;
+
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
+
+        console.log("response:", data);
+        return data;
     } catch (error) {
         console.error("Error fetching data:", error);
         throw error;
