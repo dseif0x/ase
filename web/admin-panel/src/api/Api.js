@@ -52,3 +52,35 @@ export async function connect(config:ConnectionConfigDTO) {
         throw error;
     }
 }
+
+export async function disconnect(config:ConnectionConfigDTO) {
+    if (!loggedIn) {
+        return;
+    }
+    try {
+        loggedIn = false;
+
+        console.log("connecting with: " + JSON.stringify(config));
+        const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+            method: "POST"
+        });
+
+        if (!response.ok) {
+            console.log(response);
+            throw new Error(`HTTP error ${response.status}`);
+        }
+
+        const data = await response.text();
+        console.log("logout: ", data);
+        return data;
+    } catch (error) {
+        console.log("error: " + error);
+        console.error("Error logging in to server ", error);
+        throw error;
+    }
+}
+
+export function isLoggedIn() {
+    console.log("logged in: " + loggedIn);
+    return loggedIn;
+}
