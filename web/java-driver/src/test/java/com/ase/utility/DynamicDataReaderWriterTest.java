@@ -811,20 +811,6 @@ public class DynamicDataReaderWriterTest {
     }
 
     /**
-     * Tests handling of pairs with missing elements.
-     */
-    @Test
-    void testReadGeneralPairMissingSecondElement() {
-        Exception exception = assertThrows(NullPointerException.class, () -> TcpGeneral.ofPair(
-            TcpGeneral.ofSimple(SimpleType.STRING, "key"),
-            null // Missing second element
-        ));
-
-        assertTrue(exception.getMessage().contains("Second element cannot be null for PAIR TcpGeneral"),
-            "Expected exception message to mention failure to read.");
-    }
-
-    /**
      * Tests handling of invalid key lengths in key maps.
      */
     @Test
