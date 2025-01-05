@@ -125,16 +125,9 @@ function App() {
         const hierarchy = buildHierarchy(keyDataStructure);
         setHierarchicalData(hierarchy);
 
-        const connectionsDataStructure = [
-            { ip: "127.0.0.1", port: "25565", username: "user1" },
-            { ip: "192.168.1.100", port: "12345", username: "user2" },
-            { ip: "10.0.0.1", port: "45678", username: "user3" },
-        ];
-        const loadedConnections = connectionsDataStructure.map((connection, index) => ({
-            id: index + 1,
-            ...connection,
-        }));
-        setConnections(loadedConnections);
+        const testConnection = savedConnections.find((connection) => connection.id === 0);
+        setSelectedConnection(testConnection);
+
     }, []);
 
     const deleteConnection = async (id) => {
@@ -188,14 +181,26 @@ function App() {
         config.username = prompt("Enter Username:");
         config.password = prompt("Enter Password:");
         if (config.host && config.port && config.username && config.password) {
-            console.log("here\n" + config);
-            connect(config).then(r => console.log(r));
-            setConnections([
-                ...connections,
-                { id: connections.length + 1, ip: config.host, port: config.port, username: config.username },
-            ]);
+            console.log("config: " + config);
+            connect(config).then(async (response) => {
+                const newConnection = {
+                    id: connections.length + 1,
+                    ip: config.host,
+                    port: config.port,
+                    username: config.username,
+                };
+
+                const updatedConnections = [...connections, newConnection];
+                setConnections(updatedConnections);
+
+                localStorage.setItem("connections", JSON.stringify(updatedConnections));
+
+                await set("x", 42, false);
+            }).catch((error) => {
+                console.error("Failed to add connection:", error);
+            });
         } else {
-            // TODO add error
+            console.error("Invalid connection details.");
         }
     };
 
