@@ -23,6 +23,7 @@ class ReadWriteClient {
 
 public:
     ReadWriteClient(const std::string &ip, int port);
+    bool simple_set(const std::string &key, CopiedValue &val);
 };
 
 #endif //READ_WRITE_CLIENT_H

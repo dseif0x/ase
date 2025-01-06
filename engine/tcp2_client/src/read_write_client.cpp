@@ -40,6 +40,6 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
 
     std::cout << "Connected to server at " << server_ip << ":" << server_port << std::endl;
 
-    this->decoder = std::make_unique<TCP2Decoder>(TCP2Decoder{this->client_socket, &this->pipe_lock});
-    this->encoder = std::make_unique<TCP2Encoder>(TCP2Encoder{this->client_socket, &this->pipe_lock});
+    this->decoder = std::make_unique<TCP2Decoder>(this->client_socket, &this->pipe_lock);
+    this->encoder = std::make_unique<TCP2Encoder>(this->client_socket, &this->pipe_lock);
 }

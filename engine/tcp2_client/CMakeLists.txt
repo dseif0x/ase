@@ -19,6 +19,5 @@ target_link_libraries(client_static PUBLIC db_static)
 target_link_libraries(client_static PUBLIC server_static)
 target_include_directories(client_static PUBLIC include)
 
-add_executable(tcp2_dumb_client main.cpp
-        include/read_write_client.h)
+add_executable(tcp2_dumb_client main.cpp)
 target_link_libraries(tcp2_dumb_client client_static)
