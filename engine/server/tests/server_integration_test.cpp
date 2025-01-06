@@ -1151,6 +1151,12 @@ TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x00);
 
+    // forced follow on .y.end to check permission of start key
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 06 2E792E656E64 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x00);
+
     // forced follow on .x.start with max_jump = 15 -> success returns 6
     ASSERT_TRUE(client.send_message(make_hex_vector("07 08 2E782E7374617274 0f")));
     auto resfstart = client.receive_message(wait_time_success);
@@ -1177,14 +1183,36 @@ TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
     // safe follow on .x.a with max_jump = 1 -> key:.x.b (value: .x.c)
     ASSERT_TRUE(client.send_message(make_hex_vector("06 04 2E782E61 01")));
     res = client.receive_message(wait_time_success);
-    print_vec(res);
     ASSERT_EQ(res.size(), 7);
     ASSERT_TRUE(res[0] == 0xFF && res[6] == 'c');
 
     // forced follow on .x.a with max_jump = 1 -> key:.x.b (value: .x.c)
     ASSERT_TRUE(client.send_message(make_hex_vector("07 04 2E782E61 01")));
     res = client.receive_message(wait_time_success);
-    print_vec(res);
     ASSERT_EQ(res.size(), 7);
     ASSERT_TRUE(res[0] == 0xFF && res[6] == 'c');
+
+    // safe follow on invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 03 616224 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00);
+
+    // forced follow on invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 03 616224 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00);
+
+    // safe follow on non existant key
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 06 2E782E616263 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
+
+    // forced follow on non existant key
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 06 2E782E616263 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
 }
