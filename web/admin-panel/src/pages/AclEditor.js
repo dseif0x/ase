@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/pages/AclEditor.css";
-import {get} from "../api/Api";
+import {get, set} from "../api/Api";
 
 const AclEditor = () => {
     const location = useLocation();
@@ -14,15 +14,17 @@ const AclEditor = () => {
         { user: "@ALL", read: false, update: false, delete: false },
     ];
 
-    const [value, setValue] = useState(keyData);
+    const [value, setValue] = useState("");
     const [valueType, setValueType] = useState("String");
     const [permissions, setPermissions] = useState(initialPermissions);
+
 
     useEffect(() => {
         if (keyData) {
             console.log("current key: " + keyData);
-            let value = get(keyData);
-            console.log(value);
+            get(keyData).then(val => {
+                setValue(val.data?.value ?? "");
+            })
         }
     }, [keyData]);
 
@@ -33,7 +35,11 @@ const AclEditor = () => {
     };
 
     const handleUpdate = () => {
-        navigate(-1);
+
+        set(keyData, parseInt(value), true).then(response => {
+            navigate(-1);
+        });
+
     };
 
     const handleCancel = () => {
