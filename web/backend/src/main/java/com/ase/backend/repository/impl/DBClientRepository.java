@@ -32,9 +32,9 @@ public class DBClientRepository implements DBClientDao {
      * {@inheritDoc}
      */
     @Override
-    public Future<WebReturn<TcpGeneral>> listByKey(String key) {
+    public WebReturn<TcpGeneral> listByKey(String key) {
         DatabaseClient databaseClient = connectionService.getClient();
-        return databaseClient.listAsync(key);
+        return databaseClient.list(key);
     }
 
     /**

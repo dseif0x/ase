@@ -32,7 +32,7 @@ public class DatabaseService {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
      *         or an error description on failure.
      */
-    public Future<WebReturn<TcpGeneral>> list(String key) {
+    public WebReturn<TcpGeneral> list(String key) {
         return dao.listByKey(key);
     }
 
