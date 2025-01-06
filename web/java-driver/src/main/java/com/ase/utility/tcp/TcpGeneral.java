@@ -2,6 +2,7 @@ package com.ase.utility.tcp;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -14,7 +15,7 @@ public class TcpGeneral {
     private TcpGeneralType type;
     private SimpleType simpleType; // Applicable if type == SIMPLE
     private Object value; // The actual value for SIMPLE type
-    private List<TcpGeneral> array; // Applicable if type == ARRAY
+    private List<TcpGeneral> array = new ArrayList<>(); // Applicable if type == ARRAY
     private Pair<TcpGeneral, TcpGeneral> pair; // Applicable if type == PAIR
 
     private HashMap<String, TcpGeneral> keyMap; // Applicable if type == KEY_MAP
@@ -93,6 +94,9 @@ public class TcpGeneral {
     }
 
     public List<TcpGeneral> getArray() {
+        if (array == null) {
+            array = new ArrayList<>();
+        }
         return array;
     }
 
