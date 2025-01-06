@@ -11,6 +11,15 @@ import java.util.concurrent.Future;
 public interface DBClientDao {
 
     /**
+     * Retrieves a list of first level sub keys in a map.
+     *
+     * @param key The unique identifier (key) for which to retrieve the value.
+     * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
+     * or an error description if retrieval fails or is stopped.
+     */
+    WebReturn<TcpGeneral> listByKey(String key);
+
+    /**
      * Retrieves the value associated with the given key.
      *
      * @param key The unique identifier (key) for which to retrieve the value.
