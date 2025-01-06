@@ -404,3 +404,89 @@ TEST_F(DatabaseWithoutData, CreateAndAquireLockMultiple) {
     ASSERT_EQ(lock.value().type, ValueType::SEMAPHORE);
     ASSERT_EQ(std::get<int>(lock.value().data), init);
 }
+
+TEST_F(DatabaseWithoutData, ParallelSet) {
+    constexpr auto count = 4096;
+    constexpr auto threads = 8;
+
+    CopiedValue newval{};
+    newval.type = ValueType::INT;
+    newval.data = 1;
+    db->set("test", std::move(newval), true);
+    auto val = db->get("test");
+    ASSERT_TRUE(val.has_value());
+    ASSERT_EQ(val.value().type, ValueType::INT);
+    ASSERT_EQ(std::get<int>(val.value().data), 1);
+
+    auto do_lambda = [this](int count) {
+        for (int i = 0; i < count; i++) {
+            CopiedValue newval{};
+            newval.type = ValueType::INT;
+            newval.data = i;
+            db->set("test", std::move(newval), true);
+        }
+    };
+    std::vector<std::unique_ptr<std::thread>> threads_vec;
+    threads_vec.reserve(threads);
+    for (int i = 0; i < threads; i++) {
+        threads_vec.emplace_back(std::make_unique<std::thread>(do_lambda, count / threads));
+    }
+
+    for (auto& thread : threads_vec) {
+        thread->join();
+    }
+
+    auto post_inc = db->get("test");
+    ASSERT_TRUE(post_inc.has_value());
+    ASSERT_EQ(post_inc.value().type, ValueType::INT);
+    ASSERT_EQ(std::get<int>(post_inc.value().data), count/threads - 1);
+}
+
+TEST_F(DatabaseWithoutData, ParallelRemove) {
+    constexpr auto count = 4096;
+    constexpr auto threads = 8;
+
+    auto do_lambda = [this](int begin, int end) {
+        for (int i = begin; i < end; i++) {
+            CopiedValue newval{};
+            newval.type = ValueType::INT;
+            newval.data = i;
+            auto name = std::string("test") + std::to_string(i);
+            db->set(name.c_str(), std::move(newval), true);
+        }
+    };
+
+    std::vector<std::unique_ptr<std::thread>> threads_vec;
+    threads_vec.reserve(threads);
+    for (int i = 0; i < threads; i++) {
+        threads_vec.emplace_back(std::make_unique<std::thread>(do_lambda, i * count / threads, (i+1) * count / threads));
+    }
+
+    for (auto& thread : threads_vec) {
+        thread->join();
+    }
+    threads_vec.clear();
+
+    auto post_inc = db->list(".");
+    ASSERT_TRUE(post_inc.has_value());
+    ASSERT_EQ(post_inc.value().size(), count);
+
+    auto remove_lambda = [this](int begin, int end) {
+        for (int i = begin; i < end; i++) {
+            auto name = std::string("test") + std::to_string(i);
+            db->remove(name.c_str());
+        }
+    };
+
+    for (int i = 0; i < threads; i++) {
+        threads_vec.emplace_back(std::make_unique<std::thread>(remove_lambda, i * count / threads, (i+1) * count / threads));
+    }
+
+    for (auto& thread : threads_vec) {
+        thread->join();
+    }
+
+    auto post_rem = db->list(".");
+    ASSERT_TRUE(post_rem.has_value());
+    ASSERT_EQ(post_rem.value().size(), 0);
+}
