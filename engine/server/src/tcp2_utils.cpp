@@ -59,6 +59,14 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::list;
             perms = permissions::read;
             break;
+        case 0x06: //SAFE-FOLLOW
+            func = command::safe_follow;
+            perms = permissions::read;
+            break;
+        case 0x07: //FORCED-FOLLOW
+            func = command::forced_follow;
+            perms = permissions::read | permissions::admin;
+            break;
         // ACL Commands
         case 0x80: // Create User
             func = command::create_user;
@@ -271,9 +279,14 @@ int tcp2_utils::command::change_pwd(TCP2Decoder &decoder, TCP2Encoder &encoder, 
 int tcp2_utils::command::safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     std::string key_str = decoder.to_string();
     unsigned long long max_jumps = decoder.to_expanding_unsigned();
-    std::optional<CopiedValue> res;
+    if (max_jumps == 0) {
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_value);
+        return -1;
+    }
+    std::optional<CopiedValue> res = std::nullopt;
 
-    for (int jumps = 0; jumps < max_jumps; jumps++) {
+    for (int jumps = 0; jumps <= max_jumps; jumps++) {
         std::cout << "follow checking key: " << key_str << std::endl;
         auto key = check_and_create_key(key_str);
         if (!key) {
