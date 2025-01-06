@@ -7,6 +7,7 @@ import com.ase.utility.tcp.TcpGeneral;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Base64;
 import java.util.concurrent.Future;
 
 /**
@@ -26,6 +27,24 @@ public class DatabaseController {
      */
     public DatabaseController(DatabaseService service) {
         this.service = service;
+    }
+
+    /**
+     * Retrieves a list of first level sub keys in a map.
+     *
+     * @param key The unique identifier for the value to be fetched.
+     * @return A {@link WebReturn} wrapping the {@link TcpGeneral} or an error message.
+     */
+    @GetMapping("/list/{key}")
+    public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key) {
+        byte[] decodedBytes = Base64.getDecoder().decode(key);
+        String decodedString = new String(decodedBytes);
+        WebReturn<TcpGeneral> future = service.list(decodedString);
+        try {
+            return ResponseEntity.ok(future);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 
     /**
