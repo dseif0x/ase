@@ -267,6 +267,95 @@ int tcp2_utils::command::change_pwd(TCP2Decoder &decoder, TCP2Encoder &encoder, 
     return 0;
 }
 
+
+int tcp2_utils::command::safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string key_str = decoder.to_string();
+    unsigned long long max_jumps = decoder.to_expanding_unsigned();
+    std::optional<CopiedValue> res;
+
+    for (int jumps = 0; jumps < max_jumps; jumps++) {
+        std::cout << "follow checking key: " << key_str << std::endl;
+        auto key = check_and_create_key(key_str);
+        if (!key) {
+            encoder.from_nak();
+            encoder.encode_error(errors::invalid_key);
+            return -1;
+        }
+
+        if (!info.user->has_permission(*key, permissions::read)) {
+            encoder.from_nak();
+            encoder.encode_error(errors::permission_denied);
+            return -1;
+        }
+
+        res = info.db.get(key_str.c_str());
+        if (!res) {
+            encoder.from_nak();
+            encoder.encode_error(errors::key_not_found);
+            return -1;
+        }
+
+        if (res->type == ValueType::REFERENCE) {
+            if (!std::holds_alternative<std::string>(res->data)) {
+                // this should never happen
+                encoder.from_nak();
+                encoder.encode_error(errors::general_server_error);
+                return -1;
+            }
+            key_str = std::get<std::string>(res->data);
+        } else {
+            break;
+        }
+    }
+
+    encoder.from_ack();
+    if (!encoder.from_general(*res)) {
+        // this should normally never happen, as the data here is extracted directly from the db and therefore correct
+        encoder.clear_buffer();
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+    return 0;
+}
+
+int tcp2_utils::command::forced_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    std::string key_str = decoder.to_string();
+    unsigned long long jumps = decoder.to_expanding_unsigned();
+
+    auto key = check_and_create_key(key_str);
+
+    if (!key) {
+        encoder.from_nak();
+        encoder.encode_error(errors::invalid_key);
+        return -1;
+    }
+
+    if (!info.user->has_permission(*key, permissions::read)) {
+        encoder.from_nak();
+        encoder.encode_error(errors::permission_denied);
+        return -1;
+    }
+
+    auto res = info.db.follow(key_str.c_str(), jumps);
+    if (!res) {
+        encoder.from_nak();
+        encoder.encode_error(errors::key_not_found);
+        return -1;
+    }
+    res->print();
+
+    encoder.from_ack();
+    if (!encoder.from_general(*res)) {
+        // this should normally never happen, as the data here is extracted directly from the db and therefore correct
+        encoder.clear_buffer();
+        encoder.from_nak();
+        encoder.encode_error(errors::general_server_error);
+        return -1;
+    }
+    return 0;
+}
+
 int set_helper(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info, bool force) {
     std::string key_str = decoder.to_string();
     auto key = tcp2_utils::check_and_create_key(key_str);
