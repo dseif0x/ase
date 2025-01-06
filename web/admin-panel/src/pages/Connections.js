@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, disconnect, get, set, isLoggedIn} from "../api/Api";
+import {connect, disconnect, get, set, isLoggedIn, list} from "../api/Api";
 
 const keyDataStructure = {
     a: {
@@ -204,21 +204,43 @@ function App() {
         }
     };
 
-    function loadData() {
+    async function buildKeyDataStructure(key = ".") {
+        try {
+            const response = await list(key);
+            if (!response || !response.data || response.data.type !== "KEY_MAP") {
+                return {};
+            }
+
+            const keyMap = response.data.keyMap;
+            const result = {};
+
+            for (const subKey in keyMap) {
+                const subKeyData = keyMap[subKey];
+                if (subKeyData.type === "KEY_MAP") {
+                    const newKey = key === "." ? subKey : `${key}.${subKey}`;
+                    result[subKey] = await buildKeyDataStructure(newKey);
+                } else if (subKeyData.type === "ARRAY") {
+                    result[subKey] = subKeyData.array || [];
+                } else if (subKeyData.type === "SIMPLE") {
+                    result[subKey] = subKeyData.value;
+                } else {
+                    console.log("no such type:", subKey);
+                }
+            }
+
+            return result;
+        } catch (error) {
+            console.error("error:", error);
+            return {};
+        }
+    }
+
+    async function loadData() {
         if (!isLoggedIn()) {
             return;
         }
-        get("x").then((response) => {
-            console.log(response);
-            const updatedDataStructure = {
-                x: response.data?.value,
-            };
-            setOtherDataStructure(updatedDataStructure);
-            if (selectedConnection?.id !== 0) {
-                const hierarchy = buildHierarchy(updatedDataStructure);
-                setHierarchicalData(hierarchy);
-            }
-        });
+        const keyDataStructure = await buildKeyDataStructure();
+        setOtherDataStructure(keyDataStructure);
     }
 
     return (
