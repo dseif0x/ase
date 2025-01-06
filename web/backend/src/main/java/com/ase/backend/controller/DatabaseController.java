@@ -7,6 +7,7 @@ import com.ase.utility.tcp.TcpGeneral;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Base64;
 import java.util.concurrent.Future;
 
 /**
@@ -36,9 +37,11 @@ public class DatabaseController {
      */
     @GetMapping("/list/{key}")
     public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key) {
-        Future<WebReturn<TcpGeneral>> future = service.list(key);
+        byte[] decodedBytes = Base64.getDecoder().decode(key);
+        String decodedString = new String(decodedBytes);
+        WebReturn<TcpGeneral> future = service.list(decodedString);
         try {
-            return ResponseEntity.ok(future.get());
+            return ResponseEntity.ok(future);
         } catch (Exception e) {
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
