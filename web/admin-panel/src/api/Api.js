@@ -9,6 +9,7 @@ export async function get(key) {
         return;
     }
     try {
+        console.log("get key: " + key);
         const response = await fetch(`${API_BASE_URL}/db/get/` + key);
 
         if (!response.ok) {
@@ -32,6 +33,36 @@ export async function get(key) {
     }
 }
 
+export async function list(key) {
+    if (!loggedIn) {
+        return;
+    }
+    try {
+        const key64 = btoa(key);
+        const response = await fetch(`${API_BASE_URL}/db/list/` + key64);
+
+        if (!response.ok) {
+            throw new Error(`Msg: ${response.status}`);
+        }
+
+        const contentType = response.headers.get("Content-Type");
+        let data;
+
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
+
+        console.log("response:", data);
+        return data;
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        throw error;
+    }
+}
+
+// TODO add more types
 export async function set(key, value, force) {
     if (!loggedIn) {
         return;
