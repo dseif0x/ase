@@ -9,15 +9,20 @@
 #define READ_WRITE_CLIENT_H
 
 #include <string>
+#include "encoder.h"
+#include "decoder.h"
 
 class ReadWriteClient {
-    int val = 4;
+    int client_socket;
+    std::string server_ip;
+    int server_port;
+
+    std::mutex pipe_lock;
+    std::unique_ptr<TCP2Decoder> decoder;
+    std::unique_ptr<TCP2Encoder> encoder;
 
 public:
-    ReadWriteClient(std::string url, int port);
+    ReadWriteClient(const std::string &ip, int port);
 };
-
-inline ReadWriteClient::ReadWriteClient(std::string url, int port) {
-}
 
 #endif //READ_WRITE_CLIENT_H
