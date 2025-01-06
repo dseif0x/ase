@@ -207,7 +207,7 @@ bool TCP_ACL::has_user(std::string &username) {
     return this->users.contains(username);
 }
 
-bool ACL::user_is_connected(std::string &username) {
+bool TCP_ACL::user_is_connected(std::string &username) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     return this->open_connections.contains(username);
 }
@@ -219,14 +219,14 @@ bool TCP_ACL::update_key_permission(std::string user, std::vector<std::string> k
     return true;
 }
 
-bool ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
+bool TCP_ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (this->users.contains(username)) return false;
     this->users[username] = ACLUser(pwd, is_admin);
     return true;
 }
 
-bool ACL::delete_user(std::string &username) {
+bool TCP_ACL::delete_user(std::string &username) {
     if (!this->has_user(username) || this->user_is_connected(username)) return false;
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (this->users.erase(username) != 1) return false;
