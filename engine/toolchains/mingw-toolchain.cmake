@@ -29,9 +29,9 @@ set(MINGW_TOOLCHAIN_URL "${MINGW_BASE_URL}${MINGW_FILE_NAME}")
 
 FetchContent_Declare(
         mingw_toolchain
+        DOWNLOAD_EXTRACT_TIMESTAMP true
         URL ${MINGW_TOOLCHAIN_URL}
         SOURCE_DIR ${MINGW_TOOLCHAIN_DIR}
-        DOWNLOAD_EXTRACT_TIMESTAMP true
 )
 
 message(STATUS "Downloading MinGW toolchain from ${MINGW_TOOLCHAIN_URL}")
@@ -45,7 +45,6 @@ elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
 else()
     message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 endif ()
-
 
 set(CMAKE_C_COMPILER "${MINGW_TOOLCHAIN_DIR}/bin/${TOOLCHAIN_PREFIX}-gcc")
 set(CMAKE_CXX_COMPILER "${MINGW_TOOLCHAIN_DIR}/bin/${TOOLCHAIN_PREFIX}-g++")

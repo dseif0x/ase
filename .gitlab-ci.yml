@@ -43,6 +43,49 @@ build:
     paths:
       - $BUILD_DIR
 
+build_release_linux_amd64:
+  stage: build
+  before_script:
+    - apk add --no-cache cmake build-base make
+  script:
+    - mkdir -p $BUILD_DIR
+    - cd $BUILD_DIR
+    - cmake -DCMAKE_BUILD_TYPE=Release ..
+    - cmake --build . --target db_static
+    - cmake --build . --target db_test
+  artifacts:
+    paths:
+      - $BUILD_DIR/db
+
+build_release_windows_amd64:
+  image: ubuntu:22.04
+  stage: build
+  before_script:
+    - apt update && apt install -y cmake make
+  script:
+    - mkdir -p $BUILD_DIR
+    - cd $BUILD_DIR
+    - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=toolchains/mingw-toolchain.cmake ..
+    - cmake --build . --target db_static
+    - cmake --build . --target db_test
+  artifacts:
+    paths:
+      - $BUILD_DIR/db
+
+build_release_macos_arm64:
+  stage: build
+  before_script:
+    - apk add --no-cache cmake clang llvm lld make
+  script:
+    - mkdir -p $BUILD_DIR
+    - cd $BUILD_DIR
+    - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=toolchains/macos-toolchain.cmake ..
+    - cmake --build . --target db_static
+    - cmake --build . --target db_test
+  artifacts:
+    paths:
+      - $BUILD_DIR/db
+
 gtest:
   stage: test
   dependencies:
@@ -54,7 +97,7 @@ gtest:
     - cd $BUILD_DIR
     - for folder in $GTEST_DIRS; do
         ctest --output-on-failure --test-dir $folder;
-        lcov --ignore-errors mismatch --directory $folder --capture --output-file $folder/coverage.info;
+        lcov --ignore-errors mismatch --ignore-errors negative --directory $folder --capture --output-file $folder/coverage.info;
         lcov --remove $folder/coverage.info '/usr/*' '*googletest*' --output-file $folder/coverage.info;
         genhtml $folder/coverage.info --output-directory ../../coverage_report/$folder;
       done

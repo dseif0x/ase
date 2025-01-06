@@ -1164,3 +1164,154 @@ TEST_F(IntegrationTests_TCPServer, login_admin_change_pwd) {
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
 }
+
+TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    auto db = this->get_db();
+    {
+        // .x.a -> .x.b
+        CopiedValue newval{};
+        newval.type = ValueType::REFERENCE;
+        newval.data.emplace<std::string>(".x.b");
+        db->set(".x.a", std::move(newval), true);
+    }
+    {
+        // .x.b -> .x.c
+        CopiedValue newval{};
+        newval.type = ValueType::REFERENCE;
+        newval.data.emplace<std::string>(".x.c");
+        db->set(".x.b", std::move(newval), true);
+    }
+    {
+        // .x.c -> .x.d
+        CopiedValue newval{};
+        newval.type = ValueType::REFERENCE;
+        newval.data.emplace<std::string>(".x.d");
+        db->set(".x.c", std::move(newval), true);
+    }
+    {
+        // .x.d = 5
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(5);
+        db->set(".x.d", std::move(newval), true);
+    }
+    {
+        // .x.start -> .y.end
+        CopiedValue newval{};
+        newval.type = ValueType::REFERENCE;
+        newval.data.emplace<std::string>(".y.end");
+        db->set(".x.start", std::move(newval), true);
+    }
+    {
+        // .y.end = 6
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(6);
+        db->set(".y.end", std::move(newval), true);
+    }
+
+    // remove all permissions
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 01 2e 00")));
+    auto res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    // set read for .x
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 02 2E78 01")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    // safe follow on .x.a with max_jump = 15 -> success returns 5
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 04 2E782E61 0f")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 6);
+    ASSERT_TRUE(res[0] == 0xFF && res[5] == 5);
+
+    // safe follow on .x.start with max_jump = 15 -> fail, no read on .y anything
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 08 2E782E7374617274 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x00);
+
+    // forced follow on .y.end to check permission of start key
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 06 2E792E656E64 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x00);
+
+    // forced follow on .x.start with max_jump = 15 -> success returns 6
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 08 2E782E7374617274 0f")));
+    auto resfstart = client.receive_message(wait_time_success);
+    ASSERT_EQ(resfstart.size(), 6);
+    ASSERT_TRUE(resfstart[0] == 0xFF && resfstart[5] == 6);
+
+    // set read for .y
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 02 2E79 01")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() == 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    // safe follow on .x.start with max_jump = 15 -> success now, as permission was granted
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 08 2E782E7374617274 0f")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(resfstart, res));
+
+    // safe follow on .x.a with max_jump = 0 -> error, this is stupid
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 04 2E782E61 00")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x02 && res[2] == 0x01);
+
+    // safe follow on .x.a with max_jump = 1 -> key:.x.b (value: .x.c)
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 04 2E782E61 01")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 7);
+    ASSERT_TRUE(res[0] == 0xFF && res[6] == 'c');
+
+    // forced follow on .x.a with max_jump = 1 -> key:.x.b (value: .x.c)
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 04 2E782E61 01")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 7);
+    ASSERT_TRUE(res[0] == 0xFF && res[6] == 'c');
+
+    // safe follow on invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 03 616224 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00);
+
+    // forced follow on invalid key
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 03 616224 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00);
+
+    // safe follow on non existant key
+    ASSERT_TRUE(client.send_message(make_hex_vector("06 06 2E782E616263 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
+
+    // forced follow on non existant key
+    ASSERT_TRUE(client.send_message(make_hex_vector("07 06 2E782E616263 0f")));
+    res = client.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
+}

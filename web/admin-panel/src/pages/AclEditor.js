@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/pages/AclEditor.css";
+import {get, set} from "../api/Api";
 
 const AclEditor = () => {
     const location = useLocation();
@@ -13,14 +14,17 @@ const AclEditor = () => {
         { user: "@ALL", read: false, update: false, delete: false },
     ];
 
-    const [value, setValue] = useState(keyData?.value || "");
+    const [value, setValue] = useState("");
     const [valueType, setValueType] = useState("String");
     const [permissions, setPermissions] = useState(initialPermissions);
 
+
     useEffect(() => {
         if (keyData) {
-            setValue(keyData.value || "");
-            setValueType(typeof keyData.value === "number" ? "Integer" : "String");
+            console.log("current key: " + keyData);
+            get(keyData).then(val => {
+                setValue(val.data?.value ?? "");
+            })
         }
     }, [keyData]);
 
@@ -31,7 +35,11 @@ const AclEditor = () => {
     };
 
     const handleUpdate = () => {
-        navigate(-1);
+
+        set(keyData, parseInt(value), true).then(response => {
+            navigate(-1);
+        });
+
     };
 
     const handleCancel = () => {
@@ -40,7 +48,7 @@ const AclEditor = () => {
 
     return (
         <div className="acl-editor">
-            <h2>Key: {keyData?.key || "Unknown Key"}</h2>
+            <h2>Key: {keyData}</h2>
             <div className="value-section">
                 <label>Value:</label>
                 <input

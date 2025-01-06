@@ -115,3 +115,27 @@ th {
 .refresh-button:hover {
     background-color: #45a049;
 }
+
+.connection {
+    padding: 5px;
+    cursor: pointer;
+}
+
+.connection.selected {
+    background-color: #f0f8ff;
+    border: 1px solid #000;
+}
+
+.delete-button {
+    margin-left: 10px;
+    color: white;
+    background-color: red;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+
+.delete-button:hover {
+    background-color: darkred;
+}

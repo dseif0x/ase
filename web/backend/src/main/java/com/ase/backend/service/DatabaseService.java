@@ -26,6 +26,17 @@ public class DatabaseService {
     }
 
     /**
+     * Retrieves a list of first level sub keys in a map.
+     *
+     * @param key The unique key to look up.
+     * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
+     *         or an error description on failure.
+     */
+    public WebReturn<TcpGeneral> list(String key) {
+        return dao.listByKey(key);
+    }
+
+    /**
      * Retrieves a value from the in-memory database by key.
      *
      * @param key The unique key to look up.

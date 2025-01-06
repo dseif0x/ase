@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
+import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
+import {connect, disconnect, get, set, isLoggedIn, list} from "../api/Api";
 
 const keyDataStructure = {
     a: {
@@ -65,7 +67,7 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
                 <td>
                     <button
                         className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, {state: {keyData: node}})}
+                        onClick={() => navigate(`/edit/${node.key}`, {state: {keyData: node.key}})}
                     >
                         Edit
                     </button>
@@ -89,24 +91,69 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
 function App() {
     const [connections, setConnections] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
+    const [selectedConnection, setSelectedConnection] = useState(0);
+    const [otherDataStructure, setOtherDataStructure] = useState({});
 
     const navigate = useNavigate();
 
     useEffect(() => {
+        const dataToUse =
+            selectedConnection?.id === 0
+                ? keyDataStructure
+                : otherDataStructure;
+
+        const hierarchy = buildHierarchy(dataToUse);
+        setHierarchicalData(hierarchy);
+    }, [selectedConnection]);
+
+
+    useEffect(() => {
+        let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+
+        if (!savedConnections.some((connection) => connection.id === 0)) {
+            const testConnection = {
+                id: 0,
+                ip: "testconn.ase",
+                port: "25565",
+                username: "test",
+            };
+            savedConnections = [testConnection];
+            localStorage.setItem("connections", JSON.stringify(savedConnections));
+        }
+
+        setConnections(savedConnections);
         const hierarchy = buildHierarchy(keyDataStructure);
         setHierarchicalData(hierarchy);
 
-        const connectionsDataStructure = [
-            { ip: "127.0.0.1", port: "65836", username: "user1" },
-            { ip: "192.168.1.100", port: "12345", username: "user2" },
-            { ip: "10.0.0.1", port: "45678", username: "user3" },
-        ];
-        const loadedConnections = connectionsDataStructure.map((connection, index) => ({
-            id: index + 1,
-            ...connection,
-        }));
-        setConnections(loadedConnections);
+        const testConnection = savedConnections.find((connection) => connection.id === 0);
+        setSelectedConnection(testConnection);
+
     }, []);
+
+    const deleteConnection = async (id) => {
+        await disconnect().then(r => console.log("logged out"));
+
+        const updatedConnections = connections.filter((connection) => connection.id !== id);
+
+        setConnections(updatedConnections);
+        localStorage.setItem("connections", JSON.stringify(updatedConnections));
+
+        let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+        const testConnection = savedConnections.find((connection) => connection.id === 0);
+        setSelectedConnection(testConnection);
+    };
+
+    useEffect(() => {
+        if (selectedConnection?.id === 0) {
+            const hierarchy = buildHierarchy(keyDataStructure);
+            setHierarchicalData(hierarchy);
+        } else if (selectedConnection) {
+            const hierarchy = buildHierarchy(otherDataStructure);
+            setHierarchicalData(hierarchy);
+        } else {
+            setHierarchicalData([]);
+        }
+    }, [selectedConnection, otherDataStructure]);
 
     const toggleCollapse = (node) => {
         node.collapsed = !node.collapsed;
@@ -128,24 +175,104 @@ function App() {
     };
 
     const addConnection = () => {
-        const newIp = prompt("Enter IP Address:");
-        const newPort = prompt("Enter Port:");
-        const newUsername = prompt("Enter Username:");
-        if (newIp && newPort && newUsername) {
-            setConnections([
-                ...connections,
-                { id: connections.length + 1, ip: newIp, port: newPort, username: newUsername },
-            ]);
+        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
+        config.host = prompt("Enter Host:");
+        config.port = parseInt(prompt("Enter Port:"));
+        config.username = prompt("Enter Username:");
+        config.password = prompt("Enter Password:");
+        if (config.host && config.port && config.username && config.password) {
+            console.log("config: " + config);
+            connect(config).then(async (response) => {
+                const newConnection = {
+                    id: connections.length + 1,
+                    ip: config.host,
+                    port: config.port,
+                    username: config.username,
+                };
+
+                const updatedConnections = [...connections, newConnection];
+                setConnections(updatedConnections);
+
+                localStorage.setItem("connections", JSON.stringify(updatedConnections));
+
+                await set("x", 42, false);
+            }).catch((error) => {
+                console.error("Failed to add connection:", error);
+            });
+        } else {
+            console.error("Invalid connection details.");
         }
     };
+
+    async function buildKeyDataStructure(key = ".") {
+        try {
+            const response = await list(key);
+            if (!response || !response.data || response.data.type !== "KEY_MAP") {
+                return {};
+            }
+
+            const keyMap = response.data.keyMap;
+            const result = {};
+
+            for (const subKey in keyMap) {
+                const subKeyData = keyMap[subKey];
+                if (subKeyData.type === "KEY_MAP") {
+                    const newKey = key === "." ? subKey : `${key}.${subKey}`;
+                    result[subKey] = await buildKeyDataStructure(newKey);
+                } else if (subKeyData.type === "ARRAY") {
+                    result[subKey] = subKeyData.array || [];
+                } else if (subKeyData.type === "SIMPLE") {
+                    result[subKey] = subKeyData.value;
+                } else {
+                    console.log("no such type:", subKey);
+                }
+            }
+
+            return result;
+        } catch (error) {
+            console.error("error:", error);
+            return {};
+        }
+    }
+
+    async function loadData() {
+        if (!isLoggedIn()) {
+            return;
+        }
+        const keyDataStructure = await buildKeyDataStructure();
+        setOtherDataStructure(keyDataStructure);
+    }
 
     return (
         <div className="app-container">
             <div className="connections-panel">
                 <h3>Connections</h3>
                 {connections.map((connection) => (
-                    <div key={connection.id} className="connection">
+                    <div
+                        key={connection.id}
+                        className={`connection ${selectedConnection?.id === connection.id ? "selected" : ""}`}
+                        onClick={() => {
+                                setSelectedConnection(connection);
+                                loadData();
+                            }
+                        }
+                    >
+                        <input
+                            type="radio"
+                            name="connection"
+                            value={connection.id}
+                            checked={selectedConnection?.id === connection.id}
+                            onChange={() => setSelectedConnection(connection)}
+                        />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
+                        {connection.id !== 0 && (
+                            <button
+                                className="delete-button"
+                                onClick={() => deleteConnection(connection.id)}
+                            >
+                                X
+                            </button>
+                        )}
                     </div>
                 ))}
                 <button className="add-connection-button" onClick={addConnection}>
@@ -156,7 +283,7 @@ function App() {
                 <div className="keys-header">
                     <h3>Keys</h3>
                     <span>
-                        <button className="refresh-button">
+                        <button className="refresh-button" onClick={loadData}>
                             Refresh
                         </button>
                     </span>
