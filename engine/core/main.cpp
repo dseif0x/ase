@@ -9,12 +9,9 @@
 #include <ranges>
 #include <mutex>
 #include <thread>
-#include <unistd.h>
 
 #include "shmem.h"
 #include "stopwatch.h"
-
-#include <sys/wait.h>
 
 struct value {
     int a;
@@ -22,26 +19,17 @@ struct value {
     uint8_t test[256];
 };
 
-int main() {
-    {
-        shmem test;
-        test.destroy();
-    }
-    //pid_t pid = fork();
-    pid_t pid = 1;
+void run(int count) {
     stopwatch s;
-    if (pid == 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
     shmem test;
     std::cout << "Attached" << std::endl;
-    for (int i : std::views::iota(0, 1024 * 1024)) {
+    for (int i : std::views::iota(0, count)) {
         auto ptr = test.construct<value>();
         test.destroy(ptr);
     }
     std::cout << "Finished with dealloc test..." << std::endl;
 
-    for (int i : std::views::iota(0, 1024 * 1024)) {
+    for (int i : std::views::iota(0, count)) {
         auto ptr = test.construct<value>();
         ptr.atomic_access(test, [i](value* ptr) {
             ptr->a = i;
@@ -52,11 +40,18 @@ int main() {
     }
 
     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(s.peek()).count() << "ms" << std::endl;
+}
 
-    if (pid == 0) {
-    } else {
-        waitpid(pid, nullptr, 0);
+int main() {
+    {
+        shmem test;
         test.destroy();
     }
+    std::thread t1(run, 1024 * 32);
+    std::thread t2(run, 1024 * 32);
+
+    t1.join();
+    t2.join();
+
     return 0;
 }
