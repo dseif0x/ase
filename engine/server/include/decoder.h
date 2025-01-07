@@ -11,6 +11,7 @@
 #include <deque>
 #include <mutex>
 #include <optional>
+#include <semaphore>
 
 #include "sys/time.h"
 #include "db_types.h"
@@ -26,6 +27,7 @@ class GenericDecoder {
 protected: // todo think about if there is an elegant way to encapsulate buffer into private
     std::deque<std::vector<unsigned char>> buffer;
     std::mutex buffer_lock;
+    std::counting_semaphore<> available_blocks{0};
     size_t start = 0;
 
     virtual std::vector<unsigned char> get_bytes(size_t bytes) = 0;
