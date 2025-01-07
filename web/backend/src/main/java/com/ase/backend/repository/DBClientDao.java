@@ -78,4 +78,15 @@ public interface DBClientDao {
      * @return a {@link WebReturn} indicating success or containing an error message
      */
     WebReturn<Integer> createUser(String username, String password, byte options, String connectionId);
+
+    /**
+     * Follows a reference in the database.
+     *
+     * @param key The key of the reference to follow.
+     * @param maxJump The maximum number of jumps to follow.
+     * @param isSafe Whether to follow the reference safely.
+     * @param connectionId The connection ID.
+     * @return A {@link WebReturn} containing the result of the follow operation.
+     */
+    WebReturn<TcpGeneral> follow(String key, long maxJump, boolean isSafe, String connectionId);
 }

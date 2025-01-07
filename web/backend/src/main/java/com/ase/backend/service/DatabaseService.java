@@ -110,4 +110,16 @@ public class DatabaseService {
     public WebReturn<Integer> createUser(String username, String password, byte options, String connectionId) {
         return dao.createUser(username, password, options, connectionId);
     }
+
+    /**
+     * Follows a reference in the database.
+     *
+     * @param key The key to follow.
+     * @param maxJump The maximum number of jumps to follow.
+     * @param isSafe Whether to follow the reference safely.
+     * @return A {@link WebReturn} indicating success or containing an error message.
+     */
+    public WebReturn<TcpGeneral> follow(String key, long maxJump, boolean isSafe, String connectionId) {
+        return dao.follow(key, maxJump, isSafe, connectionId);
+    }
 }
