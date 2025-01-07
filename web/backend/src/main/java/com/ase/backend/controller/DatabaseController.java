@@ -35,8 +35,8 @@ public class DatabaseController {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} or an error message.
      */
     @GetMapping("/list/{key}")
-    public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key) {
-        Future<WebReturn<TcpGeneral>> future = service.list(key);
+    public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        Future<WebReturn<TcpGeneral>> future = service.list(key, connectionId);
         try {
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
@@ -51,8 +51,8 @@ public class DatabaseController {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} or an error message.
      */
     @GetMapping("/get/{key}")
-    public ResponseEntity<WebReturn<TcpGeneral>> getValue(@PathVariable String key) {
-        Future<WebReturn<TcpGeneral>> future = service.getValue(key);
+    public ResponseEntity<WebReturn<TcpGeneral>> getValue(@PathVariable String key, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        Future<WebReturn<TcpGeneral>> future = service.getValue(key, connectionId);
         try {
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
@@ -67,8 +67,8 @@ public class DatabaseController {
      * @return A {@link WebReturn} with success code or error details.
      */
     @PostMapping("/set")
-    public ResponseEntity<?> setValue(@RequestBody SetValueRequest request) {
-        Future<WebReturn<Integer>> future = service.setValue(request.getKey(), request.getValue(), request.isForce());
+    public ResponseEntity<?> setValue(@RequestBody SetValueRequest request, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        Future<WebReturn<Integer>> future = service.setValue(request.getKey(), request.getValue(), request.isForce(), connectionId);
         try {
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
@@ -82,8 +82,8 @@ public class DatabaseController {
      * @return A {@link WebReturn} indicating success or failure of the stop operation.
      */
     @PostMapping("/stop")
-    public ResponseEntity<WebReturn<Integer>> stop() {
-        return ResponseEntity.ok(service.stop());
+    public ResponseEntity<WebReturn<Integer>> stop(@RequestHeader(value="X-Connection-Id") String connectionId) {
+        return ResponseEntity.ok(service.stop(connectionId));
     }
 
     /**
@@ -93,8 +93,8 @@ public class DatabaseController {
      * @return A {@link WebReturn} indicating success or containing an error message.
      */
     @DeleteMapping("/delete/{key}")
-    public ResponseEntity<WebReturn<Integer>> deleteKey(@PathVariable String key) {
-        return ResponseEntity.ok(service.deleteKey(key));
+    public ResponseEntity<WebReturn<Integer>> deleteKey(@PathVariable String key, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        return ResponseEntity.ok(service.deleteKey(key, connectionId));
     }
 
     /**
@@ -104,8 +104,8 @@ public class DatabaseController {
      * @return a {@link WebReturn} indicating success or containing an error message
      */
     @GetMapping("/ping/{packageToSend}")
-    public ResponseEntity<WebReturn<Integer>> ping(@PathVariable long packageToSend) {
-        return ResponseEntity.ok(service.ping(packageToSend));
+    public ResponseEntity<WebReturn<Integer>> ping(@PathVariable long packageToSend, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        return ResponseEntity.ok(service.ping(packageToSend, connectionId));
     }
 
     /**
@@ -116,8 +116,8 @@ public class DatabaseController {
      * @param options  The permission options for the scope:
      */
     @PostMapping("/updateScope")
-    public ResponseEntity<WebReturn<Integer>> updateScope(@RequestParam String username, @RequestParam String key, @RequestParam byte options) {
-        return ResponseEntity.ok(service.updateScope(username, key, options));
+    public ResponseEntity<WebReturn<Integer>> updateScope(@RequestParam String username, @RequestParam String key, @RequestParam byte options, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        return ResponseEntity.ok(service.updateScope(username, key, options, connectionId));
     }
 
     /**
@@ -129,7 +129,7 @@ public class DatabaseController {
      * @return a {@link WebReturn} indicating success or containing an error message
      */
     @PostMapping("/createUser")
-    public ResponseEntity<WebReturn<Integer>> createUser(@RequestParam String username, @RequestParam String password, @RequestParam byte options) {
-        return ResponseEntity.ok(service.createUser(username, password, options));
+    public ResponseEntity<WebReturn<Integer>> createUser(@RequestParam String username, @RequestParam String password, @RequestParam byte options, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        return ResponseEntity.ok(service.createUser(username, password, options, connectionId));
     }
 }

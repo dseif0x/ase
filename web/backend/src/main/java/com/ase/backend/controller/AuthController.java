@@ -1,6 +1,7 @@
 package com.ase.backend.controller;
 
 import com.ase.backend.controller.dto.LoginRequest;
+import com.ase.backend.controller.dto.LoginResponse;
 import com.ase.backend.service.ConnectionService;
 import com.ase.exception.TCPClientException;
 import org.springframework.http.ResponseEntity;
@@ -34,9 +35,9 @@ public class AuthController {
      * @return A response indicating success or failure.
      */
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         try {
-            connectionService.createClient(
+            String id = connectionService.openConnection(
                 request.getHost(),
                 request.getPort(),
                 request.getVersion(),
@@ -44,9 +45,11 @@ public class AuthController {
                 request.getUsername(),
                 request.getPassword()
             );
-            return ResponseEntity.ok("Login successful. DB client created.");
+
+            LoginResponse response = new LoginResponse(id, null);
+            return ResponseEntity.ok(response);
         } catch (IOException | TCPClientException e) {
-            return ResponseEntity.status(500).body("Login failed: " + e.getMessage());
+            return ResponseEntity.status(500).body(new LoginResponse(null, "Login failed: " + e.getMessage()));
         }
     }
 
@@ -54,8 +57,8 @@ public class AuthController {
      * Logs out by removing and disconnecting the DatabaseClient.
      */
     @PostMapping("/logout")
-    public ResponseEntity<String> logout() {
-        connectionService.logout();
+    public ResponseEntity<String> logout(@RequestHeader("X-Connection-Id") String connectionId) {
+        connectionService.logout(connectionId);
         return ResponseEntity.ok("Logged out successfully");
     }
 }
