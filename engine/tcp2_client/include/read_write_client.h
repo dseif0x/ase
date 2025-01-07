@@ -30,8 +30,8 @@ public:
     bool simple_set(const std::string &key, CopiedValue &val);
     std::optional<CopiedValue> simple_get(const std::string &key);
 
-    // todo make to template function
-    std::vector<bool> buffered_set(std::unordered_map<std::string, std::string> &data);
+    std::vector<bool> buffered_set(std::vector<std::pair<std::string, CopiedValue>> &data);
+    std::vector<std::optional<CopiedValue>> buffered_get(std::vector<std::string> &data);
 
     void clear_decoder();
     void disconnect();

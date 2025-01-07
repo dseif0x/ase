@@ -10,5 +10,5 @@ int main() {
     run_test("16 Time 1024 One Deep", get_test_data_16_time_1024_one_deep);
     run_test("1024 Time 16 One Deep", get_test_data_1024_time_16_one_deep);
     run_test("16384 Flat", get_test_data_16384_flat);
-    //run_test("1048576 Flat", get_test_data_1048576_flat);
+    run_test("1048576 Flat", get_test_data_1048576_flat);
 }

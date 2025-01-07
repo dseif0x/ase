@@ -100,17 +100,14 @@ void ReadWriteClient::disconnect() {
     this->send_buffer();
 }
 
-//template<typename T>
-std::vector<bool> ReadWriteClient::buffered_set(std::unordered_map<std::string, std::string> &data) {
+
+std::vector<bool> ReadWriteClient::buffered_set(std::vector<std::pair<std::string, CopiedValue>> &data) {
     std::vector<bool> res;
     res.reserve(data.size());
-    for (const auto& [key, val] : data) {
+    for (auto& [key, val] : data) {
         this->encoder->from_byte(0x02); // set command
         this->encoder->from_string(key);
-        CopiedValue newval{};
-        newval.type = ValueType::STRING;
-        newval.data.emplace<std::string>(val);
-        this->encoder->from_general(newval);
+        this->encoder->from_general(val);
     }
     this->send_buffer();
     for (auto & elem : data) {
@@ -118,3 +115,19 @@ std::vector<bool> ReadWriteClient::buffered_set(std::unordered_map<std::string, 
     }
     return res;
 }
+
+std::vector<std::optional<CopiedValue>> ReadWriteClient::buffered_get(std::vector<std::string> &data) {
+    std::vector<std::optional<CopiedValue>> res;
+    res.reserve(data.size());
+    for (auto &key : data) {
+        this->encoder->from_byte(0x01); // get command
+        this->encoder->from_string(key);
+    }
+    this->send_buffer();
+    for (auto &elem : data) {
+        if (this->decoder->to_acknak() != 1) res.push_back(std::nullopt); // here we would have to read the error message if errors occured
+        else res.push_back(this->decoder->to_general());
+    }
+    return res;
+}
+

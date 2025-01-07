@@ -463,6 +463,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
     unsigned char self_perms{};
 
     std::unique_ptr<CommandInfo> ci;
+    int s_commands = 0;
 
     int state = 0;
     while (decoder.is_healthy()) {
@@ -525,6 +526,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
 #ifdef DEBUG
             std::cout << "> command result: " << temp_ret << std::endl;
 #endif
+            if (temp_ret == 0) s_commands++;
             switch (temp_ret) {
                 case -1: // error, but recovered
                     decoder.clear_buffer();
@@ -556,6 +558,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             }
         }
     }
+    std::cout << "SUCCESSFULL COMMANDS: " << s_commands << std::endl;
     acl.disconnect(username);
     decoder.set_kys();
 }
