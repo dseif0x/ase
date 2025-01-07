@@ -30,6 +30,7 @@ void GenericDecoder::clear_buffer(int delay_ms) {
         std::lock_guard<std::mutex> lock(this->buffer_lock);
         this->buffer.clear();
         this->start = 0;
+        while (this->available_blocks.try_acquire());
     }
 }
 
