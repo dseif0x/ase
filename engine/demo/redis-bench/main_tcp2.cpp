@@ -14,6 +14,7 @@ int run_test(const char* name, T&& generate_test_data) {
     std::cout << "Running TCP2 - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
     ReadWriteClient client{"127.0.0.1", 42069};
+    std::this_thread::sleep_for(std::chrono::microseconds(100)); // time for old connections to clear
     stopwatch s;
     int ind = 0;
     for (const auto& [key, value] : test_data) {
@@ -34,6 +35,8 @@ int run_test(const char* name, T&& generate_test_data) {
         auto val = client.simple_get(key);
     }
     print_stopwatch(s, "\tGet Time: ");
+
+    client.disconnect();
     return 0;
 }
 

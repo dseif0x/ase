@@ -52,7 +52,7 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
     // login admin - rootpwd
     this->encoder->from_unsigned(2, 0);
     this->encoder->from_byte(0x0f);
-    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    this->send_buffer();
 
     if (this->decoder->to_acknak() != 1) throw std::runtime_error("Failed to send client information");
     this->decoder->to_unsigned(5);
@@ -60,10 +60,10 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
     this->encoder->from_ack();
     this->encoder->from_string("admin");
     this->encoder->from_string("rootpwd");
-    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    this->send_buffer();
 
     if (this->decoder->to_acknak() != 1) throw std::runtime_error("Failed to send user information");
-    std::cout << "Successfully logged in!" << std::endl;
+    //std::cout << "Successfully logged in!" << std::endl;
 }
 
 ReadWriteClient::~ReadWriteClient() {
@@ -76,23 +76,15 @@ bool ReadWriteClient::simple_set(const std::string &key, CopiedValue &val) {
     this->encoder->from_byte(0x02); // set command
     this->encoder->from_string(key);
     this->encoder->from_general(val);
-    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    this->send_buffer();
     if (this->decoder->to_acknak() != 1) return false;
-    return true;
-}
-
-bool ReadWriteClient::faster_set(const std::string &key, CopiedValue &val) {
-    this->encoder->from_byte(0x02); // set command
-    this->encoder->from_string(key);
-    this->encoder->from_general(val);
-    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
     return true;
 }
 
 std::optional<CopiedValue> ReadWriteClient::simple_get(const std::string &key) {
     this->encoder->from_byte(0x01); // get command
     this->encoder->from_string(key);
-    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    send_buffer();
     if (this->decoder->to_acknak() != 1) return std::nullopt;
     auto val = this->decoder->to_general();
     if (!val) return std::nullopt;
@@ -101,4 +93,9 @@ std::optional<CopiedValue> ReadWriteClient::simple_get(const std::string &key) {
 
 void ReadWriteClient::clear_decoder() {
     this->decoder->clear_buffer();
+}
+
+void ReadWriteClient::disconnect() {
+    this->encoder->from_byte(0x0fc); //disconnect command
+    this->send_buffer();
 }

@@ -28,10 +28,14 @@ public:
     ReadWriteClient(const std::string &ip, int port);
     ~ReadWriteClient();
     bool simple_set(const std::string &key, CopiedValue &val);
-    bool faster_set(const std::string &key, CopiedValue &val);
     std::optional<CopiedValue> simple_get(const std::string &key);
 
     void clear_decoder();
+    void disconnect();
+
+    void send_buffer() {
+        while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    }
 };
 
 #endif //READ_WRITE_CLIENT_H
