@@ -17,7 +17,7 @@ public interface DBClientDao {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
      * or an error description if retrieval fails or is stopped.
      */
-    WebReturn<TcpGeneral> listByKey(String key);
+    Future<WebReturn<TcpGeneral>> listByKey(String key);
 
     /**
      * Retrieves the value associated with the given key.
