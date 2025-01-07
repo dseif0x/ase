@@ -15,7 +15,7 @@ public class TcpGeneral {
     private TcpGeneralType type;
     private SimpleType simpleType; // Applicable if type == SIMPLE
     private Object value; // The actual value for SIMPLE type
-    private List<TcpGeneral> array = new ArrayList<>(); // Applicable if type == ARRAY
+    private List<TcpGeneral> array; // Applicable if type == ARRAY
     private Pair<TcpGeneral, TcpGeneral> pair; // Applicable if type == PAIR
 
     private HashMap<String, TcpGeneral> keyMap; // Applicable if type == KEY_MAP
@@ -94,9 +94,6 @@ public class TcpGeneral {
     }
 
     public List<TcpGeneral> getArray() {
-        if (array == null) {
-            array = new ArrayList<>();
-        }
         return array;
     }
 
@@ -120,11 +117,11 @@ public class TcpGeneral {
     public boolean isComplex() {
         switch (type) {
             case ARRAY:
-                return array.stream().anyMatch(TcpGeneral::_isComplex);
+                return array != null && array.stream().anyMatch(TcpGeneral::_isComplex);
             case PAIR:
-                return pair.getLeft()._isComplex();
+                return pair != null && pair.getLeft()._isComplex();
             case KEY_MAP:
-                return true;
+                return keyMap != null;
             case SIMPLE:
             default:
                 return false;
