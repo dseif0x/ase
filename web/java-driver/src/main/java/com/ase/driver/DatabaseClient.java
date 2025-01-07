@@ -360,6 +360,64 @@ public class DatabaseClient {
     }
 
     /**
+     * Sends a FOLLOW command to the server, either SAFE or FORCED based on the provided flag.
+     *
+     * @param key       The reference key to follow.
+     * @param maxJumps  The maximum number of jumps to follow.
+     * @param isSafe    {@code true} for SAFE FOLLOW, {@code false} for FORCED FOLLOW.
+     * @return A {@link WebReturn} object indicating the outcome:
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} contains the {@link TcpGeneral} value of the result.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains the error description.</li>
+     *                     <li>{@code data} contains the error code encapsulated in a {@link TcpGeneral} Object, if applicable.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     */
+    public WebReturn<TcpGeneral> follow(String key, long maxJumps, boolean isSafe) {
+        if (key == null || key.isEmpty()) {
+            return WebReturn.error("Key must not be null or empty.");
+        }
+        if (maxJumps <= 0) {
+            return WebReturn.error("Invalid maxJumps value. It must be greater than 0.");
+        }
+
+        try {
+            writer.write(isSafe ? Utility.FOLLOW_COMMAND : Utility.FORCE_FOLLOW_COMMAND);
+            writer.flush();
+
+            dataWriter.writeString(key);
+
+            byte[] tcpEUI = Utility.createTCPEUIByteArray(maxJumps);
+            writer.write(tcpEUI);
+
+            byte response = reader.readByte();
+            if (response == Utility.ACK) {
+                TcpGeneral result = dataReader.readGeneral();
+                return WebReturn.success(result);
+            } else if (response == Utility.NAK) {
+                WebReturn<Integer> error = readError();
+                return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
+            } else {
+                return WebReturn.error("Server responded with unknown response", TcpGeneral.ofSimple(SimpleType.INT, (int) response));
+            }
+        } catch (IOException e) {
+            return WebReturn.error("Failed to send FOLLOW command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
+        }
+    }
+
+    /**
      * Sends a command to the server to delete a key-value pair.
      *
      * @param key The key of the value to be deleted from the server.

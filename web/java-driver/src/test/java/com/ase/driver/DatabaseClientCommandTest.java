@@ -1239,4 +1239,140 @@ public class DatabaseClientCommandTest {
             "Error message should indicate failure to read string.");
         assertNull(result.getData(), "Expected no data on failure.");
     }
+
+
+    /**
+     * Test the SAFE FOLLOW command with a successful response.
+     *
+     * @throws Exception If an error occurs during setup or testing.
+     */
+    @Test
+    void testSafeFollowSuccess() throws Exception {
+        String key = ".a.specific.key";
+        long maxJumps = 100;
+
+        TcpGeneral resultValue = TcpGeneral.ofSimple(SimpleType.STRING, "some string value");
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+        new DynamicDataWriter(serverInfo, serverResponseOut).writeGeneral(resultValue);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<TcpGeneral> result = databaseClient.follow(key, maxJumps, true);
+
+        assertTrue(result.isOk(), "Expected SAFE FOLLOW to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertEquals(resultValue, result.getData(), "Expected the result to match the server response.");
+    }
+
+    /**
+     * Test the FORCED FOLLOW command with a successful response.
+     *
+     * @throws Exception If an error occurs during setup or testing.
+     */
+    @Test
+    void testForcedFollowSuccess() throws Exception {
+        String key = ".a.specific.key";
+        long maxJumps = 100;
+
+        TcpGeneral resultValue = TcpGeneral.ofSimple(SimpleType.STRING, "some string value");
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+        new DynamicDataWriter(serverInfo, serverResponseOut).writeGeneral(resultValue);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<TcpGeneral> result = databaseClient.follow(key, maxJumps, false);
+
+        assertTrue(result.isOk(), "Expected FORCED FOLLOW to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no message on success.");
+        assertEquals(resultValue, result.getData(), "Expected the result to match the server response.");
+    }
+
+    /**
+     * Test the FOLLOW command with a NAK response from the server.
+     *
+     * @throws Exception If an error occurs during setup or testing.
+     */
+    @Test
+    void testFollowServerError() throws Exception {
+        String key = ".a.specific.key";
+        long maxJumps = 100;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeShort(0x0201); // Error code
+        new DynamicDataWriter(serverInfo, serverResponseOut).writeString("Invalid value.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<TcpGeneral> result = databaseClient.follow(key, maxJumps, true);
+
+        assertFalse(result.isOk(), "Expected FOLLOW to fail with NAK.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("Invalid value."), "Expected the error message to indicate the server response.");
+        assertNotNull(result.getData(), "Expected data to contain the error code.");
+        assertEquals(0x0201, result.getData().getValue(), "Error code should match the server response.");
+    }
+
+    /**
+     * Test the FOLLOW command with an unknown server response.
+     *
+     * @throws Exception If an error occurs during setup or testing.
+     */
+    @Test
+    void testFollowUnknownResponse() throws Exception {
+        String key = ".a.specific.key";
+        long maxJumps = 100;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x12); // Unknown response
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<TcpGeneral> result = databaseClient.follow(key, maxJumps, true);
+
+        assertFalse(result.isOk(), "Expected FOLLOW to fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("unknown response"), "Expected the error message to indicate an unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+    }
+
+    /**
+     * Test the FOLLOW command with an invalid max jumps value.
+     */
+    @Test
+    void testFollowInvalidMaxJumps() throws Exception {
+        String key = ".a.specific.key";
+        long maxJumps = 0;
+
+        setServerResponse(new byte[0]);
+
+        WebReturn<TcpGeneral> result = databaseClient.follow(key, maxJumps, true);
+
+
+        assertFalse(result.isOk(), "Expected FOLLOW to fail with invalid max jumps.");
+        assertEquals("Invalid maxJumps value. It must be greater than 0.", result.getMessage(), "Expected error message for invalid max jumps.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    /**
+     * Test the FOLLOW command with a null key.
+     */
+    @Test
+    void testFollowNullKey() throws Exception {
+        long maxJumps = 100;
+
+        setServerResponse(new byte[0]);
+
+        WebReturn<TcpGeneral> result = databaseClient.follow(null, maxJumps, true);
+
+        assertFalse(result.isOk(), "Expected FOLLOW to fail with null key.");
+        assertEquals("Key must not be null or empty.", result.getMessage(), "Expected error message for null key.");
+        assertNull(result.getData(), "Expected no data on failure.");
+    }
 }

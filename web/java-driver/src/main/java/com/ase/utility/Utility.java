@@ -31,6 +31,12 @@ public class Utility {
 
     /** Command to list a key. */
     public static final byte LIST_COMMAND = (byte) 0x05;
+
+    /*+ Command to follow a reference. */
+    public static final byte FOLLOW_COMMAND = (byte) 0x06;
+
+    /** Command to force follow a reference. */
+    public static final byte FORCE_FOLLOW_COMMAND = (byte) 0x07;
     // --- END DATA COMMANDS ---
 
 
