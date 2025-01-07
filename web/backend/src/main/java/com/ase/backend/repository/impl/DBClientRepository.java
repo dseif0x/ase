@@ -32,8 +32,8 @@ public class DBClientRepository implements DBClientDao {
      * {@inheritDoc}
      */
     @Override
-    public Future<WebReturn<TcpGeneral>> listByKey(String key) {
-        DatabaseClient databaseClient = connectionService.getClient();
+    public Future<WebReturn<TcpGeneral>> listByKey(String key, String connectionId) {
+        DatabaseClient databaseClient = connectionService.getClient(connectionId);
         return databaseClient.listAsync(key);
     }
 
@@ -41,8 +41,8 @@ public class DBClientRepository implements DBClientDao {
      * {@inheritDoc}
      */
     @Override
-    public Future<WebReturn<TcpGeneral>> getByKey(String key){
-        DatabaseClient databaseClient = connectionService.getClient();
+    public Future<WebReturn<TcpGeneral>> getByKey(String key, String connectionId){
+        DatabaseClient databaseClient = connectionService.getClient(connectionId);
         return databaseClient.getAsync(key);
     }
 
@@ -50,8 +50,8 @@ public class DBClientRepository implements DBClientDao {
      * {@inheritDoc}
      */
     @Override
-    public Future<WebReturn<Integer>> setByKey(String key, TcpGeneral value, boolean force) {
-        DatabaseClient databaseClient = connectionService.getClient();
+    public Future<WebReturn<Integer>> setByKey(String key, TcpGeneral value, boolean force, String connectionId) {
+        DatabaseClient databaseClient = connectionService.getClient(connectionId);
         return databaseClient.setAsync(key, value, force);
     }
 
@@ -59,8 +59,8 @@ public class DBClientRepository implements DBClientDao {
      * {@inheritDoc}
      */
     @Override
-    public WebReturn<Integer> stop() {
-        DatabaseClient databaseClient = connectionService.getClient();
+    public WebReturn<Integer> stop(String connectionId) {
+        DatabaseClient databaseClient = connectionService.getClient(connectionId);
 
         Random random = new Random();
         long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
@@ -69,22 +69,22 @@ public class DBClientRepository implements DBClientDao {
     }
 
     @Override
-    public WebReturn<Integer> deleteKey(String key) {
-        return connectionService.getClient().delete(key);
+    public WebReturn<Integer> deleteKey(String key, String connectionId) {
+        return connectionService.getClient(connectionId).delete(key);
     }
 
     @Override
-    public WebReturn<Integer> ping(long packageToSend) {
-        return connectionService.getClient().ping(packageToSend);
+    public WebReturn<Integer> ping(long packageToSend, String connectionId) {
+        return connectionService.getClient(connectionId).ping(packageToSend);
     }
 
     @Override
-    public WebReturn<Integer> updateScope(String username, String key, byte options) {
-        return connectionService.getClient().updateScope(username, key, options);
+    public WebReturn<Integer> updateScope(String username, String key, byte options, String connectionId) {
+        return connectionService.getClient(connectionId).updateScope(username, key, options);
     }
 
     @Override
-    public WebReturn<Integer> createUser(String username, String password, byte options) {
-        return connectionService.getClient().createUser(username, password, options);
+    public WebReturn<Integer> createUser(String username, String password, byte options, String connectionId) {
+        return connectionService.getClient(connectionId).createUser(username, password, options);
     }
 }
