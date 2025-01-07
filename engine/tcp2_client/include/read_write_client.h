@@ -30,6 +30,9 @@ public:
     bool simple_set(const std::string &key, CopiedValue &val);
     std::optional<CopiedValue> simple_get(const std::string &key);
 
+    // todo make to template function
+    std::vector<bool> buffered_set(std::unordered_map<std::string, std::string> &data);
+
     void clear_decoder();
     void disconnect();
 
@@ -37,5 +40,7 @@ public:
         while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
     }
 };
+
+
 
 #endif //READ_WRITE_CLIENT_H

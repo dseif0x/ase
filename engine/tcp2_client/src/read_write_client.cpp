@@ -99,3 +99,22 @@ void ReadWriteClient::disconnect() {
     this->encoder->from_byte(0x0fc); //disconnect command
     this->send_buffer();
 }
+
+//template<typename T>
+std::vector<bool> ReadWriteClient::buffered_set(std::unordered_map<std::string, std::string> &data) {
+    std::vector<bool> res;
+    res.reserve(data.size());
+    for (const auto& [key, val] : data) {
+        this->encoder->from_byte(0x02); // set command
+        this->encoder->from_string(key);
+        CopiedValue newval{};
+        newval.type = ValueType::STRING;
+        newval.data.emplace<std::string>(val);
+        this->encoder->from_general(newval);
+    }
+    this->send_buffer();
+    for (auto & elem : data) {
+        res.push_back(this->decoder->to_acknak() == 1);
+    }
+    return res;
+}
