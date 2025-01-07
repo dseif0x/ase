@@ -9,6 +9,10 @@
 #include <arpa/inet.h>
 #include "read_write_client.h"
 
+void ReadWriteClient::read_data(TCP2Decoder &decoder) {
+    while (decoder.is_healthy()) decoder.read_data();
+}
+
 ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
     server_ip(ip), server_port(port), client_socket(-1) {
     // Create socket
@@ -42,4 +46,30 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
 
     this->decoder = std::make_unique<TCP2Decoder>(this->client_socket, &this->pipe_lock);
     this->encoder = std::make_unique<TCP2Encoder>(this->client_socket, &this->pipe_lock);
+
+    this->reader = std::thread(ReadWriteClient::read_data, std::ref(*this->decoder));
+}
+
+ReadWriteClient::~ReadWriteClient() {
+    this->decoder->set_kys();
+    this->reader.join();
+    close(this->client_socket);
+}
+
+bool ReadWriteClient::simple_set(const std::string &key, CopiedValue &val) {
+    this->encoder->from_byte(0x02); // set command
+    this->encoder->from_string(key);
+    this->encoder->from_general(val);
+    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    if (this->decoder->to_acknak() != 1) return false;
+    return true;
+}
+
+std::optional<CopiedValue> ReadWriteClient::simple_get(const std::string &key) {
+    this->encoder->from_byte(0x01); // get command
+    this->encoder->from_string(key);
+    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    auto val = this->decoder->to_general();
+    if (!val) return std::nullopt;
+    return val;
 }
