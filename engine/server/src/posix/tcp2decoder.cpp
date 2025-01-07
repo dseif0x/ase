@@ -42,9 +42,11 @@ void TCP2Decoder::read_data() {
             this->error_msg = "error: recv: " + std::string(strerror(errno));
             this->kys = true;
         } else {
+#ifdef DEBUG
             std::cout << "Bytes: ";
             for (int x = 0; x < bytesReceived; x++) std::cout << "[" << (int)(unsigned char)tcp_buffer[x] << "]";
             std::cout << std::endl;
+#endif
             std::vector<unsigned char> unsigned_buffer(tcp_buffer, tcp_buffer + bytesReceived);
             this->add_to_buffer(unsigned_buffer);
         }

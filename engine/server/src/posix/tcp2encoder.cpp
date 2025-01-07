@@ -17,9 +17,11 @@ TCP2Encoder::TCP2Encoder(const int client_socket, std::mutex *pipe_lock) : Gener
 
 bool TCP2Encoder::write_data() {
     auto data = this->get_bytes(ENCODER_BUFFER_SIZE);
+#ifdef DEBUG
     std::cout << "sending data:";
     for (int x = 0; x < data.second; x++) std::cout << "[" << (int)(unsigned char)data.first.get()[x] << "]";
     std::cout << std::endl;
+#endif
     {
         std::lock_guard<std::mutex> lock(*this->pipe_lock);
         if (fcntl(this->client_socket, F_GETFD) == -1) return false;

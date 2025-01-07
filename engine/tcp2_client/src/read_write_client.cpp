@@ -48,6 +48,22 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
     this->encoder = std::make_unique<TCP2Encoder>(this->client_socket, &this->pipe_lock);
 
     this->reader = std::thread(ReadWriteClient::read_data, std::ref(*this->decoder));
+
+    // login admin - rootpwd
+    this->encoder->from_unsigned(2, 0);
+    this->encoder->from_byte(0x0f);
+    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+
+    if (this->decoder->to_acknak() != 1) throw std::runtime_error("Failed to send client information");
+    this->decoder->to_unsigned(5);
+    this->decoder->to_unsigned(4);
+    this->encoder->from_ack();
+    this->encoder->from_string("admin");
+    this->encoder->from_string("rootpwd");
+    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+
+    if (this->decoder->to_acknak() != 1) throw std::runtime_error("Failed to send user information");
+    std::cout << "Successfully logged in!" << std::endl;
 }
 
 ReadWriteClient::~ReadWriteClient() {

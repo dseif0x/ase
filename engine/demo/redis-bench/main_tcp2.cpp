@@ -15,7 +15,9 @@ int run_test(const char* name, T&& generate_test_data) {
     auto test_data = generate_test_data();
     ReadWriteClient client{"127.0.0.1", 42069};
     stopwatch s;
+    int ind = 0;
     for (const auto& [key, value] : test_data) {
+        std::cout << ind++ << ": " << key << " - " << value << std::endl;
         CopiedValue newval{};
         newval.type = ValueType::STRING;
         newval.data.emplace<std::string>(value);
