@@ -37,9 +37,7 @@ public class DatabaseController {
      */
     @GetMapping("/list/{key}")
     public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key) {
-        byte[] decodedBytes = Base64.getDecoder().decode(key);
-        String decodedString = new String(decodedBytes);
-        WebReturn<TcpGeneral> future = service.list(decodedString);
+        WebReturn<TcpGeneral> future = service.list(key);
         try {
             return ResponseEntity.ok(future);
         } catch (Exception e) {
