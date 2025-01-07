@@ -15,11 +15,12 @@
 
 #include "sys/time.h"
 #include "db_types.h"
+#include "tcp2_server.h"
 
 // todo replace symbol with correct one
 #define UNIX
 
-constexpr int DECODER_BUFFER_SIZE = 1024;
+constexpr int DECODER_BUFFER_SIZE = BUFFER_SIZE;
 /**
  * @brief Provides methods for decoding various data types from a byte buffer.
  */

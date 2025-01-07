@@ -18,8 +18,9 @@
 #include <unordered_map>
 #include <vector>
 #include "db.h"
+#include "tcp2_server.h"
 
-constexpr int ENCODER_BUFFER_SIZE = 1024;
+constexpr int ENCODER_BUFFER_SIZE = BUFFER_SIZE;
 
 class GenericEncoder {
     std::deque<std::vector<unsigned char>> buffer;
