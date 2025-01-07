@@ -87,4 +87,9 @@ public class DBClientRepository implements DBClientDao {
     public WebReturn<Integer> createUser(String username, String password, byte options, String connectionId) {
         return connectionService.getClient(connectionId).createUser(username, password, options);
     }
+
+    @Override
+    public WebReturn<TcpGeneral> follow(String key, long maxJump, boolean isSafe, String connectionId) {
+        return connectionService.getClient(connectionId).follow(key, maxJump, isSafe);
+    }
 }

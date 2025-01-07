@@ -132,4 +132,17 @@ public class DatabaseController {
     public ResponseEntity<WebReturn<Integer>> createUser(@RequestParam String username, @RequestParam String password, @RequestParam byte options, @RequestHeader(value="X-Connection-Id") String connectionId) {
         return ResponseEntity.ok(service.createUser(username, password, options, connectionId));
     }
+
+    /**
+     * Follows a reference in the in-memory database.
+     *
+     * @param key The key to follow.
+     * @param maxJump The maximum number of jumps to follow.
+     * @param isSafe Whether to follow safely.
+     * @return A {@link WebReturn} indicating success or containing an error message.
+     */
+    @GetMapping("/follow")
+    public ResponseEntity<WebReturn<TcpGeneral>> follow(@RequestParam String key, @RequestParam long maxJump, @RequestParam boolean isSafe, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        return ResponseEntity.ok(service.follow(key, maxJump, isSafe, connectionId));
+    }
 }
