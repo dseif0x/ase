@@ -1,9 +1,9 @@
 package com.ase.backend.controller;
 
 import com.ase.backend.controller.dto.LoginRequest;
-import com.ase.backend.controller.dto.LoginResponse;
 import com.ase.backend.service.ConnectionService;
 import com.ase.exception.TCPClientException;
+import com.ase.utility.WebReturn;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,7 +35,7 @@ public class AuthController {
      * @return A response indicating success or failure.
      */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<WebReturn<String>> login(@RequestBody LoginRequest request) {
         try {
             String id = connectionService.openConnection(
                 request.getHost(),
@@ -46,10 +46,9 @@ public class AuthController {
                 request.getPassword()
             );
 
-            LoginResponse response = new LoginResponse(id, null);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(WebReturn.success(id));
         } catch (IOException | TCPClientException e) {
-            return ResponseEntity.status(500).body(new LoginResponse(null, "Login failed: " + e.getMessage()));
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
 
