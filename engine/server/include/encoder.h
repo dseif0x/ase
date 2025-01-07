@@ -19,7 +19,7 @@
 #include <vector>
 #include "db.h"
 
-constexpr int ENCODER_BUFFER_SIZE = 8;
+constexpr int ENCODER_BUFFER_SIZE = 1024;
 
 class GenericEncoder {
     std::deque<std::vector<unsigned char>> buffer;
@@ -188,7 +188,6 @@ public:
 
 
 class TCP2Encoder : public GenericEncoder {
-    std::mutex *pipe_lock;
 
 #ifdef UNIX
     int client_socket;
@@ -197,7 +196,7 @@ class TCP2Encoder : public GenericEncoder {
 
 public:
 #ifdef UNIX
-    TCP2Encoder(int client_socket, std::mutex *pipe_lock);
+    TCP2Encoder(int client_socket);
 #elifdef WIN32
 #endif
 

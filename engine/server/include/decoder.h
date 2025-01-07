@@ -18,7 +18,7 @@
 // todo replace symbol with correct one
 #define UNIX
 
-constexpr int DECODER_BUFFER_SIZE = 8;
+constexpr int DECODER_BUFFER_SIZE = 1024;
 /**
  * @brief Provides methods for decoding various data types from a byte buffer.
  */
@@ -135,8 +135,6 @@ class TCP2Decoder : public GenericDecoder {
     std::atomic<bool> kys;
     // error message if tcp is closed or error
     std::string error_msg;
-    // shared lock to protect tcp connection from simultaneous read and write
-    std::mutex *pipe_lock;
 
 #ifdef UNIX
     // tcp stuff
@@ -159,7 +157,7 @@ protected:
 
 public:
 #ifdef UNIX
-    TCP2Decoder(int client_socket, std::mutex *pipe_lock);
+    TCP2Decoder(int client_socket);
 #endif
 
     void read_data() override;

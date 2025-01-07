@@ -17,16 +17,20 @@ int run_test(const char* name, T&& generate_test_data) {
     stopwatch s;
     int ind = 0;
     for (const auto& [key, value] : test_data) {
-        std::cout << ind++ << ": " << key << " - " << value << std::endl;
+        //std::cout << ind++ << ": " << key << " - " << value << std::endl;
         CopiedValue newval{};
         newval.type = ValueType::STRING;
         newval.data.emplace<std::string>(value);
         client.simple_set(key, newval);
     }
+
     print_stopwatch(s, "\tSet Time: ");
+    //client.clear_decoder();
     //std::cout << "\tUsed Memory: " << db.get_used_memory() / 1024. / 1024. << " Mib" << std::endl;
     s.reset();
+    ind = 0;
     for (const auto& [key, _] : test_data) {
+        //std::cout << ind++ << ": " << key << std::endl;
         auto val = client.simple_get(key);
     }
     print_stopwatch(s, "\tGet Time: ");

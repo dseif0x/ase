@@ -44,8 +44,8 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
 
     std::cout << "Connected to server at " << server_ip << ":" << server_port << std::endl;
 
-    this->decoder = std::make_unique<TCP2Decoder>(this->client_socket, &this->pipe_lock);
-    this->encoder = std::make_unique<TCP2Encoder>(this->client_socket, &this->pipe_lock);
+    this->decoder = std::make_unique<TCP2Decoder>(this->client_socket);
+    this->encoder = std::make_unique<TCP2Encoder>(this->client_socket);
 
     this->reader = std::thread(ReadWriteClient::read_data, std::ref(*this->decoder));
 
@@ -81,11 +81,24 @@ bool ReadWriteClient::simple_set(const std::string &key, CopiedValue &val) {
     return true;
 }
 
+bool ReadWriteClient::faster_set(const std::string &key, CopiedValue &val) {
+    this->encoder->from_byte(0x02); // set command
+    this->encoder->from_string(key);
+    this->encoder->from_general(val);
+    while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    return true;
+}
+
 std::optional<CopiedValue> ReadWriteClient::simple_get(const std::string &key) {
     this->encoder->from_byte(0x01); // get command
     this->encoder->from_string(key);
     while (!this->encoder->is_empty()) this->encoder->write_data(); // send command
+    if (this->decoder->to_acknak() != 1) return std::nullopt;
     auto val = this->decoder->to_general();
     if (!val) return std::nullopt;
     return val;
+}
+
+void ReadWriteClient::clear_decoder() {
+    this->decoder->clear_buffer();
 }

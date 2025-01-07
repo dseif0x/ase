@@ -184,8 +184,8 @@ std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {
         if (this->buffer.empty()) {
             this->buffer_lock.unlock();
             // free lock to allow new data to be written into the buffer
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            //std::this_thread::yield();
+            //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::yield();
             this->buffer_lock.lock();
             continue;
         }
