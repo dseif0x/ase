@@ -13,43 +13,41 @@
 #include <cstring>
 #include <memory>
 
-void DeleteFileMapping(const char* name) {
-    HANDLE handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, name);
-    if (handle) {
-        CloseHandle(handle);
-    }
-}
-
 void shmem::attach(std::function<void(shmem&)> on_create) {
     HANDLE meta_handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(shmem_meta), "shmem_meta");
     if (!meta_handle) {
         throw std::runtime_error("Failed to create or open metadata shared memory segment");
     }
 
+    this->meta_handle = meta_handle;
+
     bool created = (GetLastError() != ERROR_ALREADY_EXISTS);
     metadata = static_cast<shmem_meta*>(MapViewOfFile(meta_handle, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(shmem_meta)));
     if (!metadata) {
-        CloseHandle(meta_handle);
         throw std::runtime_error("Failed to map view of metadata shared memory");
     }
     if (created) {
         new (metadata) shmem_meta();
     }
-    CloseHandle(meta_handle);
 
-    HANDLE data_handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, metadata->alloc_size, "shmem_data");
+    const std::string handle_name = this->get_handle_name();
+
+    HANDLE data_handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, metadata->alloc_size, handle_name.c_str());
     if (!data_handle) {
+        close_meta_handle();
         throw std::runtime_error("Failed to create or open data shared memory segment");
     }
+
+    this->data_handle = data_handle;
 
     created = (GetLastError() != ERROR_ALREADY_EXISTS);
     base = MapViewOfFile(data_handle, FILE_MAP_ALL_ACCESS, 0, 0, metadata->alloc_size);
     if (!base) {
-        CloseHandle(data_handle);
+        close_meta_handle();
+        close_data_handle();
         throw std::runtime_error("Failed to map view of data shared memory");
     }
     local_size = metadata->alloc_size;
-    CloseHandle(data_handle);
 
     if (created) {
         FreeBlock* freeList = get_first_free_block(*metadata, base);
@@ -73,14 +71,37 @@ void shmem::close() {
     }
 }
 
+void shmem::close_meta_handle() {
+    if (this->meta_handle) {
+        CloseHandle(this->meta_handle);
+        this->meta_handle = nullptr;
+    }
+}
+
+void shmem::close_data_handle() {
+    if (this->data_handle) {
+        CloseHandle(this->data_handle);
+        this->data_handle = nullptr;
+    }
+}
+
 void shmem::destroy() {
-    close();
-    DeleteFileMapping("shmem_meta");
-    DeleteFileMapping("shmem_data");
+    if (base) {
+        UnmapViewOfFile(base);
+        base = nullptr;
+    }
+    if (metadata) {
+        UnmapViewOfFile(metadata);
+        metadata = nullptr;
+    }
+    close_meta_handle();
+    close_data_handle();
 }
 
 void shmem::destroy_data() {
-    DeleteFileMapping("shmem_data");
+    // Should not be needed since windows cleans them up automatically
+    // In fact this will fail as long as a process holds an open handle
+    DeleteFile("shmem_data");
 }
 
 void shmem::ensure_enough_space(std::size_t required_memory, std::size_t required_alignment) {
@@ -93,27 +114,32 @@ void shmem::ensure_enough_space(std::size_t required_memory, std::size_t require
     memcpy(tmp.get(), base, prev_size);
 
     UnmapViewOfFile(base);
-    DeleteFileMapping("shmem_data");
+    close_data_handle();
 
     metadata->alloc_size *= 2;
     while (metadata->alloc_size < prev_size + required_memory) {
         metadata->alloc_size *= 2;
     }
+    ++metadata->version;
 
-    HANDLE data_handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, metadata->alloc_size, "shmem_data");
+    const std::string handle_name = get_handle_name();
+
+    HANDLE data_handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, metadata->alloc_size, handle_name.c_str());
     if (!data_handle) {
+        close_meta_handle();
         throw std::runtime_error("Failed to create data shared memory segment after resize");
     }
 
+    this->data_handle = data_handle;
+
     base = MapViewOfFile(data_handle, FILE_MAP_ALL_ACCESS, 0, 0, metadata->alloc_size);
     if (!base) {
-        CloseHandle(data_handle);
+        close_meta_handle();
+        close_data_handle();
         throw std::runtime_error("Failed to map view of data shared memory after resize");
     }
     memcpy(base, tmp.get(), prev_size);
-    CloseHandle(data_handle);
 
-    ++metadata->version;
     local_version = metadata->version;
     local_size = metadata->alloc_size;
 
@@ -141,16 +167,21 @@ void shmem::ensure_enough_space(std::size_t required_memory, std::size_t require
 void shmem::ensure_mounted() {
     if (metadata->version > local_version) {
         UnmapViewOfFile(base);
-        HANDLE data_handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, "shmem_data");
+        close_data_handle();
+        const std::string handle_name = get_handle_name();
+        HANDLE data_handle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, handle_name.c_str());
         if (!data_handle) {
+            close_meta_handle();
             throw std::runtime_error("Failed to open data shared memory segment");
         }
+        this->data_handle = data_handle;
         base = MapViewOfFile(data_handle, FILE_MAP_ALL_ACCESS, 0, 0, metadata->alloc_size);
         if (!base) {
-            CloseHandle(data_handle);
+            close_meta_handle();
+            close_data_handle();
             throw std::runtime_error("Failed to map view of data shared memory after version change");
         }
-        CloseHandle(data_handle);
+
         local_version = metadata->version;
         local_size = metadata->alloc_size;
     } else if (metadata->version < local_version) {
