@@ -28,11 +28,11 @@ ACLUser::ACLUser(const std::string& password, bool isAdmin)
 }
 
 
-TCP_ACL::TCP_ACL() {
+ASE::ACL::ACL() {
     this->users["admin"] = ACLUser("rootpwd", true);
 }
 
-bool TCP_ACL::load_from_disk(std::string path) {
+bool ASE::ACL::load_from_disk(std::string path) {
     // format: [ ["username", "pwd", bool <is_admin>, {scope}], ...]
     try {
         FileDecoder decoder{path};
@@ -59,7 +59,7 @@ bool TCP_ACL::load_from_disk(std::string path) {
     }
 }
 
-bool TCP_ACL::save_to_disk(std::string path) {
+bool ASE::ACL::save_to_disk(std::string path) {
     try {
         FileEncoder encoder{path};
         CopiedValue val{};
@@ -180,7 +180,7 @@ std::string ACLUser::print_user_data() {
     return this->pwd + (this->admin ? " [admin]" : "");
 }
 
-int TCP_ACL::try_login(const std::string &user, const std::string &pwd) {
+int ASE::ACL::try_login(const std::string &user, const std::string &pwd) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (!users.contains(user)) return 1;
     if (open_connections.contains(user)) return 2;
@@ -191,49 +191,49 @@ int TCP_ACL::try_login(const std::string &user, const std::string &pwd) {
     return 0;
 }
 
-ACLUser* TCP_ACL::get_user(const std::string &user) {
+ACLUser* ASE::ACL::get_user(const std::string &user) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (!open_connections.contains(user)) return nullptr;
     return &users[user];
 }
 
-void TCP_ACL::disconnect(const std::string &user) {
+void ASE::ACL::disconnect(const std::string &user) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (open_connections.contains(user)) open_connections.erase(user);
 }
 
-bool TCP_ACL::has_user(std::string &username) {
+bool ASE::ACL::has_user(std::string &username) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     return this->users.contains(username);
 }
 
-bool TCP_ACL::user_is_connected(std::string &username) {
+bool ASE::ACL::user_is_connected(std::string &username) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     return this->open_connections.contains(username);
 }
 
-bool TCP_ACL::update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions) {
+bool ASE::ACL::update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (!this->users.contains(user)) return false;
     this->users[user].update_key_permission(key, permissions);
     return true;
 }
 
-bool TCP_ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
+bool ASE::ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (this->users.contains(username)) return false;
     this->users[username] = ACLUser(pwd, is_admin);
     return true;
 }
 
-bool TCP_ACL::delete_user(std::string &username) {
+bool ASE::ACL::delete_user(std::string &username) {
     if (!this->has_user(username) || this->user_is_connected(username)) return false;
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (this->users.erase(username) != 1) return false;
     return true;
 }
 
-void TCP_ACL::print_full_info() {
+void ASE::ACL::print_full_info() {
     std::lock_guard<std::mutex> lock(this->general_lock);
     for (auto &x : this->users) {
         std::cout << x.first << ":" << x.second.print_user_data() << std::endl;

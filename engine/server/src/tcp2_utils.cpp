@@ -12,6 +12,7 @@
 
 #include "tcp2_server.h"
 #include "decoder.h"
+#include "acl.h"
 
 // returns -1: some non-critical error occurred, not executed and decoder is cleared
 // returns 0: command executed fine
@@ -59,15 +60,15 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             func = command::list;
             perms = permissions::read;
             break;
-        case 0x06: //SAFE-FOLLOW
-            func = command::safe_follow;
-            perms = permissions::read;
-            break;
-        case 0x07: //FORCED-FOLLOW
-            func = command::forced_follow;
-            perms = permissions::read | permissions::admin;
-            break;
-        // TCP_ACL Commands
+        //case 0x06: //SAFE-FOLLOW
+        //    func = command::safe_follow;
+        //    perms = permissions::read;
+        //    break;
+        //case 0x07: //FORCED-FOLLOW
+        //    func = command::forced_follow;
+        //    perms = permissions::read | permissions::admin;
+        //    break;
+        // ACL Commands
         case 0x80: // Create User
             func = command::create_user;
             perms = permissions::admin;
@@ -366,7 +367,7 @@ int tcp2_utils::command::list(TCP2Decoder &decoder, TCP2Encoder &encoder, Comman
     return 0;
 }
 
-void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
+void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ASE::ACL &acl, DB &db) {
     std::string username;
     ACLUser *user{nullptr};
     unsigned char self_perms{};
@@ -468,7 +469,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
 }
 
 
-void tcp2_utils::client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
+void tcp2_utils::client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ASE::ACL &acl, DB &db) {
     std::thread state(tcp2_utils::client_state_thread, std::ref(decoder), std::ref(encoder), std::ref(acl), std::ref(db));
 
     while (!kys && decoder.is_healthy()) {

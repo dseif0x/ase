@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "tcp2_server.h"
+#include "acl.h"
 
 
 int main() {
@@ -57,7 +58,7 @@ int main() {
 */
     std::cout << "after db" << std::endl;
 
-    ACL acl{};
+    ASE::ACL acl{};
 
     if (acl.load_from_disk("test.bin")) {
         std::cout << "acl loaded from disk" << std::endl;

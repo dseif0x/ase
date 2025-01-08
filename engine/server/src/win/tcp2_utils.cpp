@@ -15,9 +15,10 @@
 #include <winsock2.h>
 
 #include "encoder.h"
+#include "acl.h"
 
 
-void tcp2_utils::client_acceptor(std::atomic<bool> &kys, TCP_ACL &acl, DB &db, int port, int max_clients) {
+void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ASE::ACL &acl, DB &db, int port, int max_clients) {
     WORD wVersionRequested;
     WSADATA wsaData;
     wVersionRequested = MAKEWORD(2, 2);
@@ -119,7 +120,7 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, TCP_ACL &acl, DB &db, i
     WSACleanup(); // Clean up Winsock
 }
 
-void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, TCP_ACL &acl, DB &db) {
+void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, ASE::ACL &acl, DB &db) {
     std::mutex pipe_lock;
     TCP2Decoder decoder{client_socket, &pipe_lock};
     TCP2Encoder encoder{client_socket, &pipe_lock};

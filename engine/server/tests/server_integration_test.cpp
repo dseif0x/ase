@@ -10,6 +10,7 @@
 #include "encoder.h"
 #include "decoder.h"
 #include "TestCoding.h"
+#include "acl.h"
 
 #include <string>
 #include <cstring>
@@ -92,7 +93,7 @@ public:
     }
 
 private:
-    ACL acl{};
+    ASE::ACL acl{};
     DB* db;
     int max_clients;
 
@@ -141,7 +142,7 @@ public:
     }
 
 private:
-    TCP_ACL acl{};
+    ASE::ACL acl{};
     DB* db;
     int max_clients;
 

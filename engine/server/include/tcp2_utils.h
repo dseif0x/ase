@@ -22,23 +22,23 @@
 
 struct CommandInfo {
     ACLUser *user;
-    TCP_ACL &acl;
+    ASE::ACL &acl;
     DB &db;
     unsigned char self_perms;
 
-    CommandInfo(ACLUser *userPtr, TCP_ACL &aclRef, DB &dbRef, unsigned char self_perms)
+    CommandInfo(ACLUser *userPtr, ASE::ACL &aclRef, DB &dbRef, unsigned char self_perms)
         : user(userPtr), acl(aclRef), db(dbRef), self_perms(self_perms) {}
 };
 
 namespace tcp2_utils {
     // client_acceptor needs a system dependent implementation but keeps the same signature
-    void client_acceptor(std::atomic<bool> &kys, TCP_ACL &acl, DB &db, int port, int max_clients);
+    void client_acceptor(std::atomic<bool> &kys, ASE::ACL &acl, DB &db, int port, int max_clients);
 #ifdef UNIX
     // following function needs system dependent implementation as well as possibly different signatures
-    void client_coding_setup(std::atomic<bool> &kys, int client_socket, TCP_ACL &acl, DB &db);
+    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db);
 #elifdef WIN
     // following function needs system dependent implementation as well as possibly different signatures
-    void client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, TCP_ACL &acl, DB &db);
+    void client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, ASE::ACL &acl, DB &db);
 #endif
 
     // following functions are system independent
@@ -48,18 +48,18 @@ namespace tcp2_utils {
      * @param kys Atomic boolean signaling termination.
      * @param decoder Reference to the TCP2Decoder instance for decoding client data.
      * @param encoder Reference to the TCP2Encoder instance for encoding responses.
-     * @param acl Reference to the TCP_ACL managing user authentication and permissions.
+     * @param acl Reference to the ACL managing user authentication and permissions.
      */
-    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, TCP_ACL &acl, DB &db);
+    void client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ASE::ACL &acl, DB &db);
     /**
      * @brief Manages the client state machine, handling authentication and client commands.
      *
      * @param decoder Reference to the TCP2Decoder instance for decoding client data.
      * @param encoder Reference to the TCP2Encoder instance for encoding responses.
-     * @param acl Reference to the TCP_ACL (Access Control List) managing user authentication and permissions.
+     * @param acl Reference to the ACL (Access Control List) managing user authentication and permissions.
      * @param db Reference to the db do access the actual data.
      */
-    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, TCP_ACL &acl, DB &db);
+    void client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ASE::ACL &acl, DB &db);
     /**
      * @brief Processes client commands and executes the appropriate function based on the command code.
      *
@@ -220,7 +220,7 @@ namespace tcp2_utils {
          * @param info Reference to the CommandInfo struct containing additional information for the function.
          * @return int returns 0 on success or -1 on error.
         */
-        int safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        //int safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
          * @brief Unsafely follows a reference for the defined jumps.
@@ -230,7 +230,7 @@ namespace tcp2_utils {
          * @param info Reference to the CommandInfo struct containing additional information for the function.
          * @return int returns 0 on success or -1 on error.
         */
-        int forced_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        //int forced_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {

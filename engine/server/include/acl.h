@@ -17,72 +17,74 @@
 class ACLUser;
 
 
+namespace ASE {
+    /**
+         * @brief Manages users and their access permissions in the ACL system.
+         */
+    class ACL {
+        std::unordered_map<std::string, ACLUser> users;
+        std::set<std::string> open_connections;
+
+        std::mutex general_lock; // todo think about locking individual users
+
+    public:
+        ACL(); // create default with one admin
+
+        bool load_from_disk(std::string path); // load acl from disk
+        bool save_to_disk(std::string path);
+
+        /**
+         * @brief Attempts to log in a user.
+         *
+         * @param user The username.
+         * @param pwd The user's password.
+         * @return An integer status code:
+         *         - 0: Login successful.
+         *         - 1: User does not exist.
+         *         - 2: User is already logged in.
+         *         - 3: Incorrect password.
+         */
+        int try_login(const std::string &user, const std::string &pwd);
+        /**
+         * @brief Retrieves a pointer to a user's data.
+         *
+         * @param user The username.
+         * @return A pointer to the ACLUser object if the user is logged in, otherwise nullptr.
+         */
+        ACLUser *get_user(const std::string &user);
+        /**
+         * @brief Disconnects a logged-in user.
+         *
+         * @param user The username to disconnect.
+         */
+        void disconnect(const std::string &user);
+
+        bool has_user(std::string &username);
+
+        bool user_is_connected(std::string &username);
+
+        bool update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions);
+
+
+        /**
+        * @brief Creates a user with the provided parameters and returns true on success.
+        */
+        bool create_user(std::string &username, std::string &pwd, bool is_admin);
+
+        /**
+        * @brief Deletes a user from the acl.
+        */
+        bool delete_user(std::string &username);
+
+        /**
+         * @brief Prints detailed information about all users.
+         */
+        void print_full_info();
+    };
+}
+
 /**
- * @brief Manages users and their access permissions in the TCP_ACL system.
- */
-class TCP_ACL {
-    std::unordered_map<std::string, ACLUser> users;
-    std::set<std::string> open_connections;
-
-    std::mutex general_lock; // todo think about locking individual users
-    
-public:
-    TCP_ACL(); // create default with one admin
-
-    bool load_from_disk(std::string path); // load acl from disk
-    bool save_to_disk(std::string path);
-
-    /**
-     * @brief Attempts to log in a user.
-     *
-     * @param user The username.
-     * @param pwd The user's password.
-     * @return An integer status code:
-     *         - 0: Login successful.
-     *         - 1: User does not exist.
-     *         - 2: User is already logged in.
-     *         - 3: Incorrect password.
-     */
-    int try_login(const std::string &user, const std::string &pwd);
-    /**
-     * @brief Retrieves a pointer to a user's data.
-     *
-     * @param user The username.
-     * @return A pointer to the ACLUser object if the user is logged in, otherwise nullptr.
-     */
-    ACLUser *get_user(const std::string &user);
-    /**
-     * @brief Disconnects a logged-in user.
-     *
-     * @param user The username to disconnect.
-     */
-    void disconnect(const std::string &user);
-
-    bool has_user(std::string &username);
-
-    bool user_is_connected(std::string &username);
-
-    bool update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions);
-
-
-    /**
-    * @brief Creates a user with the provided parameters and returns true on success.
-    */
-    bool create_user(std::string &username, std::string &pwd, bool is_admin);
-
-    /**
-    * @brief Deletes a user from the acl.
-    */
-    bool delete_user(std::string &username);
-
-    /**
-     * @brief Prints detailed information about all users.
-     */
-    void print_full_info();
-};
-
-/**
- * @brief Represents a user in the TCP_ACL system with specific permissions and attributes.
+ * @brief Represents a user in the ACL system with specific permissions and attributes.
  */
 class ACLUser {
     //todo might have to add a lock for access of userdata
