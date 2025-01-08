@@ -14,7 +14,6 @@ import java.io.IOException;
  */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:3000")
 public class AuthController {
 
     private final ConnectionService connectionService;
@@ -56,8 +55,8 @@ public class AuthController {
      * Logs out by removing and disconnecting the DatabaseClient.
      */
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@RequestHeader("X-Connection-Id") String connectionId) {
+    public ResponseEntity<WebReturn<String>> logout(@RequestHeader("X-Connection-Id") String connectionId) {
         connectionService.logout(connectionId);
-        return ResponseEntity.ok("Logged out successfully");
+        return ResponseEntity.ok(WebReturn.success("Logged out successfully"));
     }
 }

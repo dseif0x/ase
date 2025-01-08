@@ -14,7 +14,6 @@ import java.util.concurrent.Future;
  */
 @RestController
 @RequestMapping("/api/db")
-@CrossOrigin(origins = "http://localhost:3000")
 public class DatabaseController {
 
     private final DatabaseService service;
