@@ -6,7 +6,9 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages the lifecycle of the DatabaseClient,
@@ -15,7 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class ConnectionService {
 
-    private final AtomicReference<DatabaseClient> currentClient = new AtomicReference<>();
+    private final Map<String, DatabaseClient> clientMap = new ConcurrentHashMap<>();
 
     /**
      * Creates and initializes a new DatabaseClient using the given connection info.
@@ -30,11 +32,13 @@ public class ConnectionService {
      * @throws IOException         If the socket connection fails.
      * @throws TCPClientException  If connect/login fails for server-related reasons.
      */
-    public void createClient(String host, int port, int version, byte flags, String username, String password) throws IOException, TCPClientException {
+    public String openConnection(String host, int port, int version, byte flags, String username, String password) throws IOException, TCPClientException {
         DatabaseClient newClient = new DatabaseClient(host, port);
         newClient.connect(version, flags);
         newClient.login(username, password);
-        this.currentClient.set(newClient);
+        String connectionId = UUID.randomUUID().toString();
+        clientMap.put(connectionId, newClient);
+        return connectionId;
     }
 
     /**
@@ -42,15 +46,15 @@ public class ConnectionService {
      *
      * @return The active DatabaseClient instance, or null if not yet created/logged in.
      */
-    public DatabaseClient getClient() {
-        return currentClient.get();
+    public DatabaseClient getClient(String connectionId) {
+        return clientMap.get(connectionId);
     }
 
     /**
      * Removes the stored DatabaseClient (if present) and disconnects it.
      */
-    public void logout() {
-        DatabaseClient client = currentClient.getAndSet(null);
+    public void logout(String connectionId) {
+        DatabaseClient client = clientMap.remove(connectionId);
         if (client != null) {
             client.disconnect();
         }
@@ -58,9 +62,7 @@ public class ConnectionService {
 
     @PreDestroy
     public void onShutdown() {
-        DatabaseClient client = currentClient.get();
-        if (client != null) {
-            client.disconnect();
-        }
+        clientMap.values().forEach(DatabaseClient::disconnect);
+        clientMap.clear();
     }
 }
