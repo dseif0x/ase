@@ -42,7 +42,7 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
         throw std::runtime_error("Failed to connect to server");
     }
 
-    std::cout << "Connected to server at " << server_ip << ":" << server_port << std::endl;
+    //std::cout << "Connected to server at " << server_ip << ":" << server_port << std::endl;
 
     this->decoder = std::make_unique<TCP2Decoder>(this->client_socket);
     this->encoder = std::make_unique<TCP2Encoder>(this->client_socket);

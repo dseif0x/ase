@@ -32,7 +32,9 @@ void TCP2Decoder::read_data() {
     if (sel > 0) {
         bytesReceived = recv(this->client_socket, tcp_buffer, BUFFER_SIZE, 0);
         if (bytesReceived == 0) {
+#ifdef DEBUG
             std::cout << "Client disconnected.\n";
+#endif
             this->error_msg = "Client disconnected";
             this->kys = true;
         } else if (bytesReceived < 0) {
