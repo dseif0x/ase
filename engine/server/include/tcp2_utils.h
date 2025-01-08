@@ -23,10 +23,11 @@ struct CommandInfo {
     ACLUser *user;
     ACL &acl;
     DB &db;
+    std::string &self_name;
     unsigned char self_perms;
 
-    CommandInfo(ACLUser *userPtr, ACL &aclRef, DB &dbRef, unsigned char self_perms)
-        : user(userPtr), acl(aclRef), db(dbRef), self_perms(self_perms) {}
+    CommandInfo(ACLUser *userPtr, ACL &aclRef, DB &dbRef, std::string self_name, unsigned char self_perms)
+        : user(userPtr), acl(aclRef), db(dbRef), self_name(self_name), self_perms(self_perms) {}
 };
 
 namespace tcp2_utils {
@@ -178,6 +179,16 @@ namespace tcp2_utils {
          * @return int returns 0 on success or -1 on error.
         */
         int update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Return the requested user permissions.
+
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
          * @brief Creates a new user in the ACL.

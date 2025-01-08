@@ -213,6 +213,22 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
     return 0;
 }
 
+int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    auto len = decoder.to_expanding_unsigned();
+    std::vector<std::string> usernames;
+    if (len == 0) {
+        if ((info.self_perms & permissions::admin) > 0) {
+            // get all usernames
+            usernames = info.acl.get_all_usernames();
+        } else {
+            // only self
+            usernames.push_back(info.self_name);
+        }
+    } else {
+        // read usernames from decoder
+    }
+}
+
 int tcp2_utils::command::create_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     std::string username = decoder.to_string();
     std::string pwd = decoder.to_string();
@@ -519,7 +535,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             user = acl.get_user(username);
             encoder.from_ack();
             state = 2;
-            ci = std::make_unique<CommandInfo>(user, acl, db, self_perms);
+            ci = std::make_unique<CommandInfo>(user, acl, db, username, self_perms);
         } else if (state == 2) {
             // logged in and ready for commands
             int temp_ret = client_command_switch(decoder, encoder, *ci);

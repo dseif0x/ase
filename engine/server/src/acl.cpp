@@ -239,6 +239,12 @@ void ACL::print_full_info() {
     }
 }
 
+std::vector<std::string> ACL::get_all_usernames() {
+    std::vector<std::string> res;
+    for (auto &x : this->users) res.push_back(x.first);
+    return res;
+}
+
 void ACLUser::update_pwd(const std::string& pwd) {
     this->pwd = pwd;
 }

@@ -79,6 +79,11 @@ public:
      * @brief Prints detailed information about all users.
      */
     void print_full_info();
+
+    /**
+    * @brief returns all usernames
+    */
+    std::vector<std::string> get_all_usernames();
 };
 
 /**
