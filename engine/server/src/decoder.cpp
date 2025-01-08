@@ -16,6 +16,7 @@
 void GenericDecoder::add_to_buffer(std::vector<unsigned char> &block) {
     std::lock_guard<std::mutex> lock(this->buffer_lock);
     this->buffer.emplace_back(std::move(block));
+    this->available_blocks.release();
 }
 
 bool GenericDecoder::is_empty() {
@@ -29,6 +30,7 @@ void GenericDecoder::clear_buffer(int delay_ms) {
         std::lock_guard<std::mutex> lock(this->buffer_lock);
         this->buffer.clear();
         this->start = 0;
+        while (this->available_blocks.try_acquire());
     }
 }
 
@@ -178,17 +180,12 @@ void TCP2Decoder::set_kys() {
 std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {
     std::vector<unsigned char> res;
     res.reserve(bytes);
-    this->buffer_lock.lock();
     while (!this->kys) {
         if (bytes == 0) break;
-        if (this->buffer.empty()) {
-            this->buffer_lock.unlock();
-            // free lock to allow new data to be written into the buffer
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            //std::this_thread::yield();
-            this->buffer_lock.lock();
+        if (!this->available_blocks.try_acquire_for(std::chrono::microseconds(100))) {
             continue;
         }
+        this->buffer_lock.lock();
         auto bytes_to_copy = std::min(bytes, this->buffer.front().size() - this->start);
         res.insert(res.end(), this->buffer.front().begin() + this->start,
             this->buffer.front().begin() + this->start + bytes_to_copy);
@@ -197,9 +194,12 @@ std::vector<unsigned char> TCP2Decoder::get_bytes(size_t bytes) {
         if (this->buffer.front().size() <= this->start) {
             this->buffer.pop_front();
             this->start = 0;
+        } else {
+            // if the first element is not removed, we still have something to read for the next time
+            this->available_blocks.release();
         }
+        this->buffer_lock.unlock();
     }
-    this->buffer_lock.unlock();
     return res;
 }
 
@@ -214,6 +214,7 @@ FileDecoder::FileDecoder(std::string &file_path) : file_path(file_path) {
  * @return The requested bytes.
  */
 std::vector<unsigned char> FileDecoder::get_bytes(size_t bytes) {
+    // todo available_blocks semaphore not yet used
     std::vector<unsigned char> res;
     this->buffer_lock.lock();
     int original_bytes = bytes;

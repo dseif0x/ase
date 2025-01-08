@@ -18,23 +18,23 @@
 #include "tcp2_utils.h"
 #include "tcp2_server.h"
 
-TCP2Decoder::TCP2Decoder(const int client_socket, std::mutex *pipe_lock): GenericDecoder(),
-client_socket(client_socket), pipe_lock(pipe_lock), kys(false) {
+TCP2Decoder::TCP2Decoder(const int client_socket): GenericDecoder(),
+client_socket(client_socket), kys(false) {
     timeout.tv_sec = 0;
-    timeout.tv_usec = 10000;
+    timeout.tv_usec = 10;
 }
 
 void TCP2Decoder::read_data() {
-    this->pipe_lock->lock();
     FD_ZERO(&this->readfds);
     FD_SET(this->client_socket, &this->readfds);
     int sel;
     sel = select(this->client_socket + 1, &this->readfds, nullptr, nullptr, &this->timeout);
     if (sel > 0) {
         bytesReceived = recv(this->client_socket, tcp_buffer, BUFFER_SIZE, 0);
-        this->pipe_lock->unlock();
         if (bytesReceived == 0) {
+#ifdef DEBUG
             std::cout << "Client disconnected.\n";
+#endif
             this->error_msg = "Client disconnected";
             this->kys = true;
         } else if (bytesReceived < 0) {
@@ -42,19 +42,17 @@ void TCP2Decoder::read_data() {
             this->error_msg = "error: recv: " + std::string(strerror(errno));
             this->kys = true;
         } else {
+#ifdef DEBUG
             std::cout << "Bytes: ";
             for (int x = 0; x < bytesReceived; x++) std::cout << "[" << (int)(unsigned char)tcp_buffer[x] << "]";
             std::cout << std::endl;
+#endif
             std::vector<unsigned char> unsigned_buffer(tcp_buffer, tcp_buffer + bytesReceived);
             this->add_to_buffer(unsigned_buffer);
         }
     } else if (sel == 0) {
-        // in case of timeout sleep for a bit to give others time to access pipe mutex
-        // this way large data pack would not be slowed down, as we only sleep in case of nothing arriving
-        this->pipe_lock->unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::yield();
     } else {
-        this->pipe_lock->unlock();
         std::cerr << "select error: " << strerror(errno) << std::endl;
         this->error_msg = "error: select: " + std::string(strerror(errno));
         this->kys = true;

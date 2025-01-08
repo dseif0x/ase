@@ -23,7 +23,9 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
     uint16_t error = 0;
 
     auto temp = decoder.to_unsigned(1);
+#ifdef DEBUG
     std::cout << "> current command: " << temp << std::endl;
+#endif
     switch (temp) {
         // CONTROL COMMANDS
         case 0xFE: //STOP
@@ -171,7 +173,6 @@ int tcp2_utils::command::get(TCP2Decoder &decoder, TCP2Encoder &encoder, Command
         encoder.encode_error(errors::key_not_found);
         return -1;
     }
-    res->print();
     encoder.from_ack();
     if (!encoder.from_general(*res)) {
         // this should normally never happen, as the data here is extracted directly from the db and therefore correct
@@ -287,7 +288,6 @@ int tcp2_utils::command::safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder,
     std::optional<CopiedValue> res = std::nullopt;
 
     for (int jumps = 0; jumps <= max_jumps; jumps++) {
-        std::cout << "follow checking key: " << key_str << std::endl;
         auto key = check_and_create_key(key_str);
         if (!key) {
             encoder.from_nak();
@@ -356,7 +356,6 @@ int tcp2_utils::command::forced_follow(TCP2Decoder &decoder, TCP2Encoder &encode
         encoder.encode_error(errors::key_not_found);
         return -1;
     }
-    res->print();
 
     encoder.from_ack();
     if (!encoder.from_general(*res)) {
@@ -389,8 +388,6 @@ int set_helper(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info, bo
         encoder.encode_error(errors::invalid_value);
         return -1;
     }
-
-    val->print();
 
     try {
         info.db.set(key_str.c_str(), std::move(*val), force);
@@ -466,6 +463,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
     unsigned char self_perms{};
 
     std::unique_ptr<CommandInfo> ci;
+    int s_commands = 0;
 
     int state = 0;
     while (decoder.is_healthy()) {
@@ -525,7 +523,10 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
         } else if (state == 2) {
             // logged in and ready for commands
             int temp_ret = client_command_switch(decoder, encoder, *ci);
+#ifdef DEBUG
             std::cout << "> command result: " << temp_ret << std::endl;
+#endif
+            if (temp_ret == 0) s_commands++;
             switch (temp_ret) {
                 case -1: // error, but recovered
                     decoder.clear_buffer();
@@ -557,6 +558,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             }
         }
     }
+    std::cout << "SUCCESSFULL COMMANDS: " << s_commands << std::endl;
     acl.disconnect(username);
     decoder.set_kys();
 }

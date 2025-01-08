@@ -19,6 +19,7 @@ FetchContent_MakeAvailable(googletest)
 add_subdirectory(core)
 add_subdirectory(db)
 add_subdirectory(server)
+add_subdirectory(tcp2_client)
 
 
 if (ASE_BUILD_DEMO)
