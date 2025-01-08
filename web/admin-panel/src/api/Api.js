@@ -122,7 +122,7 @@ export async function connect(config:ConnectionConfigDTO) {
         loggedIn = true;
         const data = await response.text();
         console.log("response:", data);
-        return data;
+        return JSON.parse(data);
     } catch (error) {
         console.log("error: " + error);
         console.error("Error logging in to server ", error);
@@ -130,16 +130,14 @@ export async function connect(config:ConnectionConfigDTO) {
     }
 }
 
-export async function disconnect(config:ConnectionConfigDTO) {
-    if (!loggedIn) {
-        return;
-    }
+export async function disconnect(connectionId: string) {
     try {
-        loggedIn = false;
 
-        console.log("connecting with: " + JSON.stringify(config));
         const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-            method: "POST"
+            method: "POST",
+            headers: {
+                "X-Connection-Id": connectionId,
+            },
         });
 
         if (!response.ok) {
@@ -147,13 +145,14 @@ export async function disconnect(config:ConnectionConfigDTO) {
             throw new Error(`HTTP error ${response.status}`);
         }
 
+        loggedIn = false;
+
         const data = await response.text();
-        console.log("logout: ", data);
-        return data;
+        return JSON.stringify(data);
     } catch (error) {
         console.log("error: " + error);
         console.error("Error logging in to server ", error);
-        throw error;
+        return {ok: false, message: error};
     }
 }
 
