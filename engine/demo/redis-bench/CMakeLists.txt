@@ -5,18 +5,30 @@ set(CMAKE_CXX_STANDARD 23)
 
 CPMAddPackage("gh:redis/hiredis#v1.2.0")
 
-add_executable(ase_bench main_ase.cpp)
-target_link_libraries(ase_bench db_static)
-target_include_directories(ase_bench PRIVATE include)
+add_executable(bench_dma main_dma.cpp)
+target_link_libraries(bench_dma db_static)
+target_include_directories(bench_dma PRIVATE include)
 
-add_executable(redis_bench main_redis.cpp)
-target_link_libraries(redis_bench hiredis db_static)
-target_include_directories(redis_bench PRIVATE include)
+add_executable(bench_dma_parallel main_dma_parallel.cpp)
+target_link_libraries(bench_dma_parallel db_static)
+target_include_directories(bench_dma_parallel PRIVATE include)
 
-add_executable(tcp2_bench main_tcp2.cpp)
-target_link_libraries(tcp2_bench client_static)
-target_include_directories(tcp2_bench PRIVATE include)
+add_executable(bench_redis main_redis.cpp)
+target_link_libraries(bench_redis hiredis db_static)
+target_include_directories(bench_redis PRIVATE include)
 
-add_executable(tcp2_buff_bench main_tcp2_buffered.cpp)
-target_link_libraries(tcp2_buff_bench client_static)
-target_include_directories(tcp2_buff_bench PRIVATE include)
+add_executable(bench_redis_parallel main_redis_parallel.cpp)
+target_link_libraries(bench_redis_parallel hiredis db_static)
+target_include_directories(bench_redis_parallel PRIVATE include)
+
+add_executable(bench_tcp2 main_tcp2.cpp)
+target_link_libraries(bench_tcp2 client_static)
+target_include_directories(bench_tcp2 PRIVATE include)
+
+add_executable(bench_tcp2_buff main_tcp2_buffered.cpp)
+target_link_libraries(bench_tcp2_buff client_static)
+target_include_directories(bench_tcp2_buff PRIVATE include)
+
+add_executable(bench_tcp2_buff_parallel main_tcp2_buffered_parallel.cpp)
+target_link_libraries(bench_tcp2_buff_parallel client_static)
+target_include_directories(bench_tcp2_buff_parallel PRIVATE include)
