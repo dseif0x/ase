@@ -27,7 +27,7 @@ void do_run(const std::string& name, const std::unordered_map<std::string, std::
 
 template<typename T>
 int run_test(const char* name, T&& generate_test_data) {
-    std::cout << "Running ASE Parallel Test: " << name << std::endl;
+    std::cout << "Running DMA Parallel Test: " << name << std::endl;
     DB::destroy();
     auto test_data = generate_test_data();
 
