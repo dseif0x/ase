@@ -64,10 +64,12 @@ void shmem::close() {
     if (base) {
         UnmapViewOfFile(base);
         base = nullptr;
+        close_data_handle();
     }
     if (metadata) {
         UnmapViewOfFile(metadata);
         metadata = nullptr;
+        close_meta_handle();
     }
 }
 

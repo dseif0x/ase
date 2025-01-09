@@ -6,6 +6,7 @@
  */
 
 #include "shrwlock.h"
+#include <stdexcept>
 #include <thread>
 
 shrwlock::shrwlock() : state(0) {}
