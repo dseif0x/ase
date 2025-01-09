@@ -37,7 +37,7 @@ namespace tcp2_utils {
     void client_acceptor(std::atomic<bool> &kys, ASE::ACL &acl, DB &db, int port, int max_clients);
 #ifdef UNIX
     // following function needs system dependent implementation as well as possibly different signatures
-    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db);
+    void client_coding_setup(std::atomic<bool> &kys, int client_socket, ASE::ACL &acl, DB &db);
 #elifdef WIN
     // following function needs system dependent implementation as well as possibly different signatures
     void client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, ASE::ACL &acl, DB &db);
