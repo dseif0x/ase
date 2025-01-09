@@ -26,14 +26,14 @@ void shrwlock::lock() {
 
 void shrwlock::unlock() {
     int expected = -1;
-    if (!state.compare_exchange_strong(expected, 0, std::memory_order_seq_cst, std::memory_order_seq_cst)) {
+    if (!state.compare_exchange_strong(expected, 0, std::memory_order_acquire)) {
         throw std::runtime_error("Unlock called without an exclusive lock");
     }
 }
 
 bool shrwlock::try_lock() {
     int expected = 0;
-    return state.compare_exchange_strong(expected, -1, std::memory_order_seq_cst, std::memory_order_seq_cst);
+    return state.compare_exchange_strong(expected, -1, std::memory_order_acquire);
 }
 
 void shrwlock::lock_shared() {
@@ -62,8 +62,8 @@ bool shrwlock::try_lock_shared() {
             // Successfully took a shared lock
             return true;
         }
-        // if CAS failed but current >= 0 still, we’ll retry
-        // if current changed to negative, we’ll break
+        // if CAS failed but current >= 0 still, weï¿½ll retry
+        // if current changed to negative, weï¿½ll break
     }
     // If we exit the loop, it means state < 0 => exclusive locked
     return false;
