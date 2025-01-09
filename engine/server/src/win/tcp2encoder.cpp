@@ -11,8 +11,8 @@
 #include "tcp2_coding.h"
 #include <thread>
 
-TCP2Encoder::TCP2Encoder(const SOCKET client_socket, std::mutex *pipe_lock) : GenericEncoder(),
-                                                                           client_socket(client_socket), pipe_lock(pipe_lock) {
+TCP2Encoder::TCP2Encoder(const SOCKET client_socket) : GenericEncoder(),
+                                                                           client_socket(client_socket) {
 }
 
 bool TCP2Encoder::write_data() {
@@ -21,7 +21,6 @@ bool TCP2Encoder::write_data() {
     for (int x = 0; x < data.second; x++) std::cout << "[" << (int)(unsigned char)data.first.get()[x] << "]";
     std::cout << std::endl;
     {
-        std::lock_guard<std::mutex> lock(*this->pipe_lock);
         if (this->client_socket == INVALID_SOCKET) return false;
         if (send(this->client_socket, reinterpret_cast<const char*>(data.first.get()), data.second, 0) == SOCKET_ERROR) return false;
     }

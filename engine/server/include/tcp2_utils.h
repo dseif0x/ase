@@ -222,7 +222,7 @@ namespace tcp2_utils {
          * @param info Reference to the CommandInfo struct containing additional information for the function.
          * @return int returns 0 on success or -1 on error.
         */
-        //int safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        int safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
          * @brief Unsafely follows a reference for the defined jumps.
@@ -232,7 +232,7 @@ namespace tcp2_utils {
          * @param info Reference to the CommandInfo struct containing additional information for the function.
          * @return int returns 0 on success or -1 on error.
         */
-        //int forced_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+        int forced_follow(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
     }
 
     namespace permissions {

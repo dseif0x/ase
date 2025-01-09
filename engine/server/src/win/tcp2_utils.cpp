@@ -121,9 +121,8 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ASE::ACL &acl, DB &db, 
 }
 
 void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, SOCKET client_socket, ASE::ACL &acl, DB &db) {
-    std::mutex pipe_lock;
-    TCP2Decoder decoder{client_socket, &pipe_lock};
-    TCP2Encoder encoder{client_socket, &pipe_lock};
+    TCP2Decoder decoder{client_socket};
+    TCP2Encoder encoder{client_socket};
     client_main_thread(kys, decoder, encoder, acl, db);
     closesocket(client_socket);
     std::cout << "close is called" << std::endl;
