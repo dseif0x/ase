@@ -3,6 +3,7 @@ package com.ase.backend.controller;
 import com.ase.backend.controller.dto.LoginRequest;
 import com.ase.backend.service.ConnectionService;
 import com.ase.exception.TCPClientException;
+import com.ase.utility.WebReturn;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,7 +14,6 @@ import java.io.IOException;
  */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:3000")
 public class AuthController {
 
     private final ConnectionService connectionService;
@@ -34,9 +34,9 @@ public class AuthController {
      * @return A response indicating success or failure.
      */
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<WebReturn<String>> login(@RequestBody LoginRequest request) {
         try {
-            connectionService.createClient(
+            String id = connectionService.openConnection(
                 request.getHost(),
                 request.getPort(),
                 request.getVersion(),
@@ -44,9 +44,10 @@ public class AuthController {
                 request.getUsername(),
                 request.getPassword()
             );
-            return ResponseEntity.ok("Login successful. DB client created.");
+
+            return ResponseEntity.ok(WebReturn.success(id));
         } catch (IOException | TCPClientException e) {
-            return ResponseEntity.status(500).body("Login failed: " + e.getMessage());
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
 
@@ -54,8 +55,8 @@ public class AuthController {
      * Logs out by removing and disconnecting the DatabaseClient.
      */
     @PostMapping("/logout")
-    public ResponseEntity<String> logout() {
-        connectionService.logout();
-        return ResponseEntity.ok("Logged out successfully");
+    public ResponseEntity<WebReturn<String>> logout(@RequestHeader("X-Connection-Id") String connectionId) {
+        connectionService.logout(connectionId);
+        return ResponseEntity.ok(WebReturn.success("Logged out successfully"));
     }
 }

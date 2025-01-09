@@ -28,7 +28,24 @@ public class ConnectionInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request,
                              HttpServletResponse response,
                              Object handler) throws Exception {
-        if (connectionService.getClient() == null) {
+
+        request.getHeaderNames().asIterator().forEachRemaining(header ->
+            System.out.println(header + ": " + request.getHeader(header))
+        );
+
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return false; // Skip further processing
+        }
+
+        String connectionId = request.getHeader("X-Connection-Id");
+        if (connectionId == null) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                "Missing X-Connection-Id header.");
+            return false;
+        }
+
+        if (connectionService.getClient(connectionId) == null) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
                 "No DatabaseClient connection. Please log in first.");
             return false;

@@ -14,7 +14,7 @@
 #include "tcp2_coding.h"
 
 
-constexpr int BUFFER_SIZE = 8;
+constexpr int BUFFER_SIZE = 128;
 
 
 /**

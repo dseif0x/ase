@@ -17,7 +17,7 @@ public interface DBClientDao {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
      * or an error description if retrieval fails or is stopped.
      */
-    WebReturn<TcpGeneral> listByKey(String key);
+    Future<WebReturn<TcpGeneral>> listByKey(String key, String connectionId);
 
     /**
      * Retrieves the value associated with the given key.
@@ -26,7 +26,7 @@ public interface DBClientDao {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
      * or an error description if retrieval fails or is stopped.
      */
-    Future<WebReturn<TcpGeneral>> getByKey(String key);
+    Future<WebReturn<TcpGeneral>> getByKey(String key, String connectionId);
 
     /**
      * Sets the provided value for the given key.
@@ -35,14 +35,14 @@ public interface DBClientDao {
      * @param value The {@link TcpGeneral} value which is to be set or updated.
      * @return A {@link WebReturn} containing an integer success code or error details.
      */
-    Future<WebReturn<Integer>> setByKey(String key, TcpGeneral value, boolean force);
+    Future<WebReturn<Integer>> setByKey(String key, TcpGeneral value, boolean force, String connectionId);
 
     /**
      * Sends a stop command to the in-memory database, which interrupts ongoing operations.
      *
      * @return A {@link WebReturn} indicating success or an error message if the stop failed.
      */
-    WebReturn<Integer> stop();
+    WebReturn<Integer> stop(String connectionId);
 
     /**
      * Deletes a key from the in-memory database.
@@ -50,7 +50,7 @@ public interface DBClientDao {
      * @param key the key to delete
      * @return a {@link WebReturn} indicating success or containing an error message
      */
-    WebReturn<Integer> deleteKey(String key);
+    WebReturn<Integer> deleteKey(String key, String connectionId);
 
     /**
      * Pings the server to verify communication and synchronization.
@@ -58,7 +58,7 @@ public interface DBClientDao {
      * @param packageToSend an unsigned integer data payload
      * @return a {@link WebReturn} indicating success or containing an error message
      */
-    WebReturn<Integer> ping(long packageToSend);
+    WebReturn<Integer> ping(long packageToSend, String connectionId);
 
     /**
      * Updates the scope permissions of a user.
@@ -67,7 +67,7 @@ public interface DBClientDao {
      * @param key      The scope key to be added, edited, or deleted.
      * @param options  The permission options for the scope:
      */
-    WebReturn<Integer> updateScope(String username, String key, byte options);
+    WebReturn<Integer> updateScope(String username, String key, byte options, String connectionId);
 
     /**
      * Creates a new user with the given username and password.
@@ -77,5 +77,16 @@ public interface DBClientDao {
      * @param options  The options for the new user.
      * @return a {@link WebReturn} indicating success or containing an error message
      */
-    WebReturn<Integer> createUser(String username, String password, byte options);
+    WebReturn<Integer> createUser(String username, String password, byte options, String connectionId);
+
+    /**
+     * Follows a reference in the database.
+     *
+     * @param key The key of the reference to follow.
+     * @param maxJump The maximum number of jumps to follow.
+     * @param isSafe Whether to follow the reference safely.
+     * @param connectionId The connection ID.
+     * @return A {@link WebReturn} containing the result of the follow operation.
+     */
+    WebReturn<TcpGeneral> follow(String key, long maxJump, boolean isSafe, String connectionId);
 }

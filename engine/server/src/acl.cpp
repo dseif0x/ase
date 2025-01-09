@@ -89,12 +89,8 @@ bool ASE::ACL::save_to_disk(std::string path) {
 }
 
 bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permissions) {
-    this->permissions.print();
     auto *cur_node = &this->permissions;
-    std::cout << std::endl;
     for (int i = 0; i < key.size()+1; i++) {
-        cur_node->print();
-        std::cout << " -> i: " << i << std::endl;
         auto &cur_map = std::get<CopiedValue::copied_map_t>(cur_node->data);
         if (!cur_map.contains("$")) return false;
         unsigned char cur_perm = std::get<int>(cur_map["$"]->data);
@@ -112,11 +108,12 @@ bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permiss
 // if new permissions are added above existing ones, the old ones are dropped, even if the new permissions are lower.
 //  this allows the deletion of permissions.
 void ACLUser::update_key_permission(std::vector<std::string> key, unsigned char permissions) {
+#ifdef DEBUG
     std::cout << "permissions before:";
     this->permissions.print();
     std::cout << std::endl;
+#endif
     auto *cur_node = &this->permissions;
-    std::cout << std::endl;
     int i = 0;
     for (auto &x : key) {
         auto &cur_map = std::get<CopiedValue::copied_map_t>(cur_node->data);
@@ -142,9 +139,11 @@ void ACLUser::update_key_permission(std::vector<std::string> key, unsigned char 
     CopiedValue::copied_map_t map;
     map.emplace("$", std::make_unique<CopiedValue>(std::move(perms)));
     cur_node->data.emplace<CopiedValue::copied_map_t>(std::move(map));
+#ifdef DEBUG
     std::cout << "permissions after:";
     this->permissions.print();
     std::cout << std::endl;
+#endif
 }
 
 bool ACLUser::check_pwd(const std::string &pwd) {

@@ -107,10 +107,9 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, TCP_ACL &acl, DB &db, i
     std::cout << "server closed" << std::endl;
 }
 
-void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, TCP_ACL &acl, DB &db) {
-    std::mutex pipe_lock;
-    TCP2Decoder decoder{client_socket, &pipe_lock};
-    TCP2Encoder encoder{client_socket, &pipe_lock};
+void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, ASE::ACL &acl, DB &db) {
+    TCP2Decoder decoder{client_socket};
+    TCP2Encoder encoder{client_socket};
     client_main_thread(kys, decoder, encoder, acl, db);
     close(client_socket);
     std::cout << "close is called" << std::endl;
