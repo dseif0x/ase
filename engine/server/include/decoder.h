@@ -163,7 +163,7 @@ protected:
 
 public:
 #ifdef UNIX
-    TCP2Decoder(int client_socket;
+    TCP2Decoder(int client_socket);
 #elifdef WIN
     TCP2Decoder(SOCKET client_socket);
 #endif
