@@ -20,6 +20,12 @@ struct shmem_meta {
     shrwlock meta_mutex;
 };
 
+struct dump_meta {
+    std::size_t version{1};
+    std::size_t alloc_size{1024*1024};
+    std::size_t first_free{0};
+};
+
 /**
  * @brief Manages shared memory segments with metadata and data handling.
  *
@@ -134,6 +140,11 @@ public:
 
     template <typename T>
     friend class offset_ptr;
+
+    using dump_t = std::pair<dump_meta, std::vector<uint8_t>>;
+
+    dump_t dump_data();
+    void load_data(const dump_t& data);
 };
 
 template <typename T>

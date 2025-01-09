@@ -27,6 +27,9 @@ public:
     DB();
     ~DB();
 
+    shmem::dump_t dump_data();
+    void load_data(const shmem::dump_t& data);
+
     static void destroy();
 
     std::size_t get_used_memory();
