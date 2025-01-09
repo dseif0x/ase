@@ -7,6 +7,11 @@
 
 #ifndef DECODER_H
 #define DECODER_H
+
+#if defined(WIN)
+#include <winsock2.h>
+#endif
+
 #include <atomic>
 #include <deque>
 #include <mutex>
@@ -14,10 +19,6 @@
 
 #include "sys/time.h"
 #include "db_types.h"
-
-#if defined(WIN)
-#include <winsock2.h>
-#endif
 
 constexpr int DECODER_BUFFER_SIZE = 8;
 /**

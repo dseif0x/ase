@@ -5,6 +5,7 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
+#include "decoder.h"
 
 #include "acl.h"
 
@@ -12,7 +13,6 @@
 #include <tcp2_utils.h>
 #include <vector>
 
-#include "decoder.h"
 
 ACLUser::ACLUser(const std::string& password, bool isAdmin)
     : pwd(password), admin(isAdmin) {

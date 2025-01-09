@@ -8,6 +8,11 @@
 
 #ifndef TCP2_UTILS_H
 #define TCP2_UTILS_H
+
+#if defined(WIN)
+#include "winsock2.h"
+#endif
+
 #include "acl.h"
 #include <atomic>
 #include <db.h>
@@ -16,9 +21,6 @@
 #include "decoder.h"
 #include "encoder.h"
 
-#if defined(WIN)
-#include "winsock2.h"
-#endif
 
 struct CommandInfo {
     ACLUser *user;

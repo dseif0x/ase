@@ -1,6 +1,8 @@
 #ifndef TESTCODING_H
 #define TESTCODING_H
 
+#include "decoder.h"
+
 class TestGenericDecoder : public GenericDecoder {
 public:
     std::vector<unsigned char> get_bytes(size_t bytes) override {

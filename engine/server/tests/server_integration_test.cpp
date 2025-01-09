@@ -5,18 +5,6 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
-#include <gtest/gtest.h>
-#include "tcp2_server.h"
-#include "encoder.h"
-#include "decoder.h"
-#include "TestCoding.h"
-#include "acl.h"
-
-#include <string>
-#include <cstring>
-#include <unistd.h>
-#include <utils.h>
-
 #if defined(UNIX)
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -25,6 +13,16 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
+
+#include "encoder.h"
+#include <gtest/gtest.h>
+#include "tcp2_server.h"
+#include "TestCoding.h"
+#include "acl.h"
+
+#include <string>
+#include <unistd.h>
+#include <utils.h>
 
 void safe_sleep(unsigned int milliseconds) {
     auto start_time = std::chrono::steady_clock::now();

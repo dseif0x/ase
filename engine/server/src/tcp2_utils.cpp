@@ -4,6 +4,7 @@
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
+#include "decoder.h"
 #include <iostream>
 #include <thread>
 #include "tcp2_utils.h"
@@ -11,7 +12,6 @@
 #include <stopwatch.h>
 
 #include "tcp2_server.h"
-#include "decoder.h"
 #include "acl.h"
 
 // returns -1: some non-critical error occurred, not executed and decoder is cleared
