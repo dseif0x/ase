@@ -25,6 +25,10 @@ add_executable(bench_tcp2 main_tcp2.cpp)
 target_link_libraries(bench_tcp2 client_static)
 target_include_directories(bench_tcp2 PRIVATE include)
 
+add_executable(bench_tcp2_parallel main_tcp2_parallel.cpp)
+target_link_libraries(bench_tcp2_parallel client_static)
+target_include_directories(bench_tcp2_parallel PRIVATE include)
+
 add_executable(bench_tcp2_buff main_tcp2_buffered.cpp)
 target_link_libraries(bench_tcp2_buff client_static)
 target_include_directories(bench_tcp2_buff PRIVATE include)
