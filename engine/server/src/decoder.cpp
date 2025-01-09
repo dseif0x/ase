@@ -5,10 +5,10 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
+#include "decoder.h"
 #include <iostream>
 #include <tcp2_server.h>
 #include <thread>
-#include "decoder.h"
 #include <fstream>
 #include <optional>
 

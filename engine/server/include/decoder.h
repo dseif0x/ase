@@ -7,6 +7,11 @@
 
 #ifndef DECODER_H
 #define DECODER_H
+
+#if defined(WIN)
+#include <winsock2.h>
+#endif
+
 #include <atomic>
 #include <deque>
 #include <mutex>
@@ -16,9 +21,6 @@
 #include "sys/time.h"
 #include "db_types.h"
 #include "tcp2_server.h"
-
-// todo replace symbol with correct one
-#define UNIX
 
 constexpr int DECODER_BUFFER_SIZE = BUFFER_SIZE;
 /**
@@ -139,16 +141,17 @@ class TCP2Decoder : public GenericDecoder {
     // error message if tcp is closed or error
     std::string error_msg;
 
-#ifdef UNIX
+#if defined(UNIX)
     // tcp stuff
     int client_socket;
+#elif defined(WIN)
+    // tcp stuff for win
+    SOCKET client_socket;
+#endif
     struct timeval timeout{};
     fd_set readfds{};
     char tcp_buffer[DECODER_BUFFER_SIZE]{};
     ssize_t bytesReceived{};
-#elif define WIN32
-    // tcp stuff for win
-#endif
 protected:
     /**
      * @brief Retrieves a specified number of bytes from the buffer.
@@ -161,6 +164,8 @@ protected:
 public:
 #ifdef UNIX
     TCP2Decoder(int client_socket);
+#elifdef WIN
+    TCP2Decoder(SOCKET client_socket);
 #endif
 
     void read_data() override;
