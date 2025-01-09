@@ -25,8 +25,10 @@ class ReadWriteClient {
     static void read_data(TCP2Decoder &decoder);
 
 public:
-    ReadWriteClient(const std::string &ip, int port);
+    ReadWriteClient(const std::string &ip, int port, const std::string &name, const std::string &pwd);
     ~ReadWriteClient();
+    bool create_new_admin(const std::string &name, const std::string &pwd);
+    bool delete_user(const std::string &name);
     bool simple_set(const std::string &key, CopiedValue &val);
     std::optional<CopiedValue> simple_get(const std::string &key);
 

@@ -9,9 +9,7 @@
 #include <db.h>
 #include "read_write_client.h"
 
-int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data) {
-    ReadWriteClient client{"127.0.0.1", 42069};
-    std::this_thread::sleep_for(std::chrono::microseconds(100)); // time for old connections to clear
+int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client) {
     stopwatch s;
 
     // generate data array
@@ -72,19 +70,35 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
 
 template<typename T>
 int run_test(const char* name, T&& generate_test_data) {
+    constexpr int num_threads = 2;
     std::cout << "Running TCP2 Locally-Buffered Parallel - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
 
-    constexpr int num_threads = 2;
+    std::vector<std::unique_ptr<ReadWriteClient>> clients;
+
+    // create users and connect
+    ReadWriteClient client{"127.0.0.1", 42069, "admin", "rootpwd"};
+    for (int x = 0; x < num_threads; x++) {
+        client.create_new_admin("admin"+std::to_string(x), "pwd");
+        clients.emplace_back(std::make_unique<ReadWriteClient>("127.0.0.1", 42069, "admin"+std::to_string(x), "pwd"));
+    }
+
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data));
+        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i])));
     }
 
     for (auto& thread : threads) {
         thread->join();
     }
+
+    // delete users from server
+    for (int x = 0; x < num_threads; x++) {
+        client.delete_user("admin"+std::to_string(x));
+    }
+
+    client.disconnect();
 
     return 0;
 }
