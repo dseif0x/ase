@@ -224,30 +224,26 @@ int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encod
     bool user_admin = (info.self_perms & permissions::admin) > 0 && info.user->is_admin();
     if (len == 0) {
         if (user_admin) {
-            std::cout << "opt 1" << std::endl;
             // get all usernames
             usernames = info.acl.get_all_usernames();
         } else {
-            std::cout << "opt 2" << std::endl;
             // only self
             usernames.push_back(info.self_name);
         }
     } else {
-        std::cout << "opt 3" << std::endl;
         // read usernames from decoder
         for (int x = 0; x < len; x++) {
             std::string name = decoder.to_string();
-            std::cout << "cur name: " << name << std::endl;
-            if (!info.user->is_admin() && info.self_name != name) {
-                encoder.clear_buffer();
-                encoder.from_nak();
-                encoder.encode_error(errors::permission_denied);
-                return -2; // not easily recoverable, as other names may follow
-            }
             if ((info.self_perms & permissions::admin) <= 0 && info.self_name != name) {
                 encoder.clear_buffer();
                 encoder.from_nak();
                 encoder.encode_error(errors::permission_denied_self);
+                return -2; // not easily recoverable, as other names may follow
+            }
+            if (!info.user->is_admin() && info.self_name != name) {
+                encoder.clear_buffer();
+                encoder.from_nak();
+                encoder.encode_error(errors::permission_denied);
                 return -2; // not easily recoverable, as other names may follow
             }
             if (!info.acl.has_user(name)) {
