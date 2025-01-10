@@ -14,10 +14,9 @@
 #include "tcp2_utils.h"
 #include "tcp2_server.h"
 
-TCP2Decoder::TCP2Decoder(const SOCKET client_socket): GenericDecoder(),
-                                                                          client_socket(client_socket), kys(false) {
+TCP2Decoder::TCP2Decoder(const SOCKET client_socket): GenericDecoder(), client_socket(client_socket), kys(false) {
     timeout.tv_sec = 0;
-    timeout.tv_usec = 10000;
+    timeout.tv_usec = 10;
 }
 
 void TCP2Decoder::read_data() {
@@ -43,9 +42,7 @@ void TCP2Decoder::read_data() {
             this->add_to_buffer(unsigned_buffer);
         }
     } else if (sel == 0) {
-        // in case of timeout sleep for a bit to give others time to access pipe mutex
-        // this way large data pack would not be slowed down, as we only sleep in case of nothing arriving
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::yield();
     } else {
         std::cerr << "select error: " << WSAGetLastError() << std::endl;
         this->error_msg = "error: select: " + std::to_string(WSAGetLastError());
