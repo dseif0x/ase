@@ -8,6 +8,7 @@
 #include "test_data.h"
 #include <thread>
 #include <hiredis.h>
+#include <vector>
 
 int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data) {
     redisContext* c = redisConnect("127.0.0.1", 6379);

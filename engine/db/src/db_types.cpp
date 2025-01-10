@@ -46,6 +46,41 @@ CopiedValue::CopiedValue(const Value &value, shmem& mem) {
     }
 }
 
+CopiedValue CopiedValue::make_deep_copy(CopiedValue &val) {
+    CopiedValue res{};
+    res.type = val.type;
+    if (std::holds_alternative<bool>(val.data)) {
+        res.data = std::get<bool>(val.data);
+    } else if (std::holds_alternative<int>(val.data)) {
+        res.data = std::get<int>(val.data);
+    } else if (std::holds_alternative<double>(val.data)) {
+        res.data = std::get<double>(val.data);
+    } else if (std::holds_alternative<std::string>(val.data)) {
+        res.data = std::get<std::string>(val.data);
+    } else if (std::holds_alternative<copied_pair_t>(val.data)) {
+        auto &pair = res.data.emplace<copied_pair_t>();
+        auto &temp = std::get<copied_pair_t>(val.data);
+        //pair.first = (std::make_unique<CopiedValue>(temp.first ? std::move(make_deep_copy(*temp.first)) : std::nullopt));
+        //pair.second = (std::make_unique<CopiedValue>(temp.second ? std::move(make_deep_copy(*temp.second)) : std::nullopt));
+        pair.first = (std::make_unique<CopiedValue>(std::move(make_deep_copy(*temp.first))));
+        pair.second = (std::make_unique<CopiedValue>(std::move(make_deep_copy(*temp.second))));
+    } else if (std::holds_alternative<copied_array_t>(val.data)) {
+        auto &vec = res.data.emplace<copied_array_t>();
+        auto &temp = std::get<copied_array_t>(val.data);
+        for (auto &x : temp) {
+            vec.emplace_back(std::move(make_deep_copy(x)));
+        }
+    } else if (std::holds_alternative<copied_map_t>(val.data)) {
+        auto &map = res.data.emplace<copied_map_t>();
+        auto &temp = std::get<copied_map_t>(val.data);
+        for (auto &[key, value] : temp) {
+            //map.emplace(key, std::make_unique<CopiedValue>(value ? std::move(make_deep_copy(*value)) : std::nullopt));
+            map.emplace(key, std::make_unique<CopiedValue>(std::move(make_deep_copy(*value))));
+        }
+    }
+    return res;
+}
+
 std::string CopiedValue::get_python_style(CopiedValue &val) {
     std::string res = "";
     if (val.type == ValueType::INT) {

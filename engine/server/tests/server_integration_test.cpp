@@ -1314,3 +1314,126 @@ TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
 }
+
+TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    // create user test1 pwd
+    ASSERT_TRUE(client.send_message(make_hex_vector("80 05 7465737431 03 707764 00")));
+    auto res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    // update scope to read only for test1
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 7465737431 01 2e 01")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    TestGenericDecoder decoder{};
+
+    // request complete user perms
+    ASSERT_TRUE(client.send_message(make_hex_vector("84 00")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() > 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+    decoder._add_to_buffer(res);
+    ASSERT_TRUE(decoder.to_acknak() == 1);
+    auto gen = decoder.to_general();
+    ASSERT_TRUE(gen);
+    std::string cor1 = "{test1: (false, {$: 1}), admin: (true, {$: 7})}";
+    std::string cor2 = "{admin: (true, {$: 7}), test1: (false, {$: 1})}";
+    ASSERT_TRUE(CopiedValue::get_python_style(*gen) == cor1 || CopiedValue::get_python_style(*gen) == cor2);
+    ASSERT_TRUE(decoder.is_empty());
+
+    // request admin and test1 data
+    ASSERT_TRUE(client.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() > 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+    decoder._add_to_buffer(res);
+    ASSERT_TRUE(decoder.to_acknak() == 1);
+    auto gen2 = decoder.to_general();
+    ASSERT_TRUE(gen2);
+    ASSERT_TRUE(CopiedValue::get_python_style(*gen2) == cor1 || CopiedValue::get_python_style(*gen2) == cor2);
+    ASSERT_TRUE(decoder.is_empty());
+
+    // requesting data of wrong user
+    ASSERT_TRUE(client.send_message(make_hex_vector("84 02 05 7461737465 05 7465737431")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // user not found
+
+    client.close_connection();
+
+    // login test1
+    DumbTCPClient user("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(user.connect_to_server());
+
+    std::vector<unsigned char> client_information_package2{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack2 = make_hex_vector("FF 05 7465737431 03 707764");
+
+    ASSERT_TRUE(user.send_message(client_information_package2));
+    auto server_information_package2 = user.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package2.size() == 10);
+    ASSERT_TRUE(server_information_package2[0] == 0xFF);
+    ASSERT_TRUE(user.send_message(user_info_pack2));
+    auto logged_in2 = user.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in2, {0xFF}));
+
+    // request complete user perms (no admin so only test1 will be returned)
+    ASSERT_TRUE(user.send_message(make_hex_vector("84 00")));
+    res = user.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() > 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+    decoder._add_to_buffer(res);
+    ASSERT_TRUE(decoder.to_acknak() == 1);
+    gen = decoder.to_general();
+    ASSERT_TRUE(gen);
+    std::string correct = "{test1: (false, {$: 1})}";
+    ASSERT_TRUE(CopiedValue::get_python_style(*gen) == correct);
+    ASSERT_TRUE(decoder.is_empty());
+
+    // request data of admin -> permission denied
+    ASSERT_TRUE(user.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
+    res = user.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00);
+
+    user.close_connection();
+
+    // login test1
+    DumbTCPClient user3("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(user3.connect_to_server());
+
+    std::vector<unsigned char> client_information_package3{0x00, 0x00, 0x07};
+    std::vector<unsigned char> user_info_pack3 = make_hex_vector("FF 05 7465737431 03 707764");
+
+    ASSERT_TRUE(user3.send_message(client_information_package3));
+    auto server_information_package3 = user3.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package3.size() == 10);
+    ASSERT_TRUE(server_information_package3[0] == 0xFF);
+    ASSERT_TRUE(user3.send_message(user_info_pack3));
+    auto logged_in3 = user3.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in3, {0xFF}));
+
+    // request data of admin -> SELF permission denied
+    ASSERT_TRUE(user3.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
+    res = user3.receive_message(wait_time_error);
+    ASSERT_TRUE(res.size() >= 3);
+    ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xF0);
+}

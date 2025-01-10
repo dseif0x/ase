@@ -80,6 +80,13 @@ namespace ASE {
          * @brief Prints detailed information about all users.
          */
         void print_full_info();
+
+        /**
+        * @brief returns all usernames
+        */
+        std::vector<std::string> get_all_usernames();
+
+        std::optional<CopiedValue> get_user_permissions_pair(std::string &name);
     };
 }
 
@@ -87,9 +94,9 @@ namespace ASE {
  * @brief Represents a user in the ACL system with specific permissions and attributes.
  */
 class ACLUser {
-    //todo might have to add a lock for access of userdata
     std::string pwd;
     bool admin;
+    std::unique_ptr<std::mutex> user_lock;
 
     // Tree representation of permissions
     // All elements except for the leafs are of type MAP
@@ -125,6 +132,7 @@ public:
 
     void set_permissions(CopiedValue &value);
     void serialize_user(std::vector<CopiedValue> &value);
+    CopiedValue get_user_permissions_pair();
 
     /**
      * @brief Generates a string representation of the user's data.

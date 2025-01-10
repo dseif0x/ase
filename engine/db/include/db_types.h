@@ -110,6 +110,12 @@ struct CopiedValue {
     CopiedValue(const Value& value, shmem& mem);
 
     /**
+    * @brief Creates a deep copy of the provided CopiedValue. This should only be used when absolutely necessary. Use move instead.
+    * @return copy of the provided value.
+    */
+    static CopiedValue make_deep_copy(CopiedValue &val);
+
+    /**
      * Returns a python-style representation of the provided CopiedValue.
      */
     static std::string get_python_style(CopiedValue &val);

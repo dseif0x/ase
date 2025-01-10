@@ -13,9 +13,8 @@
 #include <tcp2_utils.h>
 #include <vector>
 
-
 ACLUser::ACLUser(const std::string& password, bool isAdmin)
-    : pwd(password), admin(isAdmin) {
+    : pwd(password), admin(isAdmin), user_lock(std::make_unique<std::mutex>()) {
     CopiedValue perms;
     perms.type = ValueType::INT;
     perms.data = isAdmin ? tcp2_utils::permissions::all : tcp2_utils::permissions::none;
@@ -29,7 +28,8 @@ ACLUser::ACLUser(const std::string& password, bool isAdmin)
 
 
 ASE::ACL::ACL() {
-    this->users["admin"] = ACLUser("rootpwd", true);
+    auto temp = ACLUser("rootpwd", true);
+    this->users.emplace("admin", std::move(temp));
 }
 
 bool ASE::ACL::load_from_disk(std::string path) {
@@ -89,6 +89,7 @@ bool ASE::ACL::save_to_disk(std::string path) {
 }
 
 bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permissions) {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
     auto *cur_node = &this->permissions;
     for (int i = 0; i < key.size()+1; i++) {
         auto &cur_map = std::get<CopiedValue::copied_map_t>(cur_node->data);
@@ -108,6 +109,7 @@ bool ACLUser::has_permission(std::vector<std::string> key, unsigned char permiss
 // if new permissions are added above existing ones, the old ones are dropped, even if the new permissions are lower.
 //  this allows the deletion of permissions.
 void ACLUser::update_key_permission(std::vector<std::string> key, unsigned char permissions) {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
 #ifdef DEBUG
     std::cout << "permissions before:";
     this->permissions.print();
@@ -147,19 +149,23 @@ void ACLUser::update_key_permission(std::vector<std::string> key, unsigned char 
 }
 
 bool ACLUser::check_pwd(const std::string &pwd) {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
     return this->pwd == pwd;
 }
 
 bool ACLUser::is_admin() {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
     return this->admin;
 }
 
 void ACLUser::set_permissions(CopiedValue &value) {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
     this->permissions = std::move(value);
 }
 
 
 void ACLUser::serialize_user(std::vector<CopiedValue> &value) {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
     CopiedValue pwd{};
     pwd.type = ValueType::STRING;
     pwd.data = this->pwd;
@@ -173,9 +179,25 @@ void ACLUser::serialize_user(std::vector<CopiedValue> &value) {
     value.emplace_back(std::move(this->permissions));
 }
 
+CopiedValue ACLUser::get_user_permissions_pair() {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
+    auto adm = std::make_unique<CopiedValue>();
+    adm->type = ValueType::BOOLEAN;
+    adm->data.emplace<bool>(this->admin);
+    auto perms = std::make_unique<CopiedValue>(CopiedValue::make_deep_copy(this->permissions));
+
+    CopiedValue res{};
+    res.type = ValueType::PAIR;
+    auto &pair = res.data.emplace<CopiedValue::copied_pair_t>();
+    pair.first = std::move(adm);
+    pair.second = std::move(perms);
+
+    return res;
+}
 
 
 std::string ACLUser::print_user_data() {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
     return this->pwd + (this->admin ? " [admin]" : "");
 }
 
@@ -221,7 +243,8 @@ bool ASE::ACL::update_key_permission(std::string user, std::vector<std::string> 
 bool ASE::ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (this->users.contains(username)) return false;
-    this->users[username] = ACLUser(pwd, is_admin);
+    auto temp = ACLUser(pwd, is_admin);
+    this->users.emplace(username, std::move(temp));
     return true;
 }
 
@@ -239,7 +262,20 @@ void ASE::ACL::print_full_info() {
     }
 }
 
+std::vector<std::string> ASE::ACL::get_all_usernames() {
+    std::lock_guard<std::mutex> lock(this->general_lock);
+    std::vector<std::string> res;
+    for (auto &x : this->users) res.push_back(x.first);
+    return res;
+}
+
+std::optional<CopiedValue> ASE::ACL::get_user_permissions_pair(std::string &name) {
+    if (!this->has_user(name)) return std::nullopt;
+    return this->users[name].get_user_permissions_pair();
+}
+
 void ACLUser::update_pwd(const std::string& pwd) {
+    std::unique_lock<std::mutex> lock(*this->user_lock);
     this->pwd = pwd;
 }
 
