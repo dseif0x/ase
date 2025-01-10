@@ -52,6 +52,9 @@ public class Utility {
 
     /** Command to change a user's password. */
     public static final byte CHANGE_PASSWORD_COMMAND = (byte) 0x83;
+
+    /** Command to get user permissions. */
+    public static final byte GET_USER_PERMISSIONS_COMMAND = (byte) 0x84;
     // --- END USER COMMANDS ---
 
 

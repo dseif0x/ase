@@ -11,8 +11,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -1374,5 +1373,65 @@ public class DatabaseClientCommandTest {
         assertFalse(result.isOk(), "Expected FOLLOW to fail with null key.");
         assertEquals("Key must not be null or empty.", result.getMessage(), "Expected error message for null key.");
         assertNull(result.getData(), "Expected no data on failure.");
+    }
+
+    @Test
+    void testGetUserPermissionsSuccessAllUsers() throws Exception {
+        TcpGeneral adminPermissions = TcpGeneral.ofKeyMap(new HashMap<>(Map.of("$", TcpGeneral.ofSimple(SimpleType.INT, 0x07))));
+        TcpGeneral user1Permissions = TcpGeneral.ofKeyMap(new HashMap<>(Map.of("$", TcpGeneral.ofSimple(SimpleType.INT, 0x03))));
+
+        TcpGeneral allPermissions = TcpGeneral.ofKeyMap(new HashMap<>(Map.of(
+            "admin", TcpGeneral.ofPair(TcpGeneral.ofSimple(SimpleType.BOOLEAN, true), adminPermissions),
+            "user1", TcpGeneral.ofPair(TcpGeneral.ofSimple(SimpleType.BOOLEAN, false), user1Permissions)
+        )));
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(Utility.ACK);
+        new DynamicDataWriter(serverInfo, serverResponseOut).writeGeneral(allPermissions);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<TcpGeneral> result = databaseClient.getUserPermissions(TcpGeneral.ofArray(new ArrayList<>()));
+
+        assertTrue(result.isOk(), "Expected GET USER PERMS to succeed with ACK.");
+        assertNull(result.getMessage(), "Expected no error message on success.");
+        assertNotNull(result.getData(), "Expected data on success.");
+        assertEquals(allPermissions, result.getData(), "Expected returned permissions to match the server response.");
+    }
+
+    @Test
+    void testGetUserPermissionsServerError() throws Exception {
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DataOutputStream dataOut = new DataOutputStream(serverResponseOut);
+
+        serverResponseOut.write(Utility.NAK);
+        dataOut.writeShort(0xFF00);
+        new DynamicDataWriter(serverInfo, serverResponseOut).writeString("Permission denied.");
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<TcpGeneral> result = databaseClient.getUserPermissions(TcpGeneral.ofArray(new ArrayList<>()));
+
+        assertFalse(result.isOk(), "Expected GET USER PERMS to fail with NAK.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("Permission denied."), "Expected the error message to indicate the server response.");
+        assertNotNull(result.getData(), "Expected data to contain the error code.");
+        assertEquals(0xFF00, result.getData().getValue(), "Error code should match the server response.");
+    }
+
+    @Test
+    void testGetUserPermissionsUnknownResponse() throws Exception {
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        serverResponseOut.write(0x12); // Unknown response
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        WebReturn<TcpGeneral> result = databaseClient.getUserPermissions(TcpGeneral.ofArray(new ArrayList<>()));
+
+        assertFalse(result.isOk(), "Expected GET USER PERMS to fail due to unknown response.");
+        assertNotNull(result.getMessage(), "Expected an error message.");
+        assertTrue(result.getMessage().contains("unknown response"), "Expected the error message to indicate an unknown response.");
+        assertNotNull(result.getData(), "Expected data to contain the response byte.");
+        assertEquals(0x12, result.getData().getValue(), "Expected the response byte to match.");
     }
 }

@@ -7,6 +7,7 @@ import com.ase.utility.*;
 import com.ase.utility.tcp.SimpleType;
 import com.ase.utility.tcp.TcpErrorCode;
 import com.ase.utility.tcp.TcpGeneral;
+import com.ase.utility.tcp.TcpGeneralType;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.*;
@@ -642,6 +643,64 @@ public class DatabaseClient {
             } else return WebReturn.error("Server responded with unknown response", (int) response);
         } catch (IOException e) {
             return WebReturn.error("Failed to send delete user command.");
+        } catch (TCPClientException e) {
+            return WebReturn.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Requests the permissions for the specified users from the server.
+     * Users requesting this information for others must have administrator privileges.
+     *
+     * @param usernames The list of usernames to query permissions for. If the list is empty, permissions for all users are requested.
+     * @return A {@link WebReturn} object containing the permissions as a {@link TcpGeneral}.
+     *         <ul>
+     *             <li><strong>Success:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code true}.</li>
+     *                     <li>{@code message} is {@code null}.</li>
+     *                     <li>{@code data} contains the permissions as a {@link TcpGeneral}.</li>
+     *                 </ul>
+     *             </li>
+     *             <li><strong>Failure:</strong>
+     *                 <ul>
+     *                     <li>{@code ok} is {@code false}.</li>
+     *                     <li>{@code message} contains the error description.</li>
+     *                     <li>{@code data} contains the error code if applicable.</li>
+     *                 </ul>
+     *             </li>
+     *         </ul>
+     */
+    public WebReturn<TcpGeneral> getUserPermissions(TcpGeneral usernames) {
+        try {
+            if (usernames == null) {
+                return WebReturn.error("Usernames must not be null.");
+            }
+
+            if (usernames.getType() != TcpGeneralType.ARRAY) {
+                return WebReturn.error("Usernames must be of type array.");
+            }
+
+            writer.writeByte(Utility.GET_USER_PERMISSIONS_COMMAND);
+            if (usernames.getArray().isEmpty()) {
+                writer.writeByte(0);
+            } else {
+                dataWriter.writeGeneral(usernames);
+            }
+
+            byte response = reader.readByte();
+
+            if (response == Utility.ACK) {
+                TcpGeneral result = dataReader.readGeneral();
+                return WebReturn.success(result);
+            } else if (response == Utility.NAK) {
+                WebReturn<Integer> error = readError();
+                return WebReturn.error(error.getMessage(), TcpGeneral.ofSimple(SimpleType.INT, error.getData()));
+            } else {
+                return WebReturn.error("Server responded with unknown response", TcpGeneral.ofSimple(SimpleType.INT, (int) response));
+            }
+        } catch (IOException e) {
+            return WebReturn.error("Failed to send GET USER PERMS command.");
         } catch (TCPClientException e) {
             return WebReturn.error(e.getMessage());
         }
