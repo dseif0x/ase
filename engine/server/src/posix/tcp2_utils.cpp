@@ -18,9 +18,9 @@
 #include <sys/select.h>
 
 #include "encoder.h"
+#include "acl.h"
 
-
-void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int port, int max_clients) {
+void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ASE::ACL &acl, DB &db, int port, int max_clients) {
     // Create server socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
@@ -107,7 +107,7 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ACL &acl, DB &db, int p
     std::cout << "server closed" << std::endl;
 }
 
-void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, ACL &acl, DB &db) {
+void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, ASE::ACL &acl, DB &db) {
     TCP2Decoder decoder{client_socket};
     TCP2Encoder encoder{client_socket};
     client_main_thread(kys, decoder, encoder, acl, db);
