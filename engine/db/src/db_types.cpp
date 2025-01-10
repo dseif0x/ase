@@ -60,8 +60,10 @@ CopiedValue CopiedValue::make_deep_copy(CopiedValue &val) {
     } else if (std::holds_alternative<copied_pair_t>(val.data)) {
         auto &pair = res.data.emplace<copied_pair_t>();
         auto &temp = std::get<copied_pair_t>(val.data);
-        pair.first = (std::make_unique<CopiedValue>(temp.first ? std::move(make_deep_copy(*temp.first)) : std::nullopt));
-        pair.second = (std::make_unique<CopiedValue>(temp.second ? std::move(make_deep_copy(*temp.second)) : std::nullopt));
+        //pair.first = (std::make_unique<CopiedValue>(temp.first ? std::move(make_deep_copy(*temp.first)) : std::nullopt));
+        //pair.second = (std::make_unique<CopiedValue>(temp.second ? std::move(make_deep_copy(*temp.second)) : std::nullopt));
+        pair.first = (std::make_unique<CopiedValue>(std::move(make_deep_copy(*temp.first))));
+        pair.second = (std::make_unique<CopiedValue>(std::move(make_deep_copy(*temp.second))));
     } else if (std::holds_alternative<copied_array_t>(val.data)) {
         auto &vec = res.data.emplace<copied_array_t>();
         auto &temp = std::get<copied_array_t>(val.data);
@@ -72,7 +74,8 @@ CopiedValue CopiedValue::make_deep_copy(CopiedValue &val) {
         auto &map = res.data.emplace<copied_map_t>();
         auto &temp = std::get<copied_map_t>(val.data);
         for (auto &[key, value] : temp) {
-            map.emplace(key, std::make_unique<CopiedValue>(value ? std::move(make_deep_copy(*value)) : std::nullopt));
+            //map.emplace(key, std::make_unique<CopiedValue>(value ? std::move(make_deep_copy(*value)) : std::nullopt));
+            map.emplace(key, std::make_unique<CopiedValue>(std::move(make_deep_copy(*value))));
         }
     }
     return res;

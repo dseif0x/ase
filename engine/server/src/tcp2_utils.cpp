@@ -251,7 +251,7 @@ int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encod
         auto userdata = info.acl.get_user(username);
         if (userdata == nullptr) continue;
         auto perms = userdata->get_user_permissions_pair();
-        map.emplace(username, std::make_unique<CopiedValue>(perms));
+        map.emplace(username, std::make_unique<CopiedValue>(std::move(perms)));
     }
     encoder.from_ack();
     encoder.from_general(res);

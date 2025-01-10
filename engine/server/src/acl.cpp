@@ -13,9 +13,8 @@
 #include <tcp2_utils.h>
 #include <vector>
 
-
 ACLUser::ACLUser(const std::string& password, bool isAdmin)
-    : pwd(password), admin(isAdmin) {
+    : pwd(password), admin(isAdmin), user_lock(std::make_unique<std::mutex>()) {
     CopiedValue perms;
     perms.type = ValueType::INT;
     perms.data = isAdmin ? tcp2_utils::permissions::all : tcp2_utils::permissions::none;
@@ -29,7 +28,8 @@ ACLUser::ACLUser(const std::string& password, bool isAdmin)
 
 
 ASE::ACL::ACL() {
-    this->users["admin"] = ACLUser("rootpwd", true);
+    auto temp = ACLUser("rootpwd", true);
+    this->users.emplace("admin", std::move(temp));
 }
 
 bool ASE::ACL::load_from_disk(std::string path) {

@@ -92,9 +92,9 @@ namespace ASE {
  * @brief Represents a user in the ACL system with specific permissions and attributes.
  */
 class ACLUser {
-    //todo might have to add a lock for access of userdata
     std::string pwd;
     bool admin;
+    std::unique_ptr<std::mutex> user_lock;
 
     // Tree representation of permissions
     // All elements except for the leafs are of type MAP
