@@ -9,7 +9,6 @@
 #include <ranges>
 #include <mutex>
 #include <thread>
-#include <unistd.h>
 
 #include "shmem.h"
 #include "stopwatch.h"

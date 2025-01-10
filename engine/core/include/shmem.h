@@ -11,6 +11,11 @@
 #include <functional>
 #include <mutex>
 
+#ifdef WIN32
+#include <string>
+#include <windows.h>
+#endif
+
 #include "offset_ptr.h"
 
 struct shmem_meta {
@@ -18,6 +23,12 @@ struct shmem_meta {
     std::size_t alloc_size{1024*1024};
     std::size_t first_free{0};
     shrwlock meta_mutex;
+};
+
+struct dump_meta {
+    std::size_t version{1};
+    std::size_t alloc_size{1024*1024};
+    std::size_t first_free{0};
 };
 
 /**
@@ -33,6 +44,22 @@ class shmem {
 
     shmem_meta* metadata{nullptr}; //!< This is one shared memory segment that is fixed in size and contains the metadata
     void* base{nullptr}; //!< This is the second shared memory segment that is variable in size and contains the actual data
+
+#ifdef WIN32
+    HANDLE meta_handle;
+    HANDLE data_handle;
+
+    void close_meta_handle();
+    void close_data_handle();
+
+    std::string get_handle_name() {
+        std::string res = "shmem_data_";
+        const auto letter_offset = (this->metadata->version-1) % (26 * 2);
+        char letter = 65 + letter_offset + (letter_offset > 25 ? + 6 : 0);
+        res.push_back(letter);
+        return res;
+    }
+#endif
 
     void attach(std::function<void(shmem&)> on_create);
     void close();
@@ -134,6 +161,11 @@ public:
 
     template <typename T>
     friend class offset_ptr;
+
+    using dump_t = std::pair<dump_meta, std::vector<uint8_t>>;
+
+    dump_t dump_data();
+    void load_data(const dump_t& data);
 };
 
 template <typename T>

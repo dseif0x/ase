@@ -22,6 +22,14 @@ DB::~DB() {
 
 }
 
+shmem::dump_t DB::dump_data() {
+    return mem.dump_data();
+}
+
+void DB::load_data(const shmem::dump_t& data) {
+    mem.load_data(data);
+}
+
 void DB::destroy() {
     shmem::destroy_data();
 }

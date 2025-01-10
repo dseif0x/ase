@@ -346,6 +346,21 @@ TEST_F(DatabaseWithData, ListNonExistentKey) {
     ASSERT_FALSE(test.has_value());
 }
 
+TEST_F(DatabaseWithData, StoreAndLoad) {
+    auto data = db->dump_data();
+
+    db->remove("test");
+
+    auto test = get<int>(*db, "test");
+    ASSERT_FALSE(test.has_value());
+
+    db->load_data(data);
+
+    test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 42);
+}
+
 TEST_F(DatabaseWithoutData, CreateLock) {
     constexpr auto init = 4;
     db->create_lock("lock", init);
@@ -489,4 +504,22 @@ TEST_F(DatabaseWithoutData, ParallelRemove) {
     auto post_rem = db->list(".");
     ASSERT_TRUE(post_rem.has_value());
     ASSERT_EQ(post_rem.value().size(), 0);
+}
+
+TEST_F(DatabaseWithoutData, StoreAndLoadEmpty) {
+    auto data = db->dump_data();
+
+    CopiedValue newval{};
+    newval.type = ValueType::INT;
+    newval.data.emplace<int>(42);
+    db->set("test", std::move(newval));
+
+    auto test = get<int>(*db, "test");
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(test.value(), 42);
+
+    db->load_data(data);
+
+    test = get<int>(*db, "test");
+    ASSERT_FALSE(test.has_value());
 }

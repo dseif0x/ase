@@ -9,9 +9,11 @@
 #include <thread>
 
 #include "tcp2_server.h"
+#include "acl.h"
 
 
 int main() {
+    DB::destroy();
     std::string file_path = "test.bin";
     TCP2Server server{42069, 10};
 
@@ -32,4 +34,5 @@ int main() {
     server.save_acl_to_disk(file_path);
 
     return 0;
+
 }

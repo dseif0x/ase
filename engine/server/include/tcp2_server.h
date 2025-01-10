@@ -23,7 +23,7 @@ constexpr int BUFFER_SIZE = 128;
 class TCP2Server {
     int port;
     int max_clients;
-    ACL acl = ACL{};
+    ASE::ACL acl = ASE::ACL{};
     DB db = DB{};
     std::atomic<bool> kill_acceptor{false};
     std::atomic<int> socket_error{0};

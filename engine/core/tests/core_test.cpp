@@ -13,8 +13,7 @@ class Core : public ::testing::Test {
 public:
     void SetUp() override {
         {
-            shmem ltest;
-            ltest.destroy();
+            shmem::destroy_data();
         }
         mem = new shmem();
 
