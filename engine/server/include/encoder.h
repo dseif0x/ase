@@ -9,8 +9,9 @@
 #ifndef ENCODER_H
 #define ENCODER_H
 
-// todo replace symbol with correct one
-#define UNIX
+#if defined(WIN)
+#include <winsock2.h>
+#endif
 
 #include <atomic>
 #include <db_types.h>
@@ -192,13 +193,15 @@ class TCP2Encoder : public GenericEncoder {
 
 #ifdef UNIX
     int client_socket;
-#elifdef WIN32
+#elifdef WIN
+    SOCKET client_socket;
 #endif
 
 public:
 #ifdef UNIX
     TCP2Encoder(int client_socket);
-#elifdef WIN32
+#elifdef WIN
+    TCP2Encoder(SOCKET client_socket);
 #endif
 
     bool write_data() override;

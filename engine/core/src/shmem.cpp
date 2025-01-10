@@ -187,3 +187,19 @@ bool shmem::can_fit(std::size_t required_memory, std::size_t required_alignment)
     }
     return false;
 }
+
+
+shmem::dump_t shmem::dump_data() {
+    std::unique_lock<shrwlock> lk(metadata->meta_mutex);
+    ensure_mounted();
+
+    dump_meta meta;
+    meta.version = metadata->version;
+    meta.alloc_size = metadata->alloc_size;
+    meta.first_free = metadata->first_free;
+
+    std::vector<uint8_t> data(metadata->alloc_size);
+    std::memcpy(data.data(), base, metadata->alloc_size);
+
+    return {meta, std::move(data)};
+}

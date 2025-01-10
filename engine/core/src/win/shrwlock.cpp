@@ -6,9 +6,14 @@
  */
 
 #include "shrwlock.h"
+#include <stdexcept>
 #include <thread>
 
-shrwlock::shrwlock() : state(0) {}
+shrwlock::shrwlock() : state(0) {
+    if (!state.is_lock_free()) {
+        throw std::runtime_error("Atomics are not lock free and might not work in SHMEM");
+    }
+}
 
 shrwlock::~shrwlock() {
 }
@@ -20,10 +25,10 @@ void shrwlock::lock() {
 }
 
 void shrwlock::unlock() {
-    if (state != -1) {
+    int expected = -1;
+    if (!state.compare_exchange_strong(expected, 0, std::memory_order_acquire)) {
         throw std::runtime_error("Unlock called without an exclusive lock");
     }
-    state = 0; // Release the lock
 }
 
 bool shrwlock::try_lock() {
@@ -38,17 +43,28 @@ void shrwlock::lock_shared() {
 }
 
 void shrwlock::unlock_shared() {
-    int current_state = state.load(std::memory_order_acquire);
-    if (current_state <= 0) {
+    int old_val = state.fetch_sub(1, std::memory_order_release);
+    if (old_val <= 0) {
         throw std::runtime_error("Unlock_shared called without a shared lock");
     }
-    state.fetch_sub(1, std::memory_order_release); // Decrement reader count
 }
 
 bool shrwlock::try_lock_shared() {
-    int current_state = state.load(std::memory_order_acquire);
-    if (current_state >= 0) { // No writer holding the lock
-        return state.fetch_add(1, std::memory_order_acquire) >= 0;
+    int current = state.load(std::memory_order_relaxed);
+    while (current >= 0) {
+        // Attempt transition from current -> current + 1
+        // If someone else changed `state` in the meantime, the CAS fails.
+        if (state.compare_exchange_weak(
+            current, current + 1,
+            std::memory_order_acquire,
+            std::memory_order_relaxed))
+        {
+            // Successfully took a shared lock
+            return true;
+        }
+        // if CAS failed but current >= 0 still, we�ll retry
+        // if current changed to negative, we�ll break
     }
+    // If we exit the loop, it means state < 0 => exclusive locked
     return false;
 }

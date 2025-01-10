@@ -8,7 +8,7 @@
 #include <thread>
 #include "shsem.h"
 
-shsem::shsem(uint32_t initial) : counter(initial), lock(false) {}
+shsem::shsem(uint32_t initial) : counter(initial) {}
 
 void shsem::release() {
     // Spinlock to ensure mutual exclusion

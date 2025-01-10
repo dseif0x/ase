@@ -10,7 +10,7 @@
 
 template<typename T>
 int run_test(const char* name, T&& generate_test_data) {
-    std::cout << "Running ASE Test: " << name << std::endl;
+    std::cout << "Running DMA Test: " << name << std::endl;
     DB::destroy();
     auto test_data = generate_test_data();
     DB db;

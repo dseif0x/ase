@@ -4,6 +4,7 @@
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
+#include "decoder.h"
 #include <iostream>
 #include <thread>
 #include "tcp2_utils.h"
@@ -11,7 +12,7 @@
 #include <stopwatch.h>
 
 #include "tcp2_server.h"
-#include "decoder.h"
+#include "acl.h"
 
 // returns -1: some non-critical error occurred, not executed and decoder is cleared
 // returns 0: command executed fine
@@ -473,7 +474,7 @@ int tcp2_utils::command::list(TCP2Decoder &decoder, TCP2Encoder &encoder, Comman
     return 0;
 }
 
-void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
+void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder, ASE::ACL &acl, DB &db) {
     std::string username;
     ACLUser *user{nullptr};
     unsigned char self_perms{};
@@ -580,7 +581,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
 }
 
 
-void tcp2_utils::client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ACL &acl, DB &db) {
+void tcp2_utils::client_main_thread(std::atomic<bool>& kys, TCP2Decoder &decoder, TCP2Encoder &encoder, ASE::ACL &acl, DB &db) {
     std::thread state(tcp2_utils::client_state_thread, std::ref(decoder), std::ref(encoder), std::ref(acl), std::ref(db));
 
     while (!kys && decoder.is_healthy()) {

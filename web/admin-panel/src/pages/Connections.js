@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, disconnect, get, set, isLoggedIn, list} from "../api/Api";
+import {connect, disconnect, isLoggedIn, list} from "../api/Api";
+import type WebReturnDto from "../dto/WebReturnDto";
 
 const keyDataStructure = {
     a: {
@@ -130,17 +131,19 @@ function App() {
 
     }, []);
 
-    const deleteConnection = async (id) => {
-        await disconnect().then(r => console.log("logged out"));
+    const deleteConnection = async (id, connectionId) => {
+        await disconnect(connectionId).then((r: WebReturnDto) => {
+            if (r.ok) {
+                const updatedConnections = connections.filter((connection) => connection.id !== id);
 
-        const updatedConnections = connections.filter((connection) => connection.id !== id);
+                setConnections(updatedConnections);
+                localStorage.setItem("connections", JSON.stringify(updatedConnections));
 
-        setConnections(updatedConnections);
-        localStorage.setItem("connections", JSON.stringify(updatedConnections));
-
-        let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
-        const testConnection = savedConnections.find((connection) => connection.id === 0);
-        setSelectedConnection(testConnection);
+                let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+                const testConnection = savedConnections.find((connection) => connection.id === 0);
+                setSelectedConnection(testConnection);
+            }
+        });
     };
 
     useEffect(() => {
@@ -182,20 +185,21 @@ function App() {
         config.password = prompt("Enter Password:");
         if (config.host && config.port && config.username && config.password) {
             console.log("config: " + config);
-            connect(config).then(async (response) => {
-                const newConnection = {
-                    id: connections.length + 1,
-                    ip: config.host,
-                    port: config.port,
-                    username: config.username,
-                };
+            connect(config).then(async (response: WebReturnDto) => {
+                if (response.ok) {
+                    const newConnection = {
+                        id: connections.length + 1,
+                        connectionId: response.data,
+                        ip: config.host,
+                        port: config.port,
+                        username: config.username,
+                    };
 
-                const updatedConnections = [...connections, newConnection];
-                setConnections(updatedConnections);
+                    const updatedConnections = [...connections, newConnection];
+                    setConnections(updatedConnections);
 
-                localStorage.setItem("connections", JSON.stringify(updatedConnections));
-
-                await set("x", 42, false);
+                    localStorage.setItem("connections", JSON.stringify(updatedConnections));
+                } else console.error("Failed to add connection:", response);
             }).catch((error) => {
                 console.error("Failed to add connection:", error);
             });
@@ -268,7 +272,7 @@ function App() {
                         {connection.id !== 0 && (
                             <button
                                 className="delete-button"
-                                onClick={() => deleteConnection(connection.id)}
+                                onClick={() => deleteConnection(connection.id, connection.connectionId)}
                             >
                                 X
                             </button>
