@@ -13,6 +13,7 @@
 
 
 int main() {
+    DB::destroy();
     std::string file_path = "test.bin";
     TCP2Server server{42069, 10};
 

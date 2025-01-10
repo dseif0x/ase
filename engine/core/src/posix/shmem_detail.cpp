@@ -212,3 +212,43 @@ void shmem::ensure_mounted() {
         throw std::runtime_error("Version mismatch");
     }
 }
+
+void shmem::load_data(const shmem::dump_t& data) {
+    const auto& meta = data.first;
+    const auto& mem = data.second;
+    std::unique_lock<shrwlock> lk(metadata->meta_mutex);
+    ensure_mounted();
+    if (base) {
+        munmap(base, metadata->alloc_size);
+        base = nullptr;
+    }
+    shm_unlink("shmem_data");
+
+    metadata->version = meta.version;
+    metadata->alloc_size = meta.alloc_size;
+    metadata->first_free = meta.first_free;
+
+    // Re-Create the shared memory
+    int data_fd = shm_open("shmem_data", O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+
+    if (data_fd != -1) {
+        // Successfully created
+        if (ftruncate(data_fd, metadata->alloc_size) == -1) {
+            printf("%s", strerror(errno));
+            throw std::runtime_error("Failed to truncate shared memory segment for data");
+        }
+    } else {
+        throw std::runtime_error("The shared memory segment for data already exists");
+    }
+
+    base = mmap(nullptr, metadata->alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
+    if (base == MAP_FAILED) {
+        printf("%s", strerror(errno));
+        throw std::runtime_error("Failed to mmap shared memory segment for data");
+    }
+    mlock(base, metadata->alloc_size);
+    local_size = metadata->alloc_size;
+    ::close(data_fd);
+
+    std::memcpy(base, mem.data(), metadata->alloc_size);
+}

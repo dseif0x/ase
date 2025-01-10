@@ -190,3 +190,37 @@ void shmem::ensure_mounted() {
         throw std::runtime_error("Version mismatch");
     }
 }
+
+void shmem::load_data(const shmem::dump_t& data) {
+    const auto& meta = data.first;
+    const auto& mem = data.second;
+    std::unique_lock<shrwlock> lk(metadata->meta_mutex);
+    ensure_mounted();
+    if (base) {
+        UnmapViewOfFile(base);
+        base = nullptr;
+    }
+    close_data_handle();
+
+    metadata->version = meta.version;
+    metadata->alloc_size = meta.alloc_size;
+    metadata->first_free = meta.first_free;
+
+    data_handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, metadata->alloc_size, "shmem_data");
+    if (!data_handle) {
+        throw std::runtime_error("Failed to create or open data shared memory segment");
+    }
+
+    bool created = (GetLastError() != ERROR_ALREADY_EXISTS);
+    if (!created) {
+        throw std::runtime_error("The shared memory segment for data already exists");
+    }
+    base = MapViewOfFile(data_handle, FILE_MAP_ALL_ACCESS, 0, 0, metadata->alloc_size);
+    if (!base) {
+        CloseHandle(data_handle);
+        throw std::runtime_error("Failed to map view of data shared memory");
+    }
+    local_size = metadata->alloc_size;
+
+    std::memcpy(base, mem.data(), metadata->alloc_size);
+}
