@@ -13,7 +13,7 @@ void ReadWriteClient::read_data(TCP2Decoder &decoder) {
     while (decoder.is_healthy()) decoder.read_data();
 }
 
-ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
+ReadWriteClient::ReadWriteClient(const std::string &ip, int port, const std::string &name, const std::string &pwd):
     server_ip(ip), server_port(port), client_socket(-1) {
     // Create socket
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,8 +58,8 @@ ReadWriteClient::ReadWriteClient(const std::string &ip, int port):
     this->decoder->to_unsigned(5);
     this->decoder->to_unsigned(4);
     this->encoder->from_ack();
-    this->encoder->from_string("admin");
-    this->encoder->from_string("rootpwd");
+    this->encoder->from_string(name);
+    this->encoder->from_string(pwd);
     this->send_buffer();
 
     if (this->decoder->to_acknak() != 1) throw std::runtime_error("Failed to send user information");
@@ -72,13 +72,28 @@ ReadWriteClient::~ReadWriteClient() {
     close(this->client_socket);
 }
 
+bool ReadWriteClient::create_new_admin(const std::string &name, const std::string &pwd) {
+    this->encoder->from_byte(0x80); // create user
+    this->encoder->from_string(name);
+    this->encoder->from_string(pwd);
+    this->encoder->from_byte(0x01); // admin = true
+    this->send_buffer();
+    return (this->decoder->to_acknak() != 1);
+}
+
+bool ReadWriteClient::delete_user(const std::string &name) {
+    this->encoder->from_byte(0x82);
+    this->encoder->from_string(name);
+    this->send_buffer();
+    return (this->decoder->to_acknak() == 1);
+}
+
 bool ReadWriteClient::simple_set(const std::string &key, CopiedValue &val) {
-    this->encoder->from_byte(0x02); // set command
+    this->encoder->from_byte(0x03); // forced set command
     this->encoder->from_string(key);
     this->encoder->from_general(val);
     this->send_buffer();
-    if (this->decoder->to_acknak() != 1) return false;
-    return true;
+    return (this->decoder->to_acknak() == 1);
 }
 
 std::optional<CopiedValue> ReadWriteClient::simple_get(const std::string &key) {
