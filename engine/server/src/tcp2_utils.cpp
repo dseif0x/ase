@@ -85,6 +85,10 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             break;
         case 0x83: // Change User pwd
             func = command::change_pwd;
+            perms = permissions::none;
+            break;
+        case 0x84: // Get User-Perms
+            func = command::get_user_perms;
             perms = permissions::none; // additional admin check in the
             break;
         default:
@@ -220,22 +224,34 @@ int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encod
     bool user_admin = (info.self_perms & permissions::admin) > 0 && info.user->is_admin();
     if (len == 0) {
         if (user_admin) {
+            std::cout << "opt 1" << std::endl;
             // get all usernames
             usernames = info.acl.get_all_usernames();
         } else {
+            std::cout << "opt 2" << std::endl;
             // only self
             usernames.push_back(info.self_name);
         }
     } else {
+        std::cout << "opt 3" << std::endl;
         // read usernames from decoder
         for (int x = 0; x < len; x++) {
             std::string name = decoder.to_string();
-            if (!user_admin && info.self_name != name) {
+            std::cout << "cur name: " << name << std::endl;
+            if (!info.user->is_admin() && info.self_name != name) {
+                encoder.clear_buffer();
                 encoder.from_nak();
                 encoder.encode_error(errors::permission_denied);
                 return -2; // not easily recoverable, as other names may follow
             }
+            if ((info.self_perms & permissions::admin) <= 0 && info.self_name != name) {
+                encoder.clear_buffer();
+                encoder.from_nak();
+                encoder.encode_error(errors::permission_denied_self);
+                return -2; // not easily recoverable, as other names may follow
+            }
             if (!info.acl.has_user(name)) {
+                encoder.clear_buffer();
                 encoder.from_nak();
                 encoder.encode_error(errors::user_not_found);
                 return -2;
@@ -246,12 +262,12 @@ int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encod
 
     // now all names in usernames are allowed to be read
     CopiedValue res{};
+    res.type = ValueType::MAP;
     auto &map = res.data.emplace<CopiedValue::copied_map_t>();
     for (auto &username : usernames) {
-        auto userdata = info.acl.get_user(username);
-        if (userdata == nullptr) continue;
-        auto perms = userdata->get_user_permissions_pair();
-        map.emplace(username, std::make_unique<CopiedValue>(std::move(perms)));
+        auto perms = info.acl.get_user_permissions_pair(username);
+        if (!perms) continue;
+        map.emplace(username, std::make_unique<CopiedValue>(std::move(*perms)));
     }
     encoder.from_ack();
     encoder.from_general(res);

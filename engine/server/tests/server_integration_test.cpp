@@ -1314,3 +1314,46 @@ TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
 }
+
+TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    // create user test1 pwd
+    ASSERT_TRUE(client.send_message(make_hex_vector("80 05 7465737431 03 707764 01")));
+    auto res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    // update scope to read only for test1
+    ASSERT_TRUE(client.send_message(make_hex_vector("81 05 7465737431 01 2e 01")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    TestGenericDecoder decoder{};
+
+    // request complete user perms
+    ASSERT_TRUE(client.send_message(make_hex_vector("84 00")));
+    res = client.receive_message(wait_time_success);
+    ASSERT_TRUE(res.size() > 1);
+    ASSERT_TRUE(res[0] == 0xFF);
+    decoder._add_to_buffer(res);
+    ASSERT_TRUE(decoder.to_acknak() == 1);
+    auto gen = decoder.to_general();
+    gen->print();
+
+}

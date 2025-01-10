@@ -85,6 +85,8 @@ namespace ASE {
         * @brief returns all usernames
         */
         std::vector<std::string> get_all_usernames();
+
+        std::optional<CopiedValue> get_user_permissions_pair(std::string &name);
     };
 }
 

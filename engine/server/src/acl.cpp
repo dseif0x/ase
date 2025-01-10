@@ -243,7 +243,8 @@ bool ASE::ACL::update_key_permission(std::string user, std::vector<std::string> 
 bool ASE::ACL::create_user(std::string &username, std::string &pwd, bool is_admin) {
     std::lock_guard<std::mutex> lock(this->general_lock);
     if (this->users.contains(username)) return false;
-    this->users[username] = ACLUser(pwd, is_admin);
+    auto temp = ACLUser(pwd, is_admin);
+    this->users.emplace(username, std::move(temp));
     return true;
 }
 
@@ -262,9 +263,15 @@ void ASE::ACL::print_full_info() {
 }
 
 std::vector<std::string> ASE::ACL::get_all_usernames() {
+    std::lock_guard<std::mutex> lock(this->general_lock);
     std::vector<std::string> res;
     for (auto &x : this->users) res.push_back(x.first);
     return res;
+}
+
+std::optional<CopiedValue> ASE::ACL::get_user_permissions_pair(std::string &name) {
+    if (!this->has_user(name)) return std::nullopt;
+    return this->users[name].get_user_permissions_pair();
 }
 
 void ACLUser::update_pwd(const std::string& pwd) {
