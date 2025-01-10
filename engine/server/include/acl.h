@@ -130,6 +130,7 @@ public:
 
     void set_permissions(CopiedValue &value);
     void serialize_user(std::vector<CopiedValue> &value);
+    CopiedValue get_user_permissions_pair();
 
     /**
      * @brief Generates a string representation of the user's data.

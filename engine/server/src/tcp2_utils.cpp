@@ -217,8 +217,9 @@ int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder
 int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
     auto len = decoder.to_expanding_unsigned();
     std::vector<std::string> usernames;
+    bool user_admin = (info.self_perms & permissions::admin) > 0 && info.user->is_admin();
     if (len == 0) {
-        if ((info.self_perms & permissions::admin) > 0) {
+        if (user_admin) {
             // get all usernames
             usernames = info.acl.get_all_usernames();
         } else {
@@ -227,7 +228,34 @@ int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encod
         }
     } else {
         // read usernames from decoder
+        for (int x = 0; x < len; x++) {
+            std::string name = decoder.to_string();
+            if (!user_admin && info.self_name != name) {
+                encoder.from_nak();
+                encoder.encode_error(errors::permission_denied);
+                return -2; // not easily recoverable, as other names may follow
+            }
+            if (!info.acl.has_user(name)) {
+                encoder.from_nak();
+                encoder.encode_error(errors::user_not_found);
+                return -2;
+            }
+            usernames.push_back(name);
+        }
     }
+
+    // now all names in usernames are allowed to be read
+    CopiedValue res{};
+    auto &map = res.data.emplace<CopiedValue::copied_map_t>();
+    for (auto &username : usernames) {
+        auto userdata = info.acl.get_user(username);
+        if (userdata == nullptr) continue;
+        auto perms = userdata->get_user_permissions_pair();
+        map.emplace(username, std::make_unique<CopiedValue>(perms));
+    }
+    encoder.from_ack();
+    encoder.from_general(res);
+    return 0;
 }
 
 int tcp2_utils::command::create_user(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {

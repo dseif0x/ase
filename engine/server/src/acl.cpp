@@ -173,6 +173,20 @@ void ACLUser::serialize_user(std::vector<CopiedValue> &value) {
     value.emplace_back(std::move(this->permissions));
 }
 
+CopiedValue ACLUser::get_user_permissions_pair() {
+    auto adm = std::make_unique<CopiedValue>();
+    adm->type = ValueType::BOOLEAN;
+    adm->data.emplace<bool>(this->admin);
+    auto perms = std::make_unique<CopiedValue>(CopiedValue::make_deep_copy(this->permissions));
+
+    CopiedValue res{};
+    res.type = ValueType::PAIR;
+    auto &pair = res.data.emplace<CopiedValue::copied_pair_t>();
+    pair.first = std::move(adm);
+    pair.second = std::move(perms);
+
+    return res;
+}
 
 
 std::string ACLUser::print_user_data() {
