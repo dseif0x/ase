@@ -8,9 +8,18 @@
 #include <iostream>
 #include <thread>
 #include <getopt.h>
+#include <csignal>
 
 #include "tcp2_server.h"
 #include "acl.h"
+
+
+std::atomic<bool> stopFlag(false);
+
+void handleSigint(int signal) {
+    std::cout << "\nStopping Server...\n";
+    stopFlag = true;
+}
 
 void printUsage(const char *programName) {
     std::cout << "Usage: " << programName << " [options]\n"
@@ -25,6 +34,8 @@ void printUsage(const char *programName) {
 }
 
 int main(int argc, char *argv[]) {
+    std::signal(SIGINT, handleSigint);
+
     std::string aclInput;
     std::string aclOutput;
     std::string saveDbPath;
@@ -100,8 +111,11 @@ int main(int argc, char *argv[]) {
     server.start();
     std::cout << "Server started, stop by entering anything." << std::endl;
 
-    std::string temp;
-    std::cin >> temp;
+    int print_counter = 0;
+    while (!stopFlag) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (print_counter++ % 300 == 0) std::cout << "Working...    Stop with Ctrl-C\n";
+    }
 
     // stop server
     server.stop();
