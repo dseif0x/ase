@@ -27,8 +27,8 @@ public:
     DB();
     ~DB();
 
-    shmem::dump_t dump_data();
-    void load_data(const shmem::dump_t& data);
+    bool dump_data(const std::string& file);
+    bool load_data(const std::string& filename);
 
     static void destroy();
 
