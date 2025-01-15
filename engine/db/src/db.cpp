@@ -157,6 +157,152 @@ std::optional<CopiedValue> DB::get(const char *key) {
     return res;
 }
 
+template<typename T, ValueType VT>
+std::optional<T> max(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+{
+    return std::make_optional(1);
+}
+
+template<typename T, ValueType VT>
+std::optional<T> min(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+{
+    return std::make_optional(1);
+}
+
+template<typename T, ValueType VT>
+std::optional<T> avg(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+{
+    return std::make_optional(1);
+}
+
+template<typename T, ValueType VT>
+std::optional<T> sum(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+{
+    std::optional<T> res {};
+    {
+        std::shared_lock<shrwlock> lock_guard(map.get_lock());
+        if (map.has(mem, field)) {
+            auto val = map.get(mem, field).get();
+            if (val->type != VT)
+                return res;
+            res.emplace(std::get<T>(val->data));
+            for (auto& followField : followFields) {
+                if (map.has(mem, followField)) { // TODO: Think about using references instead
+                    auto next = map.get(mem, followField).get();
+                    if (next->type == ValueType::MAP) {
+                        auto nextVal = sum<T, VT>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields);
+                        if (nextVal.has_value())
+                            res.emplace(res.value() + nextVal.value());
+                    }
+                }
+            }
+        }
+    }
+    return res;
+}
+
+template<>
+std::optional<double> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields)
+{
+    auto entrypoint_p = get_entrypoint();
+    std::optional<double> res {};
+    auto key_split = split(entrypoint);
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        get_key(*entrypoint, mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
+        if (val.has_value()) {
+            auto derefVal = val->get();
+            if (derefVal->type == ValueType::MAP) {
+                auto mapVal = std::get<Value::shmem_map_t>(derefVal->data);
+                switch (agg)
+                {
+                case Aggregation::AVG:
+                    {
+                        auto avgRes = avg<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
+                        if (avgRes.has_value())
+                            res.emplace(*avgRes);
+                        break;
+                    }
+                case Aggregation::SUM:
+                    {
+                        auto sumRes = sum<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
+                       if (sumRes.has_value())
+                           res.emplace(*sumRes);
+                       break;
+                    }
+                case Aggregation::MIN:
+                    {
+                        auto minRes = min<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
+                       if (minRes.has_value())
+                           res.emplace(*minRes);
+                           break;
+                    }
+                case Aggregation::MAX:
+                    {
+                        auto maxRes = max<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
+                       if (maxRes.has_value())
+                           res.emplace(*maxRes);
+                       break;
+                    }
+                }
+            }
+        }
+        });
+    });
+    return res;
+}
+
+template<>
+std::optional<int> DB::aggregate<ValueType::INT>(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields)
+{
+    auto entrypoint_p = get_entrypoint();
+    std::optional<int> res {};
+    auto key_split = split(entrypoint);
+    entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
+        get_key(*entrypoint, mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
+        if (val.has_value())
+        {
+            auto derefVal = val->get();
+            if (derefVal->type == ValueType::MAP)
+            {
+                auto mapVal = std::get<Value::shmem_map_t>(derefVal->data);
+                switch (agg)
+                {
+                case Aggregation::AVG:
+                    {
+                        auto avgRes = avg<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
+                       if (avgRes.has_value())
+                           res.emplace(*avgRes);
+                       break;
+                    }
+                case Aggregation::SUM:
+                    {
+                        auto sumRes = sum<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
+                       if (sumRes.has_value())
+                           res.emplace(*sumRes);
+                       break;
+                    }
+                case Aggregation::MIN:
+                    {
+                        auto minRes = min<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
+                       if (minRes.has_value())
+                           res.emplace(*minRes);
+                       break;
+                    }
+                case Aggregation::MAX:
+                    {
+                        auto maxRes = max<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
+                       if (maxRes.has_value())
+                           res.emplace(*maxRes);
+                       break;
+                    }
+                }
+            }
+        }
+        });
+    });
+    return res;
+}
+
 std::optional<CopiedValue> DB::follow(const char* key, uint16_t max_chained_follows) {
     auto entrypoint_p = get_entrypoint();
     std::optional<CopiedValue> res{};
