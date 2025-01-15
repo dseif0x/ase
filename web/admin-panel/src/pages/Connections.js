@@ -44,15 +44,32 @@ const buildHierarchy = (obj, prefix = "") => {
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = prefix ? `${prefix}.${key}` : key;
-            if (typeof obj[key] === "object" && obj[key] !== null) {
+            const { type, value } = obj[key];
+
+            if (type === "KEY_MAP") {
                 result.push({
                     key: currentKey,
                     value: null,
-                    children: buildHierarchy(obj[key], currentKey),
+                    type: type,
+                    children: buildHierarchy(value, currentKey),
                     collapsed: true,
                 });
-            } else {
-                result.push({ key: currentKey, value: obj[key], children: [], collapsed: false });
+            } else if (type === "ARRAY") {
+                result.push({
+                    key: currentKey,
+                    value: JSON.stringify(value),
+                    type: type,
+                    children: [],
+                    collapsed: false,
+                });
+            } else if (type?.startsWith("SIMPLE")) {
+                result.push({
+                    key: currentKey,
+                    value: value,
+                    type: type,
+                    children: [],
+                    collapsed: false,
+                });
             }
         }
     }
@@ -63,15 +80,18 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 
     return nodes.map((node, index) => (
         <React.Fragment key={node.key + index}>
             <tr>
-                <td style={{ paddingLeft: `${level * 20}px` }}>{node.key}</td>
+                <td style={{paddingLeft: `${level * 20}px`}}>{node.key}</td>
                 <td>{node.value !== null ? node.value : ""}</td>
+                <td>{node.type}</td>
                 <td>
                     <button
                         className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, {state: {
-                            keyData: node.key,
-                            connectionId: connectionId
-                        }})}
+                        onClick={() => navigate(`/edit/${node.key}`, {
+                            state: {
+                                keyData: node.key,
+                                connectionId: connectionId
+                            }
+                        })}
                     >
                         Edit
                     </button>
@@ -231,11 +251,20 @@ function App() {
                 const subKeyData = keyMap[subKey];
                 if (subKeyData.type === "KEY_MAP") {
                     const newKey = key === "." ? subKey : `${key}.${subKey}`;
-                    result[subKey] = await buildKeyDataStructure(newKey);
+                    result[subKey] = {
+                        type: "KEY_MAP",
+                        value: await buildKeyDataStructure(newKey),
+                    };
                 } else if (subKeyData.type === "ARRAY") {
-                    result[subKey] = subKeyData.array || [];
+                    result[subKey] = {
+                        type: "ARRAY",
+                        value: subKeyData.array || [],
+                    };
                 } else if (subKeyData.type === "SIMPLE") {
-                    result[subKey] = subKeyData.value;
+                    result[subKey] = {
+                        type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
+                        value: subKeyData.value,
+                    };
                 } else {
                     console.log("no such type:", subKey);
                 }
@@ -300,6 +329,7 @@ function App() {
                     <tr>
                         <th>Key</th>
                         <th>Value</th>
+                        <th>Type</th>
                         <th>
                             <span>
                                 <button
