@@ -67,7 +67,7 @@ export async function list(key, connectionId) {
     }
 }
 
-export async function set(key, value, force) {
+export async function set(key, value, force, connectionId) {
     try {
         console.log(`set key: ${key} with value: ${JSON.stringify(value)}`);
 
@@ -75,14 +75,11 @@ export async function set(key, value, force) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "X-Connection-Id": connectionId,
             },
             body: JSON.stringify({
                 "key": key,
-                "value": {
-                    "type": "SIMPLE",
-                    "value": value,
-                    "simpleType": 2
-                },
+                "value": value,
                 "force": force
             }),
         });

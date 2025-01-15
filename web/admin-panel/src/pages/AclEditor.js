@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, {useEffect, useState} from "react";
+import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/AclEditor.css";
 import {get, set} from "../api/Api";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 const SIMPLE_TYPE_MAP = {
     BOOLEAN: "Boolean",
     INT: "Integer",
@@ -33,9 +36,12 @@ const AclEditor = () => {
     useEffect(() => {
         if (keyData) {
             get(keyData, connectionId).then(val => {
-                if (val.data?.type === "SIMPLE") {
+                if (val.ok && val.data?.type === "SIMPLE") {
                     setValue(val.data?.value ?? "");
                     setValueType(val.data?.simpleType || "STRING");
+                } else {
+                    toast.error(val.message);
+                    console.error()
                 }
 
             })
@@ -49,10 +55,60 @@ const AclEditor = () => {
     };
 
     const handleUpdate = () => {
+        let toUpdate;
 
-        set(keyData, parseInt(value), true).then(response => {
-            navigate(-1);
+        switch (valueType) {
+            case "INT":
+                let parsedInt = parseInt(value, 10);
+
+                if (isNaN(parsedInt)) {
+                    toast.error("Invalid Integer value.");
+                    return;
+                }
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: parsedInt,
+                    simpleType: "INT",
+                }
+                break;
+            case "BOOLEAN":
+                let parsedBoolean = value.toLowerCase() === "true";
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: parsedBoolean,
+                    simpleType: "BOOLEAN",
+                }
+                break;
+            case "DOUBLE":
+                let parsedDouble = parseFloat(value);
+                if (isNaN(parsedDouble)) {
+                    toast.error("Invalid Double value.");
+                    return;
+                }
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: parsedDouble,
+                    simpleType: "DOUBLE",
+                }
+                break;
+            case "STRING":
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: value,
+                    simpleType: "STRING",
+                }
+                break;
+            default:
+                toast.error("Unsupported value type.");
+                return;
+        }
+
+        set(keyData, toUpdate, true, connectionId).then((response) => {
+            if (!response.ok) {
+                toast.error(response.message);
+            } else toast.success("Value updated successfully.");
         });
+
 
     };
 
@@ -161,6 +217,18 @@ const AclEditor = () => {
                     Update
                 </button>
             </div>
+            <ToastContainer
+                position="bottom-center"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="colored"
+            />
         </div>
     );
 
