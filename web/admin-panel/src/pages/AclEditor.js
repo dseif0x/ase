@@ -2,12 +2,23 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/pages/AclEditor.css";
 import {get, set} from "../api/Api";
+const SIMPLE_TYPE_MAP = {
+    BOOLEAN: "Boolean",
+    INT: "Integer",
+    STRING: "String",
+    DOUBLE: "Double",
+    SEMAPHORE: "Semaphore",
+    REFERENCE: "Reference",
+    UNKNOWN: "Unknown",
+};
 
 const AclEditor = () => {
+
+
     const location = useLocation();
     const navigate = useNavigate();
 
-    const { keyData } = location.state || {};
+    const { keyData, connectionId } = location.state || {};
     const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
@@ -15,15 +26,15 @@ const AclEditor = () => {
     ];
 
     const [value, setValue] = useState("");
-    const [valueType, setValueType] = useState("String");
+    const [valueType, setValueType] = useState("STRING");
     const [permissions, setPermissions] = useState(initialPermissions);
 
 
     useEffect(() => {
         if (keyData) {
-            console.log("current key: " + keyData);
-            get(keyData).then(val => {
+            get(keyData, connectionId).then(val => {
                 setValue(val.data?.value ?? "");
+                setValueType(val.data?.simpleType || "STRING");
             })
         }
     }, [keyData]);
@@ -51,18 +62,34 @@ const AclEditor = () => {
             <h2>Key: {keyData}</h2>
             <div className="value-section">
                 <label>Value:</label>
-                <input
-                    type="text"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                />
+
+                {/* Render input dynamically based on valueType */}
+                {valueType === "BOOLEAN" ? (
+                    <select
+                        value={value.toString()}
+                        onChange={(e) => setValue(e.target.value)}
+                    >
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                    </select>
+                ) : (
+                    <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        placeholder={`Enter a ${SIMPLE_TYPE_MAP[valueType]}`}
+                    />
+                )}
+
+                <label>Type:</label>
                 <select
                     value={valueType}
                     onChange={(e) => setValueType(e.target.value)}
                 >
-                    <option>Integer</option>
-                    <option>String</option>
-                    <option>Boolean</option>
+                    <option value="INT">Integer</option>
+                    <option value="STRING">String</option>
+                    <option value="BOOLEAN">Boolean</option>
+                    <option value="DOUBLE">Double</option>
                 </select>
             </div>
 
@@ -101,7 +128,6 @@ const AclEditor = () => {
                                 }}
                             >
                                 <span className="trash">&#128465;</span>
-
                             </button>
                         </td>
                     </tr>
@@ -114,7 +140,12 @@ const AclEditor = () => {
                 onClick={() =>
                     setPermissions([
                         ...permissions,
-                        { user: `NewUser/Group${permissions.length + 1}`, read: false, update: false, delete: false },
+                        {
+                            user: `NewUser/Group${permissions.length + 1}`,
+                            read: false,
+                            update: false,
+                            delete: false,
+                        },
                     ])
                 }
             >
@@ -130,6 +161,7 @@ const AclEditor = () => {
             </div>
         </div>
     );
+
 };
 
 export default AclEditor;

@@ -59,7 +59,7 @@ const buildHierarchy = (obj, prefix = "") => {
     return result;
 };
 
-const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
+const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5) => {
     return nodes.map((node, index) => (
         <React.Fragment key={node.key + index}>
             <tr>
@@ -68,7 +68,10 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
                 <td>
                     <button
                         className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, {state: {keyData: node.key}})}
+                        onClick={() => navigate(`/edit/${node.key}`, {state: {
+                            keyData: node.key,
+                            connectionId: connectionId
+                        }})}
                     >
                         Edit
                     </button>
@@ -84,7 +87,7 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
                 </td>
             </tr>
             {!node.collapsed &&
-                renderHierarchy(node.children, toggleCollapse, navigate, level + 1)}
+                renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1)}
         </React.Fragment>
     ));
 };
@@ -130,6 +133,12 @@ function App() {
         setSelectedConnection(testConnection);
 
     }, []);
+
+    useEffect(() => {
+        if (selectedConnection) {
+            loadData();
+        }
+    }, [selectedConnection]);
 
     const deleteConnection = async (id, connectionId) => {
         await disconnect(connectionId).then((r: WebReturnDto) => {
@@ -252,10 +261,7 @@ function App() {
                     <div
                         key={connection.id}
                         className={`connection ${selectedConnection?.id === connection.id ? "selected" : ""}`}
-                        onClick={() => {
-                                setSelectedConnection(connection);
-                                loadData();
-                            }
+                        onClick={() => {setSelectedConnection(connection);}
                         }
                     >
                         <input
@@ -306,7 +312,7 @@ function App() {
                     </tr>
                     </thead>
                     <tbody>
-                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate)}
+                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
                     </tbody>
                 </table>
             </div>

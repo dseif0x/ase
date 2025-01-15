@@ -2,10 +2,13 @@ import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
-export async function get(key) {
+export async function get(key, connectionId) {
     try {
-        console.log("get key: " + key);
-        const response = await fetch(`${API_BASE_URL}/db/get/` + key);
+        const response = await fetch(`${API_BASE_URL}/db/get/` + key, {
+            headers: {
+                "X-Connection-Id": connectionId,
+            },
+        });
 
         if (!response.ok) {
             throw new Error(`Msg: ${response.status}`);
