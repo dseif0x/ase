@@ -33,8 +33,11 @@ const AclEditor = () => {
     useEffect(() => {
         if (keyData) {
             get(keyData, connectionId).then(val => {
-                setValue(val.data?.value ?? "");
-                setValueType(val.data?.simpleType || "STRING");
+                if (val.data?.type === "SIMPLE") {
+                    setValue(val.data?.value ?? "");
+                    setValueType(val.data?.simpleType || "STRING");
+                }
+
             })
         }
     }, [keyData]);
@@ -63,7 +66,6 @@ const AclEditor = () => {
             <div className="value-section">
                 <label>Value:</label>
 
-                {/* Render input dynamically based on valueType */}
                 {valueType === "BOOLEAN" ? (
                     <select
                         value={value.toString()}
