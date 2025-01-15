@@ -2,12 +2,7 @@ import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
-let loggedIn = false;
-
 export async function get(key) {
-    if (!loggedIn) {
-        return;
-    }
     try {
         console.log("get key: " + key);
         const response = await fetch(`${API_BASE_URL}/db/get/` + key);
@@ -33,16 +28,23 @@ export async function get(key) {
     }
 }
 
-export async function list(key) {
-    if (!loggedIn) {
-        return;
-    }
+export async function list(key, connectionId) {
     try {
         const key64 = btoa(key);
-        const response = await fetch(`${API_BASE_URL}/db/list/` + key64);
+        const response = await fetch(`${API_BASE_URL}/db/list/` + key64, {
+            headers: {
+                "X-Connection-Id": connectionId,
+            },
+        });
 
         if (!response.ok) {
-            throw new Error(`Msg: ${response.status}`);
+            let errorDetails = '';
+            try {
+                errorDetails = await response.json();
+            } catch {
+                errorDetails = await response.text();
+            }
+            throw new Error(`Error: ${response.status} - ${errorDetails}`);
         }
 
         const contentType = response.headers.get("Content-Type");
@@ -62,11 +64,7 @@ export async function list(key) {
     }
 }
 
-// TODO add more types
 export async function set(key, value, force) {
-    if (!loggedIn) {
-        return;
-    }
     try {
         console.log(`set key: ${key} with value: ${JSON.stringify(value)}`);
 
@@ -101,9 +99,6 @@ export async function set(key, value, force) {
 }
 
 export async function connect(config:ConnectionConfigDTO) {
-    if (loggedIn) {
-        return;
-    }
     try {
         console.log("connecting with: " + JSON.stringify(config));
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -119,7 +114,6 @@ export async function connect(config:ConnectionConfigDTO) {
             throw new Error(`HTTP error ${response.status}`);
         }
 
-        loggedIn = true;
         const data = await response.text();
         console.log("response:", data);
         return JSON.parse(data);
@@ -145,7 +139,6 @@ export async function disconnect(connectionId: string) {
             throw new Error(`HTTP error ${response.status}`);
         }
 
-        loggedIn = false;
 
         const data = await response.text();
         return JSON.stringify(data);
@@ -154,9 +147,4 @@ export async function disconnect(connectionId: string) {
         console.error("Error logging in to server ", error);
         return {ok: false, message: error};
     }
-}
-
-export function isLoggedIn() {
-    console.log("logged in: " + loggedIn);
-    return loggedIn;
 }

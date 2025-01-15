@@ -29,10 +29,6 @@ public class ConnectionInterceptor implements HandlerInterceptor {
                              HttpServletResponse response,
                              Object handler) throws Exception {
 
-        request.getHeaderNames().asIterator().forEachRemaining(header ->
-            System.out.println(header + ": " + request.getHeader(header))
-        );
-
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             response.setStatus(HttpServletResponse.SC_OK);
             return false; // Skip further processing

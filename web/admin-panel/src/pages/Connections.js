@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, disconnect, isLoggedIn, list} from "../api/Api";
+import {connect, disconnect, list} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 
 const keyDataStructure = {
@@ -210,8 +210,8 @@ function App() {
 
     async function buildKeyDataStructure(key = ".") {
         try {
-            const response = await list(key);
-            if (!response || !response.data || response.data.type !== "KEY_MAP") {
+            const response = await list(key, selectedConnection.connectionId);
+            if (!response.ok || !response.data || response.data.type !== "KEY_MAP") {
                 return {};
             }
 
@@ -240,9 +240,6 @@ function App() {
     }
 
     async function loadData() {
-        if (!isLoggedIn()) {
-            return;
-        }
         const keyDataStructure = await buildKeyDataStructure();
         setOtherDataStructure(keyDataStructure);
     }
