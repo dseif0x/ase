@@ -181,6 +181,54 @@ function App() {
         setHierarchicalData([...hierarchicalData]);
     };
 
+    // just for development purposes
+    const addDevConnetion = () => {
+        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
+        config.host = "localhost"
+        config.port = 42069;
+        config.username = "admin";
+        config.password = "rootpwd";
+
+        if (connectionExists(config.host, config.port, config.username)) {
+            alert("this connection already exists!");
+            return;
+        }
+
+        connect(config).then(async (response: WebReturnDto) => {
+            if (response.ok) {
+                const newConnection = {
+                    id: connections.length + 1,
+                    connectionId: response.data,
+                    ip: config.host,
+                    port: config.port,
+                    username: config.username,
+                };
+
+                const updatedConnections = [...connections, newConnection];
+                setConnections(updatedConnections);
+
+                localStorage.setItem("connections", JSON.stringify(updatedConnections));
+                localStorage.setItem("selectedConnectionId", newConnection.id);
+
+                setSelectedConnectionId(newConnection.id);
+                setSelectedConnection(newConnection);
+            } else console.error("Failed to add connection:", response);
+        }).catch((error) => {
+            console.error("Failed to add connection:", error);
+        });
+    }
+
+    function connectionExists(host, port, username) {
+        const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+
+        return savedConnections.some(
+            (conn) =>
+                conn.ip === host &&
+                conn.port === port &&
+                conn.username === username
+        );
+    }
+
     const addConnection = () => {
         const config:ConnectionConfigDTO = new ConnectionConfigDTO();
         config.host = prompt("Enter Host:");
