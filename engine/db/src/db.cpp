@@ -157,26 +157,26 @@ std::optional<CopiedValue> DB::get(const char *key) {
     return res;
 }
 
-template<typename T, ValueType VT>
-std::optional<T> max(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+template<typename T>
+std::optional<T> max(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
     return std::make_optional(1);
 }
 
-template<typename T, ValueType VT>
-std::optional<T> min(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+template<typename T>
+std::optional<T> min(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
     return std::make_optional(1);
 }
 
-template<typename T, ValueType VT>
-std::optional<T> avg(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+template<typename T>
+std::optional<T> avg(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
     return std::make_optional(1);
 }
 
-template<typename T, ValueType VT>
-std::optional<T> sum(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields)
+template<typename T>
+std::optional<T> sum(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
     std::optional<T> res {};
     {
@@ -187,10 +187,10 @@ std::optional<T> sum(db_map& map, shmem& mem, const char* field, const std::vect
                 return res;
             res.emplace(std::get<T>(val->data));
             for (auto& followField : followFields) {
-                if (map.has(mem, followField)) { // TODO: Think about using references instead
+                if (map.has(mem, followField)) {
                     auto next = map.get(mem, followField).get();
                     if (next->type == ValueType::MAP) {
-                        auto nextVal = sum<T, VT>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields);
+                        auto nextVal = sum<T>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields, VT);
                         if (nextVal.has_value())
                             res.emplace(res.value() + nextVal.value());
                     }
@@ -202,10 +202,10 @@ std::optional<T> sum(db_map& map, shmem& mem, const char* field, const std::vect
 }
 
 template<>
-std::optional<double> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields)
+std::optional<CopiedValue> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields)
 {
     auto entrypoint_p = get_entrypoint();
-    std::optional<double> res {};
+    std::optional<CopiedValue> res {};
     auto key_split = split(entrypoint);
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
         get_key(*entrypoint, mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
@@ -213,36 +213,35 @@ std::optional<double> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, const ch
             auto derefVal = val->get();
             if (derefVal->type == ValueType::MAP) {
                 auto mapVal = std::get<Value::shmem_map_t>(derefVal->data);
+                std::optional<double> aggVal;
                 switch (agg)
                 {
                 case Aggregation::AVG:
                     {
-                        auto avgRes = avg<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
-                        if (avgRes.has_value())
-                            res.emplace(*avgRes);
+                        aggVal = avg<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
                         break;
                     }
                 case Aggregation::SUM:
                     {
-                        auto sumRes = sum<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
-                       if (sumRes.has_value())
-                           res.emplace(*sumRes);
+                        aggVal = sum<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
                        break;
                     }
                 case Aggregation::MIN:
                     {
-                        auto minRes = min<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
-                       if (minRes.has_value())
-                           res.emplace(*minRes);
-                           break;
+                        aggVal = min<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
+                        break;
                     }
                 case Aggregation::MAX:
                     {
-                        auto maxRes = max<double, ValueType::DOUBLE>(*mapVal.get(), mem, field, followFields);
-                       if (maxRes.has_value())
-                           res.emplace(*maxRes);
+                        aggVal = max<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
                        break;
                     }
+                }
+                if (aggVal.has_value()){
+                    CopiedValue resVal {};
+                    resVal.type = ValueType::DOUBLE;
+                    resVal.data.emplace<double>(aggVal.value());
+                    res.emplace(std::move(resVal));
                 }
             }
         }
@@ -252,10 +251,10 @@ std::optional<double> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, const ch
 }
 
 template<>
-std::optional<int> DB::aggregate<ValueType::INT>(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields)
+std::optional<CopiedValue> DB::aggregate<ValueType::INT>(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields)
 {
     auto entrypoint_p = get_entrypoint();
-    std::optional<int> res {};
+    std::optional<CopiedValue> res {};
     auto key_split = split(entrypoint);
     entrypoint_p.atomic_access(mem, [&](db_key_map* entrypoint) {
         get_key(*entrypoint, mem, key_split, [&](std::optional<relative_offset_ptr<Value>> val) {
@@ -265,36 +264,35 @@ std::optional<int> DB::aggregate<ValueType::INT>(Aggregation agg, const char* en
             if (derefVal->type == ValueType::MAP)
             {
                 auto mapVal = std::get<Value::shmem_map_t>(derefVal->data);
+                std::optional<double> aggVal;
                 switch (agg)
                 {
                 case Aggregation::AVG:
                     {
-                        auto avgRes = avg<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
-                       if (avgRes.has_value())
-                           res.emplace(*avgRes);
-                       break;
+                        aggVal = avg<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
+                        break;
                     }
                 case Aggregation::SUM:
                     {
-                        auto sumRes = sum<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
-                       if (sumRes.has_value())
-                           res.emplace(*sumRes);
+                        aggVal = sum<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
                        break;
                     }
                 case Aggregation::MIN:
                     {
-                        auto minRes = min<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
-                       if (minRes.has_value())
-                           res.emplace(*minRes);
-                       break;
+                        aggVal = min<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
+                        break;
                     }
                 case Aggregation::MAX:
                     {
-                        auto maxRes = max<int, ValueType::INT>(*mapVal.get(), mem, field, followFields);
-                       if (maxRes.has_value())
-                           res.emplace(*maxRes);
+                        aggVal = max<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
                        break;
                     }
+                }
+                if (aggVal.has_value()){
+                    CopiedValue resVal {};
+                    resVal.type = ValueType::INT;
+                    resVal.data.emplace<int>(aggVal.value());
+                    res.emplace(std::move(resVal));
                 }
             }
         }

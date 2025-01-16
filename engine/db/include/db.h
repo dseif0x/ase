@@ -19,18 +19,6 @@ enum Aggregation{
     MAX,
     AVG
 };
-template <ValueType VT>
-struct AggregateReturnType;
-
-template <>
-struct AggregateReturnType<ValueType::INT> {
-    using type = std::optional<int>;
-};
-
-template <>
-struct AggregateReturnType<ValueType::DOUBLE> {
-    using type = std::optional<double>;
-};
 
 /**
  * @brief A database class that provides key-value storage with various commands.
@@ -72,7 +60,7 @@ public:
      * @return either an int or double, depending on the template argument
      */
     template<ValueType VT>
-    typename AggregateReturnType<VT>::type aggregate(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields);
+    std::optional<CopiedValue> aggregate(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields);
 
     /**
      * SET command of the database

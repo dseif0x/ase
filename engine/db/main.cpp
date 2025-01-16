@@ -303,9 +303,9 @@ int main(int argc, char* argv[]) {
             newval5.data.emplace<int>(42);
             db.set("GraphRoot.left.left.value", std::move(newval5), true);
 
-            std::optional<int> res = db.aggregate<ValueType::INT>(Aggregation::SUM, "GraphRoot", "value", {"left", "right"});
+            std::optional<CopiedValue> res = db.aggregate<ValueType::INT>(Aggregation::SUM, "GraphRoot", "value", {"left", "right"});
             if (res.has_value())
-                std::cout << "Aggregated Value: " << res.value() << std::endl;
+                std::cout << "Aggregated Value: " << std::get<int>(res.value().data) << std::endl;
             else
                 std::cout << "Could not aggregate value" << std::endl;
         }
