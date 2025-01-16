@@ -125,6 +125,42 @@ void insert_test_data(DB& db) {
         newval.data.emplace<int>(123);
         db.set("toDelete", std::move(newval));
     }
+    { // Aggregate DOUBLE
+        CopiedValue newval1{};
+        newval1.type = ValueType::DOUBLE;
+        newval1.data.emplace<double>(1);
+        db.set("aggRootD.right.value", std::move(newval1));
+        CopiedValue newval2{};
+        newval2.type = ValueType::DOUBLE;
+        newval2.data.emplace<double>(2);
+        db.set("aggRootD.left.left.value", std::move(newval2));
+        CopiedValue newval3{};
+        newval3.type = ValueType::DOUBLE;
+        newval3.data.emplace<double>(3);
+        db.set("aggRootD.left.value", std::move(newval3));
+        CopiedValue newval{};
+        newval.type = ValueType::DOUBLE;
+        newval.data.emplace<double>(4.5);
+        db.set("aggRootD.value", std::move(newval));
+    }
+    { // Aggregate INT
+        CopiedValue newval1{};
+        newval1.type = ValueType::INT;
+        newval1.data.emplace<int>(1);
+        db.set("aggRootI.right.value", std::move(newval1));
+        CopiedValue newval2{};
+        newval2.type = ValueType::INT;
+        newval2.data.emplace<int>(2);
+        db.set("aggRootI.left.left.value", std::move(newval2));
+        CopiedValue newval3{};
+        newval3.type = ValueType::INT;
+        newval3.data.emplace<int>(3);
+        db.set("aggRootI.left.value", std::move(newval3));
+        CopiedValue newval{};
+        newval.type = ValueType::INT;
+        newval.data.emplace<int>(4);
+        db.set("aggRootI.value", std::move(newval));
+    }
 }
 
 class DatabaseWithData : public ::testing::Test {
@@ -289,6 +325,53 @@ TEST_F(DatabaseWithData, GetExistingKeyWithWrongType) {
     ASSERT_FALSE(test.has_value());
 }
 
+TEST_F(DatabaseWithData, AggregateSumInt) {
+    auto test = db->aggregate<ValueType::INT>(Aggregation::SUM, "aggRootI", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<int>(test.value().data), 10);
+}
+
+TEST_F(DatabaseWithData, AggregateMinInt) {
+    auto test = db->aggregate<ValueType::INT>(Aggregation::MIN, "aggRootI", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<int>(test.value().data), 1);
+}
+
+TEST_F(DatabaseWithData, AggregateMaxInt) {
+    auto test = db->aggregate<ValueType::INT>(Aggregation::MAX, "aggRootI", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<int>(test.value().data), 4);
+}
+
+TEST_F(DatabaseWithData, AggregateAvgInt) {
+    auto test = db->aggregate<ValueType::INT>(Aggregation::AVG, "aggRootI", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<double>(test.value().data), 2.5);
+}
+
+TEST_F(DatabaseWithData, AggregateSumDouble) {
+    auto test = db->aggregate<ValueType::DOUBLE>(Aggregation::SUM, "aggRootD", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<double>(test.value().data), 10.5);
+}
+
+TEST_F(DatabaseWithData, AggregateMinDouble) {
+    auto test = db->aggregate<ValueType::DOUBLE>(Aggregation::MIN, "aggRootD", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<double>(test.value().data), 1);
+}
+
+TEST_F(DatabaseWithData, AggregateMaxDouble) {
+    auto test = db->aggregate<ValueType::DOUBLE>(Aggregation::MAX, "aggRootD", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<double>(test.value().data), 4.5);
+}
+
+TEST_F(DatabaseWithData, AggregateAvgDouble) {
+    auto test = db->aggregate<ValueType::DOUBLE>(Aggregation::AVG, "aggRootD", "value", {"left", "right"});
+    ASSERT_TRUE(test.has_value());
+    ASSERT_EQ(std::get<double>(test.value().data), 2.625);
+}
 
 TEST_F(DatabaseWithData, Follow) {
     auto test = follow<int>(*db, "reference1", 999);
