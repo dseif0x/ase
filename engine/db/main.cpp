@@ -100,8 +100,8 @@ void follow_and_print(DB &db, const char *key) {
 int main(int argc, char* argv[]) {
     if (argc <= 1)
         DB::destroy();
-    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    //int pid = 1;
+    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    int pid = 1;
     stopwatch s;
     if (pid != 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
