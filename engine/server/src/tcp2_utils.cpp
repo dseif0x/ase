@@ -386,15 +386,17 @@ int tcp2_utils::command::forced_follow(TCP2Decoder &decoder, TCP2Encoder &encode
 
 int set_helper(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info, bool force) {
     std::string key_str = decoder.to_string();
+    auto val = decoder.to_general();
     auto key = tcp2_utils::check_and_create_key(key_str);
 
     if (!key) {
         return errors::invalid_key;
     }
+
     if (!info.user->has_permission(*key, force ? tcp2_utils::permissions::write_del : tcp2_utils::permissions::write)) {
         return errors::permission_denied;
     }
-    auto val = decoder.to_general();
+
     if (!val) {
         return errors::invalid_value;
     }
