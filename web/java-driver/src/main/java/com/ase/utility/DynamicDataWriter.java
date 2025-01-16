@@ -232,6 +232,8 @@ public class DynamicDataWriter {
     private void writePair(TcpGeneral value) throws TCPClientException {
         if (value.getType() != TcpGeneralType.PAIR) {
             throw new IllegalArgumentException("Expected PAIR TcpGeneral.");
+        } else if (value.getPair() == null || value.getPair().getLeft() == null || value.getPair().getRight() == null) {
+            throw new TCPClientWriteException("Pair is invalid.");
         }
 
         try {
@@ -262,7 +264,7 @@ public class DynamicDataWriter {
         try {
             List<TcpGeneral> array = value.getArray();
             int len = array.size();
-            if (len == 0 || len > serverInfo.getArraySize()) {
+            if (len > serverInfo.getArraySize()) {
                 throw new TCPClientWriteException("Array length invalid.");
             }
 
