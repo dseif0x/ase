@@ -9,6 +9,7 @@
 #include <thread>
 #include <getopt.h>
 #include <csignal>
+#include <mach/host_info.h>
 
 #include "tcp2_server.h"
 #include "acl.h"
@@ -21,35 +22,44 @@ void handleSigint(int signal) {
     stopFlag = true;
 }
 
-void printUsage(const char *programName) {
-    std::cout << "Usage: " << programName << " [options]\n"
+void print_usage() {
+    std::cout << "Usage: " << "ase_server" << " [options]\n"
               << "Options:\n"
-              << "  -h, --help            Prints this usage message.\n"
-              << "  -i, --acl-input PATH  Defines the input ACL path.\n"
-              << "  -o, --acl-output PATH Defines the output ACL path.\n"
-              << "      --max-clients N   Sets the maximum number of clients. Default: 10.\n"
-              << "  -p, --port PORT       Sets the server port. Mandatory.\n"
-              << "  -s, --save-db PATH    Defines the database save path. Default: \".\"\n"
-              << "      --destroy         Trys to destroy the database before connecting to it.\n";
+              << "  -h, --help              Prints this usage message.\n"
+              << "  -p, --port <PORT>       Sets the server port. Mandatory.\n"
+              << "  -a, --acl <PATH>        Defines the ACL path.\n"
+              << "      --acl-output <PATH> Use if acl shall be written to different location.\n"
+              << "  -d, --db <PATH>         Defines the database save path.\n"
+              << "      --db-output <PATH>  Use if db shall be written to different location.\n"
+              << "      --max-clients <N>   Sets the maximum number of clients. Default: 15.\n"
+              << "      --destroy           Trys to destroy the database before connecting to it.\n";
+}
+
+int print_error(const std::string &message, int error) {
+    std::cout << "error: " << message << "\n" << std::endl;
+    print_usage();
+    return error;
 }
 
 int main(int argc, char *argv[]) {
     std::signal(SIGINT, handleSigint);
 
-    std::string aclInput;
-    std::string aclOutput;
-    std::string saveDbPath;
-    int maxClients = 10;
+    std::string acl_input;
+    std::string acl_output;
+    std::string db_input;
+    std::string db_output;
+    int max_clients = 15;
     int port = -1;
-    bool destroyMode = false;
+    bool destroy_mode = false;
 
     struct option longOptions[] = {
         {"help", no_argument, nullptr, 'h'},
-        {"acl-input", required_argument, nullptr, 'i'},
-        {"acl-output", required_argument, nullptr, 'o'},
+        {"acl", required_argument, nullptr, 'a'},
+        {"acl-output", required_argument, nullptr, 0},
         {"max-clients", required_argument, nullptr, 0},
         {"port", required_argument, nullptr, 'p'},
-        {"save-db", required_argument, nullptr, 's'},
+        {"db", required_argument, nullptr, 'd'},
+        {"db-output", required_argument, nullptr, 0},
         {"destroy", no_argument, nullptr, 0},
         {nullptr, 0, nullptr, 0}
     };
@@ -57,53 +67,69 @@ int main(int argc, char *argv[]) {
     int opt;
     int optionIndex = 0;
 
-    while ((opt = getopt_long(argc, argv, "hi:o:p:s:", longOptions, &optionIndex)) != -1) {
+    while ((opt = getopt_long(argc, argv, "ha:p:d:", longOptions, &optionIndex)) != -1) {
         switch (opt) {
             case 'h':
-                printUsage(argv[0]);
+                print_usage();
                 return 0;
-            case 'i':
-                aclInput = optarg;
-                break;
-            case 'o':
-                aclOutput = optarg;
+            case 'a':
+                if (acl_input.empty()) return print_error("ACL path is already set.", 1);
+                acl_input = optarg;
                 break;
             case 'p':
-                port = std::atoi(optarg);
+                if (port != -1) return print_error("Port is already set.", 1);
+                try {
+                    port = std::stoi(optarg);
+                    if (port < 0 || port >= 65536) return print_error("Invalid port number.", 1);
+                } catch (...) {
+                    return print_error("Port must be a number.", 1);
+                }
                 break;
-            case 's':
-                saveDbPath = optarg;
+            case 'd':
+                if (db_input.empty()) return print_error("DB path is already set.", 1);
+                db_input = optarg;
                 break;
             case 0: // Handle long options without a short option
                 if (std::string(longOptions[optionIndex].name) == "max-clients") {
-                    maxClients = std::atoi(optarg);
+                    try {
+                        max_clients = std::stoi(optarg);
+                    } catch (...) {
+                        return print_error("Max clients must be a number.", 1);
+                    }
                 } else if (std::string(longOptions[optionIndex].name) == "destroy") {
-                    destroyMode = true; // Set the destroy flag to true
+                    if (destroy_mode) return print_error("Destroy mode was already set.", 1);
+                    destroy_mode = true;
+                } else if (std::string(longOptions[optionIndex].name) == "acl-output") {
+                    if (!acl_output.empty()) return print_error("ACL output path is already set.", 1);
+                    acl_output = optarg;
+                } else if (std::string(longOptions[optionIndex].name) == "db-output") {
+                    if (!acl_output.empty()) return print_error("DB output path is already set.", 1);
+                    db_output = optarg;
                 }
                 break;
             default:
-                printUsage(argv[0]);
+                print_usage();
                 return 1;
         }
     }
 
     // Check if the mandatory port option is provided
     if (port == -1) {
-        std::cerr << "Error: The --port (-p) option is mandatory.\n\n";
-        printUsage(argv[0]);
-        return 1;
+        return print_error("The port must be provided.", 1);
     }
 
-    if (destroyMode) {
+    if (acl_output.empty()) acl_output = acl_input;
+    if (db_output.empty()) db_output = db_input;
+
+    if (destroy_mode) {
         DB::destroy();
     }
 
-    std::string file_path = "test.bin";
-    TCP2Server server{port, maxClients};
+    TCP2Server server{port, max_clients};
 
-    if (!aclInput.empty()) {
+    if (!acl_input.empty()) {
         // load acl from disk
-        if (server.load_acl_from_disk(aclInput)) std::cout << "ACL loaded from disk." << std::endl;
+        if (server.load_acl_from_disk(acl_input)) std::cout << "ACL loaded from disk." << std::endl;
         else std::cout << "ACL could not be loaded from disk." << std::endl;
     }
 
@@ -114,7 +140,7 @@ int main(int argc, char *argv[]) {
     int print_counter = 0;
     while (!stopFlag) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (print_counter++ % 300 == 0) std::cout << "Working...    Stop with Ctrl-C\n";
+        if (print_counter++ % 100 == 0) std::cout << "Working...    Stop with Ctrl-C\n";
     }
 
     // stop server
@@ -122,8 +148,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Server stopped." << std::endl;
 
     // save result to disk
-    if (!aclOutput.empty()) {
-        if (server.save_acl_to_disk(aclOutput)) std::cout << "ACL saved to disk." << std::endl;
+    if (!acl_output.empty()) {
+        if (server.save_acl_to_disk(acl_output)) std::cout << "ACL saved to disk." << std::endl;
         else std::cout << "ACL could not be saved to disk." << std::endl;
     }
 
