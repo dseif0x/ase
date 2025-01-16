@@ -160,40 +160,94 @@ std::optional<CopiedValue> DB::get(const char *key) {
 template<typename T>
 std::optional<T> max(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
-    return std::make_optional(1);
+    std::optional<T> res {};
+    std::shared_lock<shrwlock> lock_guard(map.get_lock());
+    if (map.has(mem, field)) {
+        auto val = map.get(mem, field).get();
+        if (val->type != VT)
+            return res;
+        res.emplace(std::get<T>(val->data));
+        for (auto& followField : followFields) {
+            if (map.has(mem, followField)) {
+                auto next = map.get(mem, followField).get();
+                if (next->type == ValueType::MAP) {
+                    auto nextVal = max<T>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields, VT);
+                    if (nextVal.has_value())
+                        res.emplace(std::max(res.value(), nextVal.value()));
+                }
+            }
+        }
+    }
+    return res;
 }
 
 template<typename T>
 std::optional<T> min(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
-    return std::make_optional(1);
+    std::optional<T> res {};
+    std::shared_lock<shrwlock> lock_guard(map.get_lock());
+    if (map.has(mem, field)) {
+        auto val = map.get(mem, field).get();
+        if (val->type != VT)
+            return res;
+        res.emplace(std::get<T>(val->data));
+        for (auto& followField : followFields) {
+            if (map.has(mem, followField)) {
+                auto next = map.get(mem, followField).get();
+                if (next->type == ValueType::MAP) {
+                    auto nextVal = min<T>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields, VT);
+                    if (nextVal.has_value())
+                        res.emplace(std::min(res.value(), nextVal.value()));
+                }
+            }
+        }
+    }
+    return res;
 }
 
 template<typename T>
-std::optional<T> avg(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
+std::optional<std::pair<T, int>> avg(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
-    return std::make_optional(1);
+    std::optional<std::pair<T, int>> res {};
+    std::shared_lock<shrwlock> lock_guard(map.get_lock());
+    if (map.has(mem, field)) {
+        auto val = map.get(mem, field).get();
+        if (val->type != VT)
+            return res;
+        res.emplace(std::make_pair(std::get<T>(val->data), 1));
+        for (auto& followField : followFields) {
+            if (map.has(mem, followField)) {
+                auto next = map.get(mem, followField).get();
+                if (next->type == ValueType::MAP) {
+                    auto nextVal = avg<T>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields, VT);
+                    if (nextVal.has_value()) {
+                        res.value().first += nextVal.value().first;
+                        res.value().second += nextVal.value().second;
+                    }
+                }
+            }
+        }
+    }
+    return res;
 }
 
 template<typename T>
 std::optional<T> sum(db_map& map, shmem& mem, const char* field, const std::vector<const char*>& followFields, ValueType VT)
 {
     std::optional<T> res {};
-    {
-        std::shared_lock<shrwlock> lock_guard(map.get_lock());
-        if (map.has(mem, field)) {
-            auto val = map.get(mem, field).get();
-            if (val->type != VT)
-                return res;
-            res.emplace(std::get<T>(val->data));
-            for (auto& followField : followFields) {
-                if (map.has(mem, followField)) {
-                    auto next = map.get(mem, followField).get();
-                    if (next->type == ValueType::MAP) {
-                        auto nextVal = sum<T>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields, VT);
-                        if (nextVal.has_value())
-                            res.emplace(res.value() + nextVal.value());
-                    }
+    std::shared_lock<shrwlock> lock_guard(map.get_lock());
+    if (map.has(mem, field)) {
+        auto val = map.get(mem, field).get();
+        if (val->type != VT)
+            return res;
+        res.emplace(std::get<T>(val->data));
+        for (auto& followField : followFields) {
+            if (map.has(mem, followField)) {
+                auto next = map.get(mem, followField).get();
+                if (next->type == ValueType::MAP) {
+                    auto nextVal = sum<T>(*std::get<Value::shmem_map_t>(next->data).get(), mem, field, followFields, VT);
+                    if (nextVal.has_value())
+                        res.emplace(res.value() + nextVal.value());
                 }
             }
         }
@@ -218,7 +272,12 @@ std::optional<CopiedValue> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, con
                 {
                 case Aggregation::AVG:
                     {
-                        aggVal = avg<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
+                        std::optional<std::pair<double, int>> avgPair = avg<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
+                        if (avgPair.has_value()) {
+                            aggVal = std::make_optional(avgPair.value().first / avgPair.value().second);
+                        } else {
+                            aggVal = std::nullopt;
+                        }
                         break;
                     }
                 case Aggregation::SUM:
@@ -264,12 +323,20 @@ std::optional<CopiedValue> DB::aggregate<ValueType::INT>(Aggregation agg, const 
             if (derefVal->type == ValueType::MAP)
             {
                 auto mapVal = std::get<Value::shmem_map_t>(derefVal->data);
-                std::optional<double> aggVal;
+                std::optional<int> aggVal;
                 switch (agg)
                 {
                 case Aggregation::AVG:
                     {
-                        aggVal = avg<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
+                        std::optional<std::pair<int, int>> avgPair = avg<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
+                        if (avgPair.has_value()) {
+                            CopiedValue resVal {};
+                            resVal.type = ValueType::DOUBLE;
+                            resVal.data.emplace<double>(avgPair.value().first / static_cast<double>(avgPair.value().second));
+                            res.emplace(std::move(resVal));
+                            return;
+                        }
+                        aggVal = std::nullopt;
                         break;
                     }
                 case Aggregation::SUM:

@@ -100,8 +100,8 @@ void follow_and_print(DB &db, const char *key) {
 int main(int argc, char* argv[]) {
     if (argc <= 1)
         DB::destroy();
-    //int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
-    int pid = 1;
+    int pid = fork(); // FOOOOORRRRRKKKKK ALSO WORKS
+    //int pid = 1;
     stopwatch s;
     if (pid != 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -285,27 +285,27 @@ int main(int argc, char* argv[]) {
         {
             CopiedValue newval{};
             newval.type = ValueType::INT;
-            newval.data.emplace<int>(42);
+            newval.data.emplace<int>(1);
             db.set("GraphRoot.value", std::move(newval), true);
 
             CopiedValue newval3{};
             newval3.type = ValueType::INT;
-            newval3.data.emplace<int>(42);
+            newval3.data.emplace<int>(2);
             db.set("GraphRoot.left.value", std::move(newval3), true);
 
             CopiedValue newval4{};
             newval4.type = ValueType::INT;
-            newval4.data.emplace<int>(42);
+            newval4.data.emplace<int>(3);
             db.set("GraphRoot.right.value", std::move(newval4), true);
 
             CopiedValue newval5{};
             newval5.type = ValueType::INT;
-            newval5.data.emplace<int>(42);
+            newval5.data.emplace<int>(4);
             db.set("GraphRoot.left.left.value", std::move(newval5), true);
 
-            std::optional<CopiedValue> res = db.aggregate<ValueType::INT>(Aggregation::SUM, "GraphRoot", "value", {"left", "right"});
+            std::optional<CopiedValue> res = db.aggregate<ValueType::INT>(Aggregation::AVG, "GraphRoot", "value", {"left", "right"});
             if (res.has_value())
-                std::cout << "Aggregated Value: " << std::get<int>(res.value().data) << std::endl;
+                std::cout << "Aggregated Value: " << std::get<double>(res.value().data) << std::endl;
             else
                 std::cout << "Could not aggregate value" << std::endl;
         }
