@@ -139,3 +139,28 @@ th {
 .delete-button:hover {
     background-color: darkred;
 }
+
+.footer-container {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+
+    background-color: #f7f7f7;
+    padding: 1rem;
+}
+
+.blue-button {
+    background-color: blue;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+}
+
+.blue-button:hover {
+    background-color: #003399;
+}
