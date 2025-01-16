@@ -2,40 +2,30 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, disconnect, list} from "../api/Api";
+import {connect, disconnect, isLoggedIn, list} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 
-const keyDataStructure = {
-    a: {
-        b: {
-            c: 3,
-            d: "Hello",
-            c1: 7,
-            d1: "Hello Again",
-        },
-        e: "World",
-        e1: "Universe",
-        e2: {
-            nested1: true,
-            nested2: [1, 2, 3],
-        },
-    },
-    f: 42,
-    f1: 99,
-    g: {
-        h: {
-            i: "Help",
-            i1: "List",
-        },
-        h1: {
-            i2: {
-                deeplyNested: "Deep",
-            },
-        },
-    },
-    j: "Wednesday",
-    k: [1, 2, { x: 5, y: "test" }],
-};
+async function cleanupConnections() {
+    const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+
+    const updatedConnections = [];
+
+    for (const conn of savedConnections) {
+        try {
+            const response = await isLoggedIn(conn.connectionId);
+            if (response) {
+                updatedConnections.push(conn);
+            }
+        } catch (error) {
+            console.error(
+                `error with id ${conn.id}:`,
+                error
+            );
+        }
+    }
+
+    localStorage.setItem("connections", JSON.stringify(updatedConnections));
+}
 
 let toggle = true;
 
