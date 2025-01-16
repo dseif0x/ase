@@ -344,7 +344,7 @@ TEST_F(DatabaseWithData, AggregateMaxInt) {
 }
 
 TEST_F(DatabaseWithData, AggregateAvgInt) {
-    auto test = db->aggregate<ValueType::INT>(Aggregation::AVG, "aggRootI", "value", {"left", "right"});
+    auto test = db->aggregate<ValueType::INT>(Aggregation::AVERAGE, "aggRootI", "value", {"left", "right"});
     ASSERT_TRUE(test.has_value());
     ASSERT_EQ(std::get<double>(test.value().data), 2.5);
 }
@@ -368,7 +368,7 @@ TEST_F(DatabaseWithData, AggregateMaxDouble) {
 }
 
 TEST_F(DatabaseWithData, AggregateAvgDouble) {
-    auto test = db->aggregate<ValueType::DOUBLE>(Aggregation::AVG, "aggRootD", "value", {"left", "right"});
+    auto test = db->aggregate<ValueType::DOUBLE>(Aggregation::AVERAGE, "aggRootD", "value", {"left", "right"});
     ASSERT_TRUE(test.has_value());
     ASSERT_EQ(std::get<double>(test.value().data), 2.625);
 }

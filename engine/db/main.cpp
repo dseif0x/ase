@@ -303,7 +303,7 @@ int main(int argc, char* argv[]) {
             newval5.data.emplace<int>(4);
             db.set("GraphRoot.left.left.value", std::move(newval5), true);
 
-            std::optional<CopiedValue> res = db.aggregate<ValueType::INT>(Aggregation::AVG, "GraphRoot", "value", {"left", "right"});
+            std::optional<CopiedValue> res = db.aggregate<ValueType::INT>(Aggregation::AVERAGE, "GraphRoot", "value", {"left", "right"});
             if (res.has_value())
                 std::cout << "Aggregated Value: " << std::get<double>(res.value().data) << std::endl;
             else

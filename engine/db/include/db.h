@@ -13,11 +13,11 @@
 #include "shmem.h"
 
 using db_key_map = db_map;
-enum Aggregation{
+enum class Aggregation{
     SUM,
     MIN,
     MAX,
-    AVG
+    AVERAGE
 };
 
 /**

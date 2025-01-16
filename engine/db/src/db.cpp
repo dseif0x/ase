@@ -270,7 +270,7 @@ std::optional<CopiedValue> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, con
                 std::optional<double> aggVal;
                 switch (agg)
                 {
-                case Aggregation::AVG:
+                case Aggregation::AVERAGE:
                     {
                         std::optional<std::pair<double, int>> avgPair = avg<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
                         if (avgPair.has_value()) {
@@ -283,7 +283,7 @@ std::optional<CopiedValue> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, con
                 case Aggregation::SUM:
                     {
                         aggVal = sum<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
-                       break;
+                        break;
                     }
                 case Aggregation::MIN:
                     {
@@ -293,8 +293,10 @@ std::optional<CopiedValue> DB::aggregate<ValueType::DOUBLE>(Aggregation agg, con
                 case Aggregation::MAX:
                     {
                         aggVal = max<double>(*mapVal.get(), mem, field, followFields, ValueType::DOUBLE);
-                       break;
+                        break;
                     }
+                default:
+                    throw std::runtime_error("Aggregation type not supported");
                 }
                 if (aggVal.has_value()){
                     CopiedValue resVal {};
@@ -326,7 +328,7 @@ std::optional<CopiedValue> DB::aggregate<ValueType::INT>(Aggregation agg, const 
                 std::optional<int> aggVal;
                 switch (agg)
                 {
-                case Aggregation::AVG:
+                case Aggregation::AVERAGE:
                     {
                         std::optional<std::pair<int, int>> avgPair = avg<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
                         if (avgPair.has_value()) {
@@ -342,7 +344,7 @@ std::optional<CopiedValue> DB::aggregate<ValueType::INT>(Aggregation agg, const 
                 case Aggregation::SUM:
                     {
                         aggVal = sum<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
-                       break;
+                        break;
                     }
                 case Aggregation::MIN:
                     {
@@ -352,8 +354,10 @@ std::optional<CopiedValue> DB::aggregate<ValueType::INT>(Aggregation agg, const 
                 case Aggregation::MAX:
                     {
                         aggVal = max<int>(*mapVal.get(), mem, field, followFields, ValueType::INT);
-                       break;
+                        break;
                     }
+                default:
+                    throw std::runtime_error("Aggregation type not supported");
                 }
                 if (aggVal.has_value()){
                     CopiedValue resVal {};
