@@ -365,8 +365,9 @@ std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms) const 
 }
 #endif
 
-constexpr int wait_time_success = 150;
-constexpr int wait_time_error = wait_time_success + 250; // the server will wait for 250 seconds, therefore we have to also wait 250 more
+constexpr int wait_time_success = 10;
+constexpr int wait_time_fail = wait_time_success;
+constexpr int wait_time_error = wait_time_fail + 300; // the server will wait for 250 seconds, therefore we have to also wait 250 more
 
 TEST_F(IntegrationTests_TCPServer, login_admin) {
     DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
@@ -411,7 +412,7 @@ TEST_F(IntegrationTests_TCPServer, login_unknown) {
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // already connected
@@ -431,7 +432,7 @@ TEST_F(IntegrationTests_TCPServer, login_invalid_passwd) {
     ASSERT_TRUE(server_information_package.size() == 10);
     ASSERT_TRUE(server_information_package[0] == 0xFF);
     ASSERT_TRUE(client.send_message(user_info_pack));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x03); // already connected
@@ -446,7 +447,7 @@ TEST_F(IntegrationTests_TCPServer, login_to_much_info) {
     std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F, 0xab};
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xFF); // general protocol error
@@ -461,7 +462,7 @@ TEST_F(IntegrationTests_TCPServer, login_invalid_version) {
     std::vector<unsigned char> client_information_package{0xFF, 0xFF, 0x0F};
 
     ASSERT_TRUE(client.send_message(client_information_package));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     print_vec(res);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x01); // already connected
@@ -564,7 +565,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_twice) {
     ASSERT_TRUE(server_information_package2.size() == 10);
     ASSERT_TRUE(server_information_package2[0] == 0xFF);
     ASSERT_TRUE(client2.send_message(user_info_pack));
-    auto res = client2.receive_message(wait_time_error);
+    auto res = client2.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x04); // already connected
 }
@@ -587,12 +588,12 @@ TEST_F(IntegrationTests_TCPServer, login_admin_update_scope) {
     // admin logged in
 
     ASSERT_TRUE(client.send_message(make_hex_vector("81 05 61646D696E 09 246F72662E6E657773 03")));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
 
     ASSERT_TRUE(client.send_message(make_hex_vector("81 05 11646D696E 09 2E6F72662E6E657773 03")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // user not found
 
@@ -652,12 +653,12 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get) {
 
     // invalid key
     ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E246573742E7375622E76616C")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
 
     // invalid key
     ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E676573742E7375622E76616C")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01); // key not found
 
     // remove all permissions
@@ -666,7 +667,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get) {
     ASSERT_TRUE(res[0] == 0xFF); // ack
 
     ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E676573742E7375622E76616C")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
 
     client.close_connection();
@@ -688,7 +689,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_self_permission) {
     ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
 
     ASSERT_TRUE(client.send_message(make_hex_vector("01 0d 2E246573742E7375622E76616C")));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     print_vec(res);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xF0); // self perm denied
@@ -717,7 +718,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_set) {
 
     // invalid key
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E246573742E7375622E76616C 03 07 7465737476616C")));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
 
@@ -748,7 +749,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_set) {
     ASSERT_TRUE(res[0] == 0xFF); // ack
 
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0d 2E746573742E7375622E76616C 03 07 7465737476616C")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
 
@@ -835,7 +836,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_del) {
 
     // invalid key
     ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E246F702E7375622E76616C31")));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     print_vec(res);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
@@ -860,7 +861,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_del) {
     ASSERT_TRUE(res[0] == 0xFF); // ack
 
     ASSERT_TRUE(client.send_message(make_hex_vector("04 0d 2E746F702E7375622E76616C32")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     print_vec(res);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00); // permission denied
@@ -923,7 +924,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_list) {
     std::vector<unsigned char> data = make_hex_vector(result.c_str());
 
     ASSERT_TRUE(client.send_message(make_hex_vector("05 03 2E2432")));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     print_vec(res);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00); // invalid key
@@ -955,19 +956,19 @@ TEST_F(IntegrationTests_TCPServer, login_admin_create_user) {
 
     // create user tobi - testpwd - 0x00 -> success
     ASSERT_TRUE(client.send_message(make_hex_vector("80 04 746F6269 07 74657374707764 00")));
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_fail);
     ASSERT_EQ(res.size(), 1);
     ASSERT_TRUE(res[0] == 0xFF);
 
     // create user tobi - testpwd - 0x00 -> error username already exists
     ASSERT_TRUE(client.send_message(make_hex_vector("80 04 746F6269 07 74657374707764 00")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x05);
 
     // create user test - testpwd - 0xfa -> error invalid options
     ASSERT_TRUE(client.send_message(make_hex_vector("80 04 74657374 07 74657374707764 fa")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x80 && res[2] == 0x01);
 }
@@ -1003,13 +1004,13 @@ TEST_F(IntegrationTests_TCPServer, login_admin_delete_user) {
 
     // delete user tobi -> failure user not found
     ASSERT_TRUE(client.send_message(make_hex_vector("82 04 746F6269")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x02);
 
     // delete user admin -> failure user currently connected
     ASSERT_TRUE(client.send_message(make_hex_vector("82 05 61646D696E")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x82 && res[2] == 0x01);
 }
@@ -1106,13 +1107,13 @@ TEST_F(IntegrationTests_TCPServerManual, load_acl_from_disk) {
 
     // should NOT be able to write to .sub.a.read
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0B 2E7375622E612E72656164 02 00000001")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00);
 
     // should be able to write to .sub.a.write
     ASSERT_TRUE(client.send_message(make_hex_vector("02 0C 2E7375622E612E7772697465 02 00000001")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_EQ(res.size(), 1);
     ASSERT_EQ(res[0], 0xFF);
 
@@ -1145,7 +1146,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_change_pwd) {
 
     client.close_connection();
 
-    safe_sleep(wait_time_error);
+    safe_sleep(wait_time_fail);
 
     // try to log in with new passwd
     DumbTCPClient client2("127.0.0.1", ServerPort::instance().get());
@@ -1245,13 +1246,13 @@ TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
 
     // safe follow on .x.start with max_jump = 15 -> fail, no read on .y anything
     ASSERT_TRUE(client.send_message(make_hex_vector("06 08 2E782E7374617274 0f")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x00);
 
     // forced follow on .y.end to check permission of start key
     ASSERT_TRUE(client.send_message(make_hex_vector("07 06 2E792E656E64 0f")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xff && res[2] == 0x00);
 
@@ -1274,7 +1275,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
 
     // safe follow on .x.a with max_jump = 0 -> error, this is stupid
     ASSERT_TRUE(client.send_message(make_hex_vector("06 04 2E782E61 00")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x02 && res[2] == 0x01);
 
@@ -1292,25 +1293,25 @@ TEST_F(IntegrationTests_TCPServer, login_admin_follow) {
 
     // safe follow on invalid key
     ASSERT_TRUE(client.send_message(make_hex_vector("06 03 616224 0f")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00);
 
     // forced follow on invalid key
     ASSERT_TRUE(client.send_message(make_hex_vector("07 03 616224 0f")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x00);
 
     // safe follow on non existant key
     ASSERT_TRUE(client.send_message(make_hex_vector("06 06 2E782E616263 0f")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
 
     // forced follow on non existant key
     ASSERT_TRUE(client.send_message(make_hex_vector("07 06 2E782E616263 0f")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0x01 && res[2] == 0x01);
 }
@@ -1397,7 +1398,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // request complete user perms (no admin so only test1 will be returned)
     ASSERT_TRUE(user.send_message(make_hex_vector("84 00")));
-    res = user.receive_message(wait_time_error);
+    res = user.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() > 1);
     ASSERT_TRUE(res[0] == 0xFF);
     decoder._add_to_buffer(res);
@@ -1410,7 +1411,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // request data of admin -> permission denied
     ASSERT_TRUE(user.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
-    res = user.receive_message(wait_time_error);
+    res = user.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00);
 
@@ -1433,7 +1434,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // request data of admin -> SELF permission denied
     ASSERT_TRUE(user3.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
-    res = user3.receive_message(wait_time_error);
+    res = user3.receive_message(wait_time_fail);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xF0);
 }
