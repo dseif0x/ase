@@ -120,7 +120,6 @@ const AclEditor = () => {
             };
         }
 
-
         set(keyData, toUpdate, true, connectionId).then((response) => {
             if (!response.ok) {
                 toast.error(response.message);
