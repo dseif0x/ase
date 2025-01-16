@@ -9,7 +9,6 @@
 #include <thread>
 #include <getopt.h>
 #include <csignal>
-#include <mach/host_info.h>
 
 #include "tcp2_server.h"
 #include "acl.h"
