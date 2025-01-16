@@ -205,6 +205,11 @@ public class DynamicDataWriter {
 
         try {
             HashMap<String, TcpGeneral> keyMap = value.getKeyMap();
+
+            if (keyMap == null) {
+                throw new TCPClientWriteException("KeyMap is invalid.");
+            }
+
             int len = keyMap.size();
             if (len == 0) {
                 throw new TCPClientWriteException("KeyMap length invalid.");
@@ -263,6 +268,11 @@ public class DynamicDataWriter {
 
         try {
             List<TcpGeneral> array = value.getArray();
+
+            if (array == null) {
+                throw new TCPClientWriteException("Array is invalid.");
+            }
+
             int len = array.size();
             if (len > serverInfo.getArraySize()) {
                 throw new TCPClientWriteException("Array length invalid.");
