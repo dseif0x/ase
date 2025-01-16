@@ -347,14 +347,14 @@ TEST_F(DatabaseWithData, ListNonExistentKey) {
 }
 
 TEST_F(DatabaseWithData, StoreAndLoad) {
-    auto data = db->dump_data();
+    ASSERT_TRUE(db->dump_data("test_StoreAndLoad.bin"));
 
     db->remove("test");
 
     auto test = get<int>(*db, "test");
     ASSERT_FALSE(test.has_value());
 
-    db->load_data(data);
+    ASSERT_TRUE(db->load_data("test_StoreAndLoad.bin"));
 
     test = get<int>(*db, "test");
     ASSERT_TRUE(test.has_value());
@@ -507,7 +507,7 @@ TEST_F(DatabaseWithoutData, ParallelRemove) {
 }
 
 TEST_F(DatabaseWithoutData, StoreAndLoadEmpty) {
-    auto data = db->dump_data();
+    ASSERT_TRUE(db->dump_data("test_StoreAndLoadEmpty.bin"));
 
     CopiedValue newval{};
     newval.type = ValueType::INT;
@@ -518,7 +518,7 @@ TEST_F(DatabaseWithoutData, StoreAndLoadEmpty) {
     ASSERT_TRUE(test.has_value());
     ASSERT_EQ(test.value(), 42);
 
-    db->load_data(data);
+    ASSERT_TRUE(db->load_data("test_StoreAndLoadEmpty.bin"));
 
     test = get<int>(*db, "test");
     ASSERT_FALSE(test.has_value());

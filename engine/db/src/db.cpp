@@ -9,6 +9,7 @@
 
 #include <queue>
 #include <sstream>
+#include <fstream>
 
 auto init_db = [](shmem& mem) {
     mem.construct<db_key_map>();
@@ -22,12 +23,61 @@ DB::~DB() {
 
 }
 
-shmem::dump_t DB::dump_data() {
-    return mem.dump_data();
+bool DB::dump_data(const std::string& filename) {
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    // Get the data (metadata + vector of bytes)
+    auto dat = mem.dump_data();
+    const auto& meta = dat.first;
+    const auto& data = dat.second;
+
+    // Write the meta data
+    file.write(reinterpret_cast<const char*>(&meta), sizeof(meta));
+    if (!file.good()) {
+        return false;
+    }
+
+    // Write the raw bytes of the vector
+    if (!data.empty()) {
+        file.write(reinterpret_cast<const char*>(data.data()), data.size());
+        if (!file.good()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-void DB::load_data(const shmem::dump_t& data) {
-    mem.load_data(data);
+bool DB::load_data(const std::string& filename) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    // Read the meta data first
+    dump_meta meta{};
+    file.read(reinterpret_cast<char*>(&meta), sizeof(meta));
+    if (!file.good()) {
+        return false;
+    }
+
+    // Prepare a vector of the correct size, read raw bytes into it
+    std::vector<uint8_t> data(meta.alloc_size);
+    if (meta.alloc_size > 0) {
+        file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(meta.alloc_size));
+        if (!file.good()) {
+            return false;
+        }
+    }
+
+    // Now pass the reconstructed dump to Memory::load_data()
+    shmem::dump_t dat(meta, data);
+    mem.load_data(dat);
+
+    return true;
 }
 
 void DB::destroy() {
