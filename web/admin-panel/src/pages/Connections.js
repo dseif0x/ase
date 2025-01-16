@@ -235,6 +235,12 @@ function App() {
         config.port = parseInt(prompt("Enter Port:"));
         config.username = prompt("Enter Username:");
         config.password = prompt("Enter Password:");
+
+        if (connectionExists(config.host, config.port, config.username)) {
+            alert("this connection already exists!");
+            return;
+        }
+
         if (config.host && config.port && config.username && config.password) {
             console.log("config: " + config);
             connect(config).then(async (response: WebReturnDto) => {
@@ -251,6 +257,10 @@ function App() {
                     setConnections(updatedConnections);
 
                     localStorage.setItem("connections", JSON.stringify(updatedConnections));
+                    localStorage.setItem("selectedConnectionId", newConnection.id);
+
+                    setSelectedConnectionId(newConnection.id);
+                    setSelectedConnection(newConnection);
                 } else console.error("Failed to add connection:", response);
             }).catch((error) => {
                 console.error("Failed to add connection:", error);
