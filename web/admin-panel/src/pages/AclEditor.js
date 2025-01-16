@@ -114,10 +114,9 @@ const AclEditor = () => {
                     toast.error("Unsupported value type.");
                     return;
             }
-        } else if (type === "ARRAY" || type === "PAIR" || type === "KEY_MAP") {
+        } else if (type === "ARRAY" || type === "KEY_MAP") {
             toUpdate = {
-                type: type,
-                value: [],
+                type: type
             };
         }
 
