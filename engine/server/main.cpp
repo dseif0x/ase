@@ -17,11 +17,6 @@
 
 std::atomic<bool> stopFlag(false);
 
-void handleSigint(int signal) {
-    std::cout << "\nStopping Server...\n";
-    stopFlag = true;
-}
-
 void print_usage() {
     std::cout << "Usage: " << "ase_server" << " [options]\n"
               << "Options:\n"
@@ -39,6 +34,15 @@ int print_error(const std::string &message, int error) {
     std::cout << "error: " << message << "\n" << std::endl;
     print_usage();
     return error;
+}
+
+void print_info(const std::string &message) {
+    std::cout << ">> " << message << std::endl;
+}
+
+void handleSigint(int signal) {
+    std::cout << "... stopping server ..." << std::endl;
+    stopFlag = true;
 }
 
 int main(int argc, char *argv[]) {
@@ -129,30 +133,41 @@ int main(int argc, char *argv[]) {
 
     if (!acl_input.empty()) {
         // load acl from disk
-        if (server.load_acl_from_disk(acl_input)) std::cout << "ACL loaded from disk." << std::endl;
-        else std::cout << "ACL could not be loaded from disk." << std::endl;
+        if (server.load_acl_from_disk(acl_input)) print_info("ACL loaded from disk.");
+        else print_info("Could not load ACL from disk.");
+    }
+
+    if (!db_input.empty()) {
+        // load db from disk
+        if (server.load_db_to_disk(db_input)) print_info("DB loaded from disk.");
+        else print_info("Could not load DB from disk.");
     }
 
     // start server
     server.start();
-    std::cout << "Server started, stop by entering anything." << std::endl;
+    print_info("Server started! Stop with Ctrl+C");
 
     int print_counter = 0;
     while (!stopFlag) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (print_counter++ % 100 == 0) std::cout << "Working...    Stop with Ctrl-C\n";
+        if (print_counter++ % 100 == 0) print_info("Working.....");
     }
 
     // stop server
     server.stop();
-    std::cout << "Server stopped." << std::endl;
+    print_info("Server stopped!");
 
-    // save result to disk
+    if (!db_output.empty()) {
+        // save db to disk
+        if (server.save_db_to_disk(db_output)) print_info("DB saved to disk.");
+        else print_info("DB could not be saved to disk.");
+    }
+
     if (!acl_output.empty()) {
-        if (server.save_acl_to_disk(acl_output)) std::cout << "ACL saved to disk." << std::endl;
-        else std::cout << "ACL could not be saved to disk." << std::endl;
+        // save acl to disk
+        if (server.save_acl_to_disk(acl_output)) print_info("ACL saved to disk.");
+        else print_info("ACL could not be saved to disk.");
     }
 
     return 0;
-
 }

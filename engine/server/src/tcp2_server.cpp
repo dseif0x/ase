@@ -28,6 +28,16 @@ bool TCP2Server::save_acl_to_disk(const std::string &path) {
     return this->acl.save_to_disk(path);
 }
 
+bool TCP2Server::save_db_to_disk(const std::string &path) {
+    if (this->running) return false;
+    return this->db.dump_data(path);
+}
+
+bool TCP2Server::load_db_to_disk(const std::string &path) {
+    if (this->running) return false;
+    return this->db.load_data(path);
+}
+
 void TCP2Server::start() {
     if (!this->running) {
         this->running = true;

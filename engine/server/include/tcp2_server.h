@@ -50,6 +50,22 @@ public:
     bool save_acl_to_disk(const std::string &path);
 
     /**
+     * @brief Tries to write the db to disk.
+     *
+     * @param path The path to write the db to.
+     * @return if successful
+     */
+    bool save_db_to_disk(const std::string &path);
+
+    /**
+     * @brief Tries to read the db from disk.
+     *
+     * @param path The path to read the db from.
+     * @return if successful
+     */
+    bool load_db_to_disk(const std::string &path);
+
+    /**
      * @brief Starts the TCP server and begins accepting client connections.
      *
      * Spawns a separate thread to handle client connections using the
