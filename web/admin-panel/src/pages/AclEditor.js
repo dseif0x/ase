@@ -29,16 +29,18 @@ const AclEditor = () => {
     ];
 
     const [value, setValue] = useState("");
-    const [valueType, setValueType] = useState("STRING");
+    const [simpleType, setSimpleType] = useState("STRING");
+    const [type, setType] = useState("SIMPLE");
     const [permissions, setPermissions] = useState(initialPermissions);
 
 
     useEffect(() => {
         if (keyData) {
             get(keyData, connectionId).then(val => {
-                if (val.ok && val.data?.type === "SIMPLE") {
+                if (val.ok) {
                     setValue(val.data?.value ?? "");
-                    setValueType(val.data?.simpleType || "STRING");
+                    setSimpleType(val.data?.simpleType || "STRING");
+                    setType(val.data?.type || "SIMPLE");
                 } else {
                     toast.error(val.message);
                     console.error()
@@ -47,6 +49,15 @@ const AclEditor = () => {
             })
         }
     }, [keyData]);
+
+    const handleTypeChange = (e) => {
+        const selectedType = e.target.value;
+        setType(selectedType);
+
+        if (selectedType !== "SIMPLE") {
+            setValue("");
+        }
+    };
 
     const togglePermission = (index, permissionType) => {
         const updatedPermissions = [...permissions];
@@ -57,51 +68,59 @@ const AclEditor = () => {
     const handleUpdate = () => {
         let toUpdate;
 
-        switch (valueType) {
-            case "INT":
-                let parsedInt = parseInt(value, 10);
+        if (type === "SIMPLE") {
+            switch (simpleType) {
+                case "INT":
+                    let parsedInt = parseInt(value, 10);
 
-                if (isNaN(parsedInt)) {
-                    toast.error("Invalid Integer value.");
+                    if (isNaN(parsedInt)) {
+                        toast.error("Invalid Integer value.");
+                        return;
+                    }
+                    toUpdate = {
+                        type: "SIMPLE",
+                        value: parsedInt,
+                        simpleType: "INT",
+                    }
+                    break;
+                case "BOOLEAN":
+                    let parsedBoolean = value.toLowerCase() === "true";
+                    toUpdate = {
+                        type: "SIMPLE",
+                        value: parsedBoolean,
+                        simpleType: "BOOLEAN",
+                    }
+                    break;
+                case "DOUBLE":
+                    let parsedDouble = parseFloat(value);
+                    if (isNaN(parsedDouble)) {
+                        toast.error("Invalid Double value.");
+                        return;
+                    }
+                    toUpdate = {
+                        type: "SIMPLE",
+                        value: parsedDouble,
+                        simpleType: "DOUBLE",
+                    }
+                    break;
+                case "STRING":
+                    toUpdate = {
+                        type: "SIMPLE",
+                        value: value,
+                        simpleType: "STRING",
+                    }
+                    break;
+                default:
+                    toast.error("Unsupported value type.");
                     return;
-                }
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: parsedInt,
-                    simpleType: "INT",
-                }
-                break;
-            case "BOOLEAN":
-                let parsedBoolean = value.toLowerCase() === "true";
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: parsedBoolean,
-                    simpleType: "BOOLEAN",
-                }
-                break;
-            case "DOUBLE":
-                let parsedDouble = parseFloat(value);
-                if (isNaN(parsedDouble)) {
-                    toast.error("Invalid Double value.");
-                    return;
-                }
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: parsedDouble,
-                    simpleType: "DOUBLE",
-                }
-                break;
-            case "STRING":
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: value,
-                    simpleType: "STRING",
-                }
-                break;
-            default:
-                toast.error("Unsupported value type.");
-                return;
+            }
+        } else if (type === "ARRAY" || type === "PAIR" || type === "KEY_MAP") {
+            toUpdate = {
+                type: type,
+                value: [],
+            };
         }
+
 
         set(keyData, toUpdate, true, connectionId).then((response) => {
             if (!response.ok) {
@@ -120,35 +139,48 @@ const AclEditor = () => {
         <div className="acl-editor">
             <h2>Key: {keyData}</h2>
             <div className="value-section">
-                <label>Value:</label>
+                <label>Type:</label>
+                <select value={type} onChange={handleTypeChange}>
+                    <option value="SIMPLE">Simple</option>
+                    <option value="ARRAY">Array</option>
+                    <option value="PAIR">Pair</option>
+                    <option value="KEY_MAP">Key Map</option>
+                </select>
+                {type === "SIMPLE" && (
+                    <>
+                        <label>Value:</label>
 
-                {valueType === "BOOLEAN" ? (
-                    <select
-                        value={value.toString()}
-                        onChange={(e) => setValue(e.target.value)}
-                    >
-                        <option value="true">True</option>
-                        <option value="false">False</option>
-                    </select>
-                ) : (
-                    <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        placeholder={`Enter a ${SIMPLE_TYPE_MAP[valueType]}`}
-                    />
+                        {simpleType === "BOOLEAN" ? (
+                            <select
+                                value={value.toString()}
+                                onChange={(e) => setValue(e.target.value)}
+                            >
+                                <option value="true">True</option>
+                                <option value="false">False</option>
+                            </select>
+                        ) : (
+                            <input
+                                type="text"
+                                value={value}
+                                onChange={(e) => setValue(e.target.value)}
+                                placeholder={`Enter a ${SIMPLE_TYPE_MAP[simpleType]}`}
+                            />
+                        )}
+
+                        <label>SIMPLE Type:</label>
+                        <select
+                            value={simpleType}
+                            onChange={(e) => setSimpleType(e.target.value)}
+                        >
+                            <option value="INT">Integer</option>
+                            <option value="STRING">String</option>
+                            <option value="BOOLEAN">Boolean</option>
+                            <option value="DOUBLE">Double</option>
+                        </select>
+                    </>
                 )}
 
-                <label>Type:</label>
-                <select
-                    value={valueType}
-                    onChange={(e) => setValueType(e.target.value)}
-                >
-                    <option value="INT">Integer</option>
-                    <option value="STRING">String</option>
-                    <option value="BOOLEAN">Boolean</option>
-                    <option value="DOUBLE">Double</option>
-                </select>
+
             </div>
 
             <h3>Current ACL Permissions</h3>
