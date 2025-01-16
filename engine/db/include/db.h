@@ -13,6 +13,12 @@
 #include "shmem.h"
 
 using db_key_map = db_map;
+enum class Aggregation{
+    SUM,
+    MIN,
+    MAX,
+    AVERAGE
+};
 
 /**
  * @brief A database class that provides key-value storage with various commands.
@@ -43,6 +49,18 @@ public:
      * @return a copy of the value
      */
     std::optional<CopiedValue> get(const char* key);
+
+    /**
+     * AGGREGATE command
+     *
+     * @param agg the type of aggregation that should be performed
+     * @param entrypoint key of the first node
+     * @param field the field to be aggregated
+     * @param followFields an array of fields that reference the
+     * @return either an int or double, depending on the template argument
+     */
+    template<ValueType VT>
+    std::optional<CopiedValue> aggregate(Aggregation agg, const char* entrypoint, const char* field, const std::vector<const char*>& followFields);
 
     /**
      * SET command of the database
