@@ -145,30 +145,22 @@ function App() {
 
     const deleteConnection = async (id, connectionId) => {
         await disconnect(connectionId).then((r: WebReturnDto) => {
-            if (r.ok) {
-                const updatedConnections = connections.filter((connection) => connection.id !== id);
+            const updatedConnections = connections.filter((connection) => connection.id !== id);
 
-                setConnections(updatedConnections);
-                localStorage.setItem("connections", JSON.stringify(updatedConnections));
-
-                let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
-                const testConnection = savedConnections.find((connection) => connection.id === 0);
-                setSelectedConnection(testConnection);
+            setConnections(updatedConnections);
+            localStorage.setItem("connections", JSON.stringify(updatedConnections));
+            if (selectedConnectionId === id) {
+                if (updatedConnections.length > 0) {
+                    setSelectedConnectionId(updatedConnections[0].id);
+                    setSelectedConnection(updatedConnections[0]);
+                } else {
+                    setSelectedConnectionId(0);
+                    setSelectedConnection([]);
+                    setHierarchicalData([]);
+                }
             }
         });
     };
-
-    useEffect(() => {
-        if (selectedConnection?.id === 0) {
-            const hierarchy = buildHierarchy(keyDataStructure);
-            setHierarchicalData(hierarchy);
-        } else if (selectedConnection) {
-            const hierarchy = buildHierarchy(otherDataStructure);
-            setHierarchicalData(hierarchy);
-        } else {
-            setHierarchicalData([]);
-        }
-    }, [selectedConnection, otherDataStructure]);
 
     const toggleCollapse = (node) => {
         node.collapsed = !node.collapsed;
