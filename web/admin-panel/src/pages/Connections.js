@@ -107,8 +107,6 @@ function App() {
     const [selectedConnection, setSelectedConnection] = useState([]);
     const [selectedConnectionId, setSelectedConnectionId] = useState(0);
     const [hierarchicalData, setHierarchicalData] = useState([]);
-    const [selectedConnection, setSelectedConnection] = useState(0);
-    const [otherDataStructure, setOtherDataStructure] = useState({});
 
     const navigate = useNavigate();
 
@@ -242,7 +240,6 @@ function App() {
         }
 
         if (config.host && config.port && config.username && config.password) {
-            console.log("config: " + config);
             connect(config).then(async (response: WebReturnDto) => {
                 if (response.ok) {
                     const newConnection = {
@@ -310,9 +307,24 @@ function App() {
         }
     }
 
-    async function loadData() {
-        const keyDataStructure = await buildKeyDataStructure();
-        setOtherDataStructure(keyDataStructure);
+    useEffect(() => {
+        (async () => {
+            if (selectedConnection && selectedConnection.connectionId) {
+                const loggedIn = await checkLogin();
+                if (loggedIn) {
+                    const data = await buildKeyDataStructure();
+                    setHierarchicalData(buildHierarchy(data));
+                }
+            }
+        })();
+    }, [selectedConnection]);
+
+    async function refresh() {
+        if (await checkLogin()) {
+            const keyDataStructure = await buildKeyDataStructure();
+            const temp = buildHierarchy(keyDataStructure || {});
+            setHierarchicalData(temp);
+        }
     }
 
     return (
@@ -322,15 +334,17 @@ function App() {
                 {connections.map((connection) => (
                     <div
                         key={connection.id}
-                        className={`connection ${selectedConnection?.id === connection.id ? "selected" : ""}`}
-                        onClick={() => {setSelectedConnection(connection);}
-                        }
+                        className={`connection ${selectedConnectionId === connection.id ? "selected" : ""}`}
+                        onClick={() => {
+                            setSelectedConnection(connection);
+                            setSelectedConnectionId(connection.id);
+                        }}
                     >
                         <input
                             type="radio"
                             name="connection"
                             value={connection.id}
-                            checked={selectedConnection?.id === connection.id}
+                            checked={selectedConnectionId === connection.id}
                             onChange={() => setSelectedConnection(connection)}
                         />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
@@ -344,15 +358,20 @@ function App() {
                         )}
                     </div>
                 ))}
-                <button className="add-connection-button" onClick={addConnection}>
-                    + Add Connection
-                </button>
+                <div className="footer-container">
+                    <button className="add-connection-button" onClick={addConnection}>
+                        + Add Connection
+                    </button>
+                    <button className="add-connection-button blue-button" onClick={addDevConnetion}>
+                        Dev Login
+                    </button>
+                </div>
             </div>
             <div className="data-panel">
                 <div className="keys-header">
                     <h3>Keys</h3>
                     <span>
-                        <button className="refresh-button" onClick={loadData}>
+                        <button className="refresh-button" onClick={refresh}>
                             Refresh
                         </button>
                     </span>
@@ -375,7 +394,7 @@ function App() {
                     </tr>
                     </thead>
                     <tbody>
-                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
+                        {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
                     </tbody>
                 </table>
             </div>
