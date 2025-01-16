@@ -104,6 +104,8 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 
 
 function App() {
     const [connections, setConnections] = useState([]);
+    const [selectedConnection, setSelectedConnection] = useState([]);
+    const [selectedConnectionId, setSelectedConnectionId] = useState(0);
     const [hierarchicalData, setHierarchicalData] = useState([]);
     const [selectedConnection, setSelectedConnection] = useState(0);
     const [otherDataStructure, setOtherDataStructure] = useState({});
@@ -111,44 +113,35 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const dataToUse =
-            selectedConnection?.id === 0
-                ? keyDataStructure
-                : otherDataStructure;
+        cleanupConnections().then(r => {
 
-        const hierarchy = buildHierarchy(dataToUse);
-        setHierarchicalData(hierarchy);
-    }, [selectedConnection]);
+            let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+            let selectedConnectionId = JSON.parse(localStorage.getItem("selectedConnectionId")) || 1;
 
+            setSelectedConnectionId(selectedConnectionId);
+            setConnections(savedConnections);
 
-    useEffect(() => {
-        let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+            let found = false;
+            savedConnections.forEach((item) => {
+                if (item.id === selectedConnectionId) {
+                    found = true;
+                    setSelectedConnection(item);
+                }
+            });
 
-        if (!savedConnections.some((connection) => connection.id === 0)) {
-            const testConnection = {
-                id: 0,
-                ip: "testconn.ase",
-                port: "25565",
-                username: "test",
-            };
-            savedConnections = [testConnection];
-            localStorage.setItem("connections", JSON.stringify(savedConnections));
-        }
-
-        setConnections(savedConnections);
-        const hierarchy = buildHierarchy(keyDataStructure);
-        setHierarchicalData(hierarchy);
-
-        const testConnection = savedConnections.find((connection) => connection.id === 0);
-        setSelectedConnection(testConnection);
-
+            if (!found) {
+                if (savedConnections.length > 0) {
+                    setSelectedConnection(savedConnections[0]);
+                    setSelectedConnectionId(savedConnections[0].id);
+                }
+                setSelectedConnectionId(0);
+            }
+        });
     }, []);
 
-    useEffect(() => {
-        if (selectedConnection) {
-            loadData();
-        }
-    }, [selectedConnection]);
+    async function checkLogin() {
+        return await isLoggedIn(selectedConnection.connectionId);
+    }
 
     const deleteConnection = async (id, connectionId) => {
         await disconnect(connectionId).then((r: WebReturnDto) => {
