@@ -1459,10 +1459,10 @@ TEST_F(IntegrationTests_TCPServer, login_admin_stop) {
     // send a forced set [1] followed by a stop command followed by a ping
     // answer should be an ack (for the stop) and ack + ping data
     ASSERT_TRUE(client.send_message(make_hex_vector("03 05 2E74657374 82 01 00000001 FE FD 01 02 03 04"))); // 00000002 is missing
-    auto res = client.receive_message(wait_time_success);
+    auto res = client.receive_message(wait_time_error);
     ASSERT_EQ(res.size(), 6);
     ASSERT_TRUE(vec_equ(res, {0xFF, 0xFF, 0x01, 0x02, 0x03, 0x04}));
 
-    // the set should still be executed correctly:
+    // the set should still be executed correctly
 
 }
