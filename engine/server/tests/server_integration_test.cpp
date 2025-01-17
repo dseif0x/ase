@@ -1375,7 +1375,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // requesting data of wrong user
     ASSERT_TRUE(client.send_message(make_hex_vector("84 02 05 7461737465 05 7465737431")));
-    res = client.receive_message(wait_time_success);
+    res = client.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // user not found
 
@@ -1411,7 +1411,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // request data of admin -> permission denied
     ASSERT_TRUE(user.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
-    res = user.receive_message(wait_time_fail);
+    res = user.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00);
 
@@ -1434,7 +1434,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // request data of admin -> SELF permission denied
     ASSERT_TRUE(user3.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
-    res = user3.receive_message(wait_time_fail);
+    res = user3.receive_message(wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xF0);
 }

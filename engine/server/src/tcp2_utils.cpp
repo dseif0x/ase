@@ -174,10 +174,9 @@ int tcp2_utils::command::get(TCP2Decoder &decoder, TCP2Encoder &encoder, Command
     encoder.from_ack();
     if (!encoder.from_general(*res)) {
         // this should normally never happen, as the data here is extracted directly from the db and therefore correct
-        encoder.clear_buffer();
-        encoder.from_nak();
-        encoder.encode_error(errors::general_server_error);
-        return -3;
+        // the ack was already written and therefore we have to scrap the whole buffer
+        // todo this can be improved
+        return errors::general_server_error | errors::control_flags::clear_encoder;
     }
     return 0;
 }
@@ -221,23 +220,15 @@ int tcp2_utils::command::get_user_perms(TCP2Decoder &decoder, TCP2Encoder &encod
         // read usernames from decoder
         for (int x = 0; x < len; x++) {
             std::string name = decoder.to_string();
+            // failing in this stage is not easily recoverable, as other names may follow; decoder must be cleared
             if ((info.self_perms & permissions::admin) <= 0 && info.self_name != name) {
-                encoder.clear_buffer();
-                encoder.from_nak();
-                encoder.encode_error(errors::permission_denied_self);
-                return -3; // not easily recoverable, as other names may follow
+                return errors::permission_denied_self | errors::control_flags::clear_decoder;
             }
             if (!info.user->is_admin() && info.self_name != name) {
-                encoder.clear_buffer();
-                encoder.from_nak();
-                encoder.encode_error(errors::permission_denied);
-                return -3; // not easily recoverable, as other names may follow
+                return errors::permission_denied | errors::control_flags::clear_decoder;
             }
             if (!info.acl.has_user(name)) {
-                encoder.clear_buffer();
-                encoder.from_nak();
-                encoder.encode_error(errors::user_not_found);
-                return -3;
+                return errors::user_not_found | errors::control_flags::clear_decoder;
             }
             usernames.push_back(name);
         }
@@ -346,10 +337,9 @@ int tcp2_utils::command::safe_follow(TCP2Decoder &decoder, TCP2Encoder &encoder,
     encoder.from_ack();
     if (!encoder.from_general(*res)) {
         // this should normally never happen, as the data here is extracted directly from the db and therefore correct
-        encoder.clear_buffer();
-        encoder.from_nak();
-        encoder.encode_error(errors::general_server_error);
-        return -3;
+        // the ack was already written and therefore we have to scrap the whole buffer
+        // todo this can be improved
+        return errors::general_server_error | errors::control_flags::clear_encoder;
     }
     return 0;
 }
@@ -376,10 +366,9 @@ int tcp2_utils::command::forced_follow(TCP2Decoder &decoder, TCP2Encoder &encode
     encoder.from_ack();
     if (!encoder.from_general(*res)) {
         // this should normally never happen, as the data here is extracted directly from the db and therefore correct
-        encoder.clear_buffer();
-        encoder.from_nak();
-        encoder.encode_error(errors::general_server_error);
-        return -3;
+        // the ack was already written and therefore we have to scrap the whole buffer
+        // todo this can be improved
+        return errors::general_server_error | errors::control_flags::clear_encoder;
     }
     return 0;
 }
@@ -550,16 +539,31 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
                     c_success++;
                     break;
                 default:
-                    if (temp_ret > 0 && temp_ret <= 0xFFFF) {
-                        // returns the error message code
-                        // can be recovered, same as return value -1 except that nak and the error message still have to be written
-                        encoder.from_nak();
-                        encoder.encode_error(temp_ret);
-                        c_recovered++;
-                    } else {
-                        // undefined -> soft shutdown
-                        state = -1;
+                    if (temp_ret < 0 || (temp_ret >> 18) != 0) {
+                        state = -1; // undefined -> soft shutdown
+                        break;
                     }
+                    // error in command
+                    int batch_error = 0;
+                    bool clear_decoder = ((temp_ret & errors::control_flags::clear_decoder) > 0);
+                    bool clear_encoder = ((temp_ret & errors::control_flags::clear_encoder) > 0);
+                    if (clear_decoder) {
+                        batch_error |= errors::batch_decoder_cleared;
+                        decoder.clear_buffer();
+                    }
+                    if (clear_encoder) {
+                        batch_error |= errors::batch_encoder_cleared;
+                        encoder.clear_buffer();
+                    }
+                    encoder.from_nak();
+                    if (batch_error > 0) {
+                        if (false) encoder.encode_error(batch_error); // only encode if batch mode is on
+                        c_fail++;
+                    } else {
+                        c_recovered++;
+                    }
+                    encoder.encode_error(temp_ret & 0xFFFF);
+
             }
         }
         // send buffer
