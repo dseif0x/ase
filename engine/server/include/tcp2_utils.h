@@ -75,7 +75,7 @@ namespace tcp2_utils {
      *         -  1: Soft shutdown.
      *         -  2: Hard shutdown.
      */
-    int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci);
+    int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, int state);
 
     /**
     * @brief splits the key into the domain parts.

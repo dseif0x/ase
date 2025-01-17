@@ -19,9 +19,10 @@
 // returns 0: command executed fine
 // returns 1: soft shutdown
 // returns 2: hard shutdown
-int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci) {
+int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, int state) {
     int (*func)(TCP2Decoder&, TCP2Encoder&, CommandInfo&);
     unsigned char perms{};
+    bool illegal_for_batching = false;
     uint16_t error = 0;
 
     auto temp = decoder.to_unsigned(1);
@@ -33,14 +34,17 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
         case 0xFE: //STOP
             func = command::stop;
             perms = permissions::none;
+            illegal_for_batching = true;
             break;
         case 0xFD: //PING
             func = command::ping;
             perms = permissions::none;
+            illegal_for_batching = true;
             break;
         case 0xFC: //DISCONNECT
             func = command::disconnect;
             perms = permissions::none;
+            illegal_for_batching = true;
             break;
         // DB Commands
         case 0x01: //GET
@@ -75,22 +79,27 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
         case 0x80: // Create User
             func = command::create_user;
             perms = permissions::admin;
+            illegal_for_batching = true;
             break;
         case 0x81: // Update Scope
             func = command::update_scope;
             perms = permissions::admin;
+            illegal_for_batching = true;
             break;
         case 0x82: // Delete User
             func = command::delete_user;
             perms = permissions::admin;
+            illegal_for_batching = true;
             break;
         case 0x83: // Change User pwd
             func = command::change_pwd;
             perms = permissions::none;
+            illegal_for_batching = true;
             break;
         case 0x84: // Get User-Perms
             func = command::get_user_perms;
             perms = permissions::none; // additional admin check in the
+            illegal_for_batching = true;
             break;
         default:
             error = errors::unknown_command;
@@ -107,6 +116,7 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             }
         }
     }
+    if (illegal_for_batching && state == 10) error = errors::illegal_batching_command;
 
     if (error == 0) {
         return func(decoder, encoder, ci);
@@ -511,9 +521,9 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
             encoder.from_ack();
             state = 2;
             ci = std::make_unique<CommandInfo>(user, acl, db, username, self_perms);
-        } else if (state == 2) {
+        } else if (state == 2 || state == 10) {
             // logged in and ready for commands
-            int temp_ret = client_command_switch(decoder, encoder, *ci);
+            int temp_ret = client_command_switch(decoder, encoder, *ci, state);
 #ifdef DEBUG
             std::cout << "> command result: " << temp_ret << std::endl;
 #endif
@@ -524,16 +534,14 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
                 case -9: // soft shutdown
                     state = -1;
                     break; // allows to write before breaking free
-                case -3: // error, internal server problem, encoder is destroyed and was already cleared
-                    // this might in many cases not be recoverable
-                    // batching must be stopped here
+                case -1: // set batching mode
+                    state = 10;
                     break;
-                case -2: // error, not recovered; can not trust decoder
-                    decoder.clear_buffer();
-                    c_fail++;
+                case -2: // flush if in batching state
+                    if (state == 10) state = 11;
                     break;
-                case -1: // error, but recovered
-                    c_recovered++;
+                case -3: // set normal mode
+                    state = 2;
                     break;
                 case 0: // executed fine
                     c_success++;
@@ -557,22 +565,23 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
                     }
                     encoder.from_nak();
                     if (batch_error > 0) {
-                        if (false) encoder.encode_error(batch_error); // only encode if batch mode is on
+                        if (state == 10) encoder.encode_error(batch_error); // only encode if batch mode is on
                         c_fail++;
                     } else {
                         c_recovered++;
                     }
                     encoder.encode_error(temp_ret & 0xFFFF);
-
             }
+        } else if (state == 11) {
+            // return to batching state
+            state = 10;
         }
         // send buffer
-        while (!encoder.is_empty()) {
+        while (!encoder.is_empty() && state != 10) {
             // stop is only valid if the connection is achieved and the user is logged in
-            if (state == 2 && decoder.is_stop()) {
-                //decoder.clear_buffer();
-                encoder.clear_buffer();
-                encoder.from_ack();
+            if (state >= 2 && decoder.is_stop()) {
+                //encoder.clear_buffer();
+                //encoder.from_ack();
                 break;
             }
             if (!encoder.write_data()) {

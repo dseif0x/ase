@@ -31,6 +31,7 @@ namespace errors {
     constexpr uint16_t already_connected             = 0xFF04;
     constexpr uint16_t username_already_exists       = 0xFF05;
     constexpr uint16_t unknown_command               = 0xFF06;
+    constexpr uint16_t illegal_batching_command      = 0xFF07;
 
     constexpr uint16_t batch_decoder_cleared         = 0xBA80;
     constexpr uint16_t batch_encoder_cleared         = 0xBA40;
@@ -61,6 +62,7 @@ namespace errors {
         {invalid_value, "Invalid value. Could not extract a valid value."},
         {unsafe_write, "The selected key exists. Use forced-SET to override."},
         {unknown_option, "The provided option is not known by the server."},
+        {illegal_batching_command, "The provided command is not allowed in batching mode."},
         {user_connected, "The user is currently connected and can therefore not be deleted."},
         {batch_decoder_cleared, "Because of an unexpected error, the decoder had to be scraped. This batch is incomplete."},
         {batch_encoder_cleared, "Because of an unexpected error, the encoder had to be scraped. This batch is incomplete."},
