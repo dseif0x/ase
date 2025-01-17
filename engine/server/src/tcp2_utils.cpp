@@ -566,7 +566,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
         while (!encoder.is_empty()) {
             // stop is only valid if the connection is achieved and the user is logged in
             if (state == 2 && decoder.is_stop()) {
-                decoder.clear_buffer();
+                //decoder.clear_buffer();
                 encoder.clear_buffer();
                 encoder.from_ack();
                 break;
