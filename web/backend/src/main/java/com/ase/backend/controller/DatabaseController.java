@@ -146,4 +146,21 @@ public class DatabaseController {
     public ResponseEntity<WebReturn<TcpGeneral>> follow(@RequestParam String key, @RequestParam long maxJump, @RequestParam boolean isSafe, @RequestHeader(value="X-Connection-Id") String connectionId) {
         return ResponseEntity.ok(service.follow(key, maxJump, isSafe, connectionId));
     }
+
+    /**
+     * Retrieves the permissions of a list of users.
+     *
+     * @param usernames Usernames to get permissions from.
+     * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
+     * or an error description if retrieval fails or is stopped.
+     */
+    @GetMapping("/getUserPermissions")
+    public ResponseEntity<WebReturn<TcpGeneral>> getUserPermissions(@RequestBody TcpGeneral usernames, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        WebReturn<TcpGeneral> future = service.getUserPermissions(usernames, connectionId);
+        try {
+            return ResponseEntity.ok(future);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
+    }
 }

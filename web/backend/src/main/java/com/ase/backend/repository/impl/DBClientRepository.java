@@ -92,4 +92,9 @@ public class DBClientRepository implements DBClientDao {
     public WebReturn<TcpGeneral> follow(String key, long maxJump, boolean isSafe, String connectionId) {
         return connectionService.getClient(connectionId).follow(key, maxJump, isSafe);
     }
+
+    @Override
+    public WebReturn<TcpGeneral> getUserPermissions(TcpGeneral usernames, String connectionId) {
+        return connectionService.getClient(connectionId).getUserPermissions(usernames);
+    }
 }

@@ -122,4 +122,15 @@ public class DatabaseService {
     public WebReturn<TcpGeneral> follow(String key, long maxJump, boolean isSafe, String connectionId) {
         return dao.follow(key, maxJump, isSafe, connectionId);
     }
+
+    /**
+     * Retrieves the permissions of a list of users.
+     *
+     * @param usernames Usernames to get permissions from.
+     * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
+     * or an error description if retrieval fails or is stopped.
+     */
+    public WebReturn<TcpGeneral> getUserPermissions(TcpGeneral usernames, String connectionId) {
+        return dao.getUserPermissions(usernames, connectionId);
+    }
 }
