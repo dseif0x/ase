@@ -2,6 +2,57 @@ import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
+export async function get_acl(username, connectionId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/db/getUserPermissions`, {
+          method: "POST",
+          headers: {
+            "X-Connection-Id": connectionId,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            "type": "ARRAY",
+            "simpleType": null,
+            "value": null,
+            "array": [
+              {
+                "type": "SIMPLE",
+                "simpleType": "STRING",
+                "value": username,
+                "array": null,
+                "pair": null,
+                "keyMap": null,
+                "complex": false,
+                "elementType": null
+              }
+            ],
+            "pair": null,
+            "keyMap": null,
+            "complex": false,
+            "elementType": "STRING"
+          })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Msg: ${response.status}`);
+        }
+
+        const contentType = response.headers.get("Content-Type");
+        let data;
+
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        throw error;
+    }
+}
+
 export async function get(key, connectionId) {
     try {
         const response = await fetch(`${API_BASE_URL}/db/get/` + key, {
@@ -22,7 +73,7 @@ export async function get(key, connectionId) {
         } else {
             data = await response.text();
         }
-
+        console.log("data", data);
         return data;
     } catch (error) {
         console.error("Error fetching data:", error);

@@ -154,7 +154,7 @@ public class DatabaseController {
      * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
      * or an error description if retrieval fails or is stopped.
      */
-    @GetMapping("/getUserPermissions")
+    @PostMapping("/getUserPermissions")
     public ResponseEntity<WebReturn<TcpGeneral>> getUserPermissions(@RequestBody TcpGeneral usernames, @RequestHeader(value="X-Connection-Id") String connectionId) {
         WebReturn<TcpGeneral> future = service.getUserPermissions(usernames, connectionId);
         try {

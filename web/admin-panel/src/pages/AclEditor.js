@@ -1,9 +1,23 @@
 import React, {useEffect, useState} from "react";
+import {Subject, zip} from "rxjs";
 import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/AclEditor.css";
-import {get, set} from "../api/Api";
+import {get, set, get_acl} from "../api/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+const asyncSub = new Subject();
+const nextAsyncSub = new Subject();
+zip(asyncSub, nextAsyncSub).subscribe({
+  next: ([fn]) => {
+    fn().finally(() => nextAsyncSub.next())
+  }
+});
+nextAsyncSub.next();
+function queue(fn) {
+  asyncSub.next(fn);
+}
+
 
 const SIMPLE_TYPE_MAP = {
     BOOLEAN: "Boolean",
@@ -35,16 +49,23 @@ const AclEditor = () => {
 
     useEffect(() => {
         if (keyData) {
-            get(keyData, connectionId).then(val => {
-                if (val.ok && val.data?.type === "SIMPLE") {
-                    setValue(val.data?.value ?? "");
-                    setValueType(val.data?.simpleType || "STRING");
-                } else {
-                    toast.error(val.message);
-                    console.error()
-                }
+          queue(async () => {
+            const val = await get(keyData, connectionId);
+            if (val.ok && val.data?.type === "SIMPLE") {
+              setValue(val.data?.value ?? "");
+              setValueType(val.data?.simpleType || "STRING");
+            } else {
+              toast.error(val.message);
+              console.error()
+            }
+          });
 
-            })
+          queue(async () => {
+            console.log("gettting acl...");
+            const val = await get_acl("admin", connectionId);
+            console.log("got acl");
+            console.log(val);
+          })
         }
     }, [keyData]);
 
