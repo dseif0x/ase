@@ -4,6 +4,20 @@ import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 import {connect, disconnect, isLoggedIn, list} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
+import {Subject, zip} from "rxjs";
+
+
+const asyncSub = new Subject();
+const nextAsyncSub = new Subject();
+zip(asyncSub, nextAsyncSub).subscribe({
+  next: ([fn]) => {
+    fn().finally(() => nextAsyncSub.next())
+  }
+});
+nextAsyncSub.next();
+function queue(fn) {
+  asyncSub.next(fn);
+}
 
 async function cleanupConnections() {
     const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
@@ -314,8 +328,10 @@ function App() {
             if (selectedConnection && selectedConnection.connectionId) {
                 const loggedIn = await checkLogin();
                 if (loggedIn) {
+                  queue(async() => {
                     const data = await buildKeyDataStructure();
                     setHierarchicalData(buildHierarchy(data));
+                  })
                 }
             }
         })();
@@ -323,9 +339,10 @@ function App() {
 
     async function refresh() {
         if (await checkLogin()) {
-            const keyDataStructure = await buildKeyDataStructure();
-            const temp = buildHierarchy(keyDataStructure || {});
-            setHierarchicalData(temp);
+          queue(async() => {
+            const data = await buildKeyDataStructure();
+            setHierarchicalData(buildHierarchy(data) || {});
+          })
         }
     }
 
