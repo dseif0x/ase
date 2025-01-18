@@ -2,15 +2,13 @@ import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
-let loggedIn = false;
-
-export async function get(key) {
-    if (!loggedIn) {
-        return;
-    }
+export async function get(key, connectionId) {
     try {
-        console.log("get key: " + key);
-        const response = await fetch(`${API_BASE_URL}/db/get/` + key);
+        const response = await fetch(`${API_BASE_URL}/db/get/` + key, {
+            headers: {
+                "X-Connection-Id": connectionId,
+            },
+        });
 
         if (!response.ok) {
             throw new Error(`Msg: ${response.status}`);
@@ -25,7 +23,6 @@ export async function get(key) {
             data = await response.text();
         }
 
-        console.log("response:", data);
         return data;
     } catch (error) {
         console.error("Error fetching data:", error);
@@ -33,16 +30,27 @@ export async function get(key) {
     }
 }
 
-export async function list(key) {
-    if (!loggedIn) {
+export async function list(key, connectionId) {
+    if (!connectionId) {
+        console.log("failed to call list, because of undefined connectionId");
         return;
     }
     try {
         const key64 = btoa(key);
-        const response = await fetch(`${API_BASE_URL}/db/list/` + key64);
+        const response = await fetch(`${API_BASE_URL}/db/list/` + key64, {
+            headers: {
+                "X-Connection-Id": connectionId,
+            },
+        });
 
         if (!response.ok) {
-            throw new Error(`Msg: ${response.status}`);
+            let errorDetails = '';
+            try {
+                errorDetails = await response.json();
+            } catch {
+                errorDetails = await response.text();
+            }
+            throw new Error(`Error: ${response.status} - ${errorDetails}`);
         }
 
         const contentType = response.headers.get("Content-Type");
@@ -54,7 +62,6 @@ export async function list(key) {
             data = await response.text();
         }
 
-        console.log("response:", data);
         return data;
     } catch (error) {
         console.error("Error fetching data:", error);
@@ -62,11 +69,7 @@ export async function list(key) {
     }
 }
 
-// TODO add more types
-export async function set(key, value, force) {
-    if (!loggedIn) {
-        return;
-    }
+export async function set(key, value, force, connectionId) {
     try {
         console.log(`set key: ${key} with value: ${JSON.stringify(value)}`);
 
@@ -74,14 +77,11 @@ export async function set(key, value, force) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "X-Connection-Id": connectionId,
             },
             body: JSON.stringify({
                 "key": key,
-                "value": {
-                    "type": "SIMPLE",
-                    "value": value,
-                    "simpleType": 2
-                },
+                "value": value,
                 "force": force
             }),
         });
@@ -101,11 +101,7 @@ export async function set(key, value, force) {
 }
 
 export async function connect(config:ConnectionConfigDTO) {
-    if (loggedIn) {
-        return;
-    }
     try {
-        console.log("connecting with: " + JSON.stringify(config));
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: "POST",
             headers: {
@@ -119,10 +115,32 @@ export async function connect(config:ConnectionConfigDTO) {
             throw new Error(`HTTP error ${response.status}`);
         }
 
-        loggedIn = true;
-        const data = await response.text();
-        console.log("response:", data);
-        return JSON.parse(data);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.log("error: " + error);
+        console.error("Error logging in to server ", error);
+        throw error;
+    }
+}
+
+export async function isLoggedIn(connectionId) {
+    try {
+        console.log("check login with conn id: " + connectionId);
+        const response = await fetch(`${API_BASE_URL}/auth/isLoggedIn`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Connection-Id": connectionId,
+            },
+        });
+
+        if (!response.ok) {
+            console.log(response);
+            throw new Error(`HTTP error ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
     } catch (error) {
         console.log("error: " + error);
         console.error("Error logging in to server ", error);
@@ -145,8 +163,6 @@ export async function disconnect(connectionId: string) {
             throw new Error(`HTTP error ${response.status}`);
         }
 
-        loggedIn = false;
-
         const data = await response.text();
         return JSON.stringify(data);
     } catch (error) {
@@ -154,9 +170,4 @@ export async function disconnect(connectionId: string) {
         console.error("Error logging in to server ", error);
         return {ok: false, message: error};
     }
-}
-
-export function isLoggedIn() {
-    console.log("logged in: " + loggedIn);
-    return loggedIn;
 }

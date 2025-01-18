@@ -4,38 +4,42 @@ import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 import {connect, disconnect, isLoggedIn, list} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
+import {Subject, zip} from "rxjs";
 
-const keyDataStructure = {
-    a: {
-        b: {
-            c: 3,
-            d: "Hello",
-            c1: 7,
-            d1: "Hello Again",
-        },
-        e: "World",
-        e1: "Universe",
-        e2: {
-            nested1: true,
-            nested2: [1, 2, 3],
-        },
-    },
-    f: 42,
-    f1: 99,
-    g: {
-        h: {
-            i: "Help",
-            i1: "List",
-        },
-        h1: {
-            i2: {
-                deeplyNested: "Deep",
-            },
-        },
-    },
-    j: "Wednesday",
-    k: [1, 2, { x: 5, y: "test" }],
-};
+
+const asyncSub = new Subject();
+const nextAsyncSub = new Subject();
+zip(asyncSub, nextAsyncSub).subscribe({
+  next: ([fn]) => {
+    fn().finally(() => nextAsyncSub.next())
+  }
+});
+nextAsyncSub.next();
+function queue(fn) {
+  asyncSub.next(fn);
+}
+
+async function cleanupConnections() {
+    const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+
+    const updatedConnections = [];
+
+    for (const conn of savedConnections) {
+        try {
+            const response = await isLoggedIn(conn.connectionId);
+            if (response) {
+                updatedConnections.push(conn);
+            }
+        } catch (error) {
+            console.error(
+                `error with id ${conn.id}:`,
+                error
+            );
+        }
+    }
+
+    localStorage.setItem("connections", JSON.stringify(updatedConnections));
+}
 
 let toggle = true;
 
@@ -44,31 +48,54 @@ const buildHierarchy = (obj, prefix = "") => {
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = prefix ? `${prefix}.${key}` : key;
-            if (typeof obj[key] === "object" && obj[key] !== null) {
+            const { type, value } = obj[key];
+
+            if (type === "KEY_MAP") {
                 result.push({
                     key: currentKey,
                     value: null,
-                    children: buildHierarchy(obj[key], currentKey),
+                    type: type,
+                    children: buildHierarchy(value, currentKey),
                     collapsed: true,
                 });
-            } else {
-                result.push({ key: currentKey, value: obj[key], children: [], collapsed: false });
+            } else if (type === "ARRAY") {
+                result.push({
+                    key: currentKey,
+                    value: JSON.stringify(value),
+                    type: type,
+                    children: [],
+                    collapsed: false,
+                });
+            } else if (type?.startsWith("SIMPLE")) {
+                result.push({
+                    key: currentKey,
+                    value: value,
+                    type: type,
+                    children: [],
+                    collapsed: false,
+                });
             }
         }
     }
     return result;
 };
 
-const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
+const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5) => {
     return nodes.map((node, index) => (
         <React.Fragment key={node.key + index}>
             <tr>
-                <td style={{ paddingLeft: `${level * 20}px` }}>{node.key}</td>
+                <td style={{paddingLeft: `${level * 20}px`}}>{node.key}</td>
                 <td>{node.value !== null ? node.value : ""}</td>
+                <td>{node.type}</td>
                 <td>
                     <button
                         className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, {state: {keyData: node.key}})}
+                        onClick={() => navigate(`/edit/${node.key}`, {
+                            state: {
+                                keyData: node.key,
+                                connectionId: connectionId
+                            }
+                        })}
                     >
                         Edit
                     </button>
@@ -84,79 +111,70 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, level = 0.5) => {
                 </td>
             </tr>
             {!node.collapsed &&
-                renderHierarchy(node.children, toggleCollapse, navigate, level + 1)}
+                renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1)}
         </React.Fragment>
     ));
 };
 
 function App() {
     const [connections, setConnections] = useState([]);
+    const [selectedConnection, setSelectedConnection] = useState([]);
+    const [selectedConnectionId, setSelectedConnectionId] = useState(0);
     const [hierarchicalData, setHierarchicalData] = useState([]);
-    const [selectedConnection, setSelectedConnection] = useState(0);
-    const [otherDataStructure, setOtherDataStructure] = useState({});
 
     const navigate = useNavigate();
 
     useEffect(() => {
-        const dataToUse =
-            selectedConnection?.id === 0
-                ? keyDataStructure
-                : otherDataStructure;
+        cleanupConnections().then(r => {
 
-        const hierarchy = buildHierarchy(dataToUse);
-        setHierarchicalData(hierarchy);
-    }, [selectedConnection]);
+            let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+            let selectedConnectionId = JSON.parse(localStorage.getItem("selectedConnectionId")) || 1;
 
+            setSelectedConnectionId(selectedConnectionId);
+            setConnections(savedConnections);
 
-    useEffect(() => {
-        let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+            let found = false;
+            savedConnections.forEach((item) => {
+                if (item.id === selectedConnectionId && !found) {
+                    found = true;
+                    setSelectedConnection(item);
+                    setSelectedConnectionId(item.id);
+                }
+            });
 
-        if (!savedConnections.some((connection) => connection.id === 0)) {
-            const testConnection = {
-                id: 0,
-                ip: "testconn.ase",
-                port: "25565",
-                username: "test",
-            };
-            savedConnections = [testConnection];
-            localStorage.setItem("connections", JSON.stringify(savedConnections));
-        }
-
-        setConnections(savedConnections);
-        const hierarchy = buildHierarchy(keyDataStructure);
-        setHierarchicalData(hierarchy);
-
-        const testConnection = savedConnections.find((connection) => connection.id === 0);
-        setSelectedConnection(testConnection);
-
+            if (!found) {
+                if (savedConnections.length > 0) {
+                    setSelectedConnection(savedConnections[0]);
+                    setSelectedConnectionId(savedConnections[0].id);
+                } else {
+                    setSelectedConnectionId(0);
+                }
+            }
+        });
     }, []);
+
+    async function checkLogin() {
+        return await isLoggedIn(selectedConnection.connectionId);
+    }
 
     const deleteConnection = async (id, connectionId) => {
         await disconnect(connectionId).then((r: WebReturnDto) => {
-            if (r.ok) {
-                const updatedConnections = connections.filter((connection) => connection.id !== id);
+            const updatedConnections = connections.filter((connection) => connection.id !== id);
 
-                setConnections(updatedConnections);
-                localStorage.setItem("connections", JSON.stringify(updatedConnections));
-
-                let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
-                const testConnection = savedConnections.find((connection) => connection.id === 0);
-                setSelectedConnection(testConnection);
+            setConnections(updatedConnections);
+            localStorage.setItem("connections", JSON.stringify(updatedConnections));
+            if (selectedConnectionId === id) {
+                if (updatedConnections.length > 0) {
+                    setSelectedConnectionId(updatedConnections[0].id);
+                    setSelectedConnection(updatedConnections[0]);
+                } else {
+                    setSelectedConnectionId(0);
+                    setSelectedConnection([]);
+                    setHierarchicalData([]);
+                }
             }
         });
     };
-
-    useEffect(() => {
-        if (selectedConnection?.id === 0) {
-            const hierarchy = buildHierarchy(keyDataStructure);
-            setHierarchicalData(hierarchy);
-        } else if (selectedConnection) {
-            const hierarchy = buildHierarchy(otherDataStructure);
-            setHierarchicalData(hierarchy);
-        } else {
-            setHierarchicalData([]);
-        }
-    }, [selectedConnection, otherDataStructure]);
 
     const toggleCollapse = (node) => {
         node.collapsed = !node.collapsed;
@@ -177,14 +195,67 @@ function App() {
         setHierarchicalData([...hierarchicalData]);
     };
 
+    // just for development purposes
+    const addDevConnetion = () => {
+        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
+        config.host = "localhost"
+        config.port = 42069;
+        config.username = "admin";
+        config.password = "rootpwd";
+
+        if (connectionExists(config.host, config.port, config.username)) {
+            alert("this connection already exists!");
+            return;
+        }
+
+        connect(config).then(async (response: WebReturnDto) => {
+            if (response.ok) {
+                const newConnection = {
+                    id: connections.length + 1,
+                    connectionId: response.data,
+                    ip: config.host,
+                    port: config.port,
+                    username: config.username,
+                };
+
+                const updatedConnections = [...connections, newConnection];
+                setConnections(updatedConnections);
+
+                localStorage.setItem("connections", JSON.stringify(updatedConnections));
+                localStorage.setItem("selectedConnectionId", newConnection.id);
+
+                setSelectedConnectionId(newConnection.id);
+                setSelectedConnection(newConnection);
+            } else console.error("Failed to add connection:", response);
+        }).catch((error) => {
+            console.error("Failed to add connection:", error);
+        });
+    }
+
+    function connectionExists(host, port, username) {
+        const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+
+        return savedConnections.some(
+            (conn) =>
+                conn.ip === host &&
+                conn.port === port &&
+                conn.username === username
+        );
+    }
+
     const addConnection = () => {
         const config:ConnectionConfigDTO = new ConnectionConfigDTO();
         config.host = prompt("Enter Host:");
         config.port = parseInt(prompt("Enter Port:"));
         config.username = prompt("Enter Username:");
         config.password = prompt("Enter Password:");
+
+        if (connectionExists(config.host, config.port, config.username)) {
+            alert("this connection already exists!");
+            return;
+        }
+
         if (config.host && config.port && config.username && config.password) {
-            console.log("config: " + config);
             connect(config).then(async (response: WebReturnDto) => {
                 if (response.ok) {
                     const newConnection = {
@@ -199,6 +270,10 @@ function App() {
                     setConnections(updatedConnections);
 
                     localStorage.setItem("connections", JSON.stringify(updatedConnections));
+                    localStorage.setItem("selectedConnectionId", newConnection.id);
+
+                    setSelectedConnectionId(newConnection.id);
+                    setSelectedConnection(newConnection);
                 } else console.error("Failed to add connection:", response);
             }).catch((error) => {
                 console.error("Failed to add connection:", error);
@@ -210,8 +285,8 @@ function App() {
 
     async function buildKeyDataStructure(key = ".") {
         try {
-            const response = await list(key);
-            if (!response || !response.data || response.data.type !== "KEY_MAP") {
+            const response = await list(key, selectedConnection.connectionId);
+            if (!response.ok || !response.data || response.data.type !== "KEY_MAP") {
                 return {};
             }
 
@@ -222,11 +297,20 @@ function App() {
                 const subKeyData = keyMap[subKey];
                 if (subKeyData.type === "KEY_MAP") {
                     const newKey = key === "." ? subKey : `${key}.${subKey}`;
-                    result[subKey] = await buildKeyDataStructure(newKey);
+                    result[subKey] = {
+                        type: "KEY_MAP",
+                        value: await buildKeyDataStructure(newKey),
+                    };
                 } else if (subKeyData.type === "ARRAY") {
-                    result[subKey] = subKeyData.array || [];
+                    result[subKey] = {
+                        type: "ARRAY",
+                        value: subKeyData.array || [],
+                    };
                 } else if (subKeyData.type === "SIMPLE") {
-                    result[subKey] = subKeyData.value;
+                    result[subKey] = {
+                        type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
+                        value: subKeyData.value,
+                    };
                 } else {
                     console.log("no such type:", subKey);
                 }
@@ -239,12 +323,27 @@ function App() {
         }
     }
 
-    async function loadData() {
-        if (!isLoggedIn()) {
-            return;
+    useEffect(() => {
+        (async () => {
+            if (selectedConnection && selectedConnection.connectionId) {
+                const loggedIn = await checkLogin();
+                if (loggedIn) {
+                  queue(async() => {
+                    const data = await buildKeyDataStructure();
+                    setHierarchicalData(buildHierarchy(data));
+                  })
+                }
+            }
+        })();
+    }, [selectedConnection]);
+
+    async function refresh() {
+        if (await checkLogin()) {
+          queue(async() => {
+            const data = await buildKeyDataStructure();
+            setHierarchicalData(buildHierarchy(data) || {});
+          })
         }
-        const keyDataStructure = await buildKeyDataStructure();
-        setOtherDataStructure(keyDataStructure);
     }
 
     return (
@@ -254,18 +353,17 @@ function App() {
                 {connections.map((connection) => (
                     <div
                         key={connection.id}
-                        className={`connection ${selectedConnection?.id === connection.id ? "selected" : ""}`}
+                        className={`connection ${selectedConnectionId === connection.id ? "selected" : ""}`}
                         onClick={() => {
-                                setSelectedConnection(connection);
-                                loadData();
-                            }
-                        }
+                            setSelectedConnection(connection);
+                            setSelectedConnectionId(connection.id);
+                        }}
                     >
                         <input
                             type="radio"
                             name="connection"
                             value={connection.id}
-                            checked={selectedConnection?.id === connection.id}
+                            checked={selectedConnectionId === connection.id}
                             onChange={() => setSelectedConnection(connection)}
                         />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
@@ -279,15 +377,20 @@ function App() {
                         )}
                     </div>
                 ))}
-                <button className="add-connection-button" onClick={addConnection}>
-                    + Add Connection
-                </button>
+                <div className="footer-container">
+                    <button className="add-connection-button" onClick={addConnection}>
+                        + Add Connection
+                    </button>
+                    <button className="add-connection-button blue-button" onClick={addDevConnetion}>
+                        Dev Login
+                    </button>
+                </div>
             </div>
             <div className="data-panel">
                 <div className="keys-header">
                     <h3>Keys</h3>
                     <span>
-                        <button className="refresh-button" onClick={loadData}>
+                        <button className="refresh-button" onClick={refresh}>
                             Refresh
                         </button>
                     </span>
@@ -297,6 +400,7 @@ function App() {
                     <tr>
                         <th>Key</th>
                         <th>Value</th>
+                        <th>Type</th>
                         <th>
                             <span>
                                 <button
@@ -309,7 +413,7 @@ function App() {
                     </tr>
                     </thead>
                     <tbody>
-                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate)}
+                        {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
                     </tbody>
                 </table>
             </div>
