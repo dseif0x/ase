@@ -1,5 +1,5 @@
 /*
-* Copyright 2024 Project Contributors
+ * Copyright 2025 Project Contributors
  *
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
@@ -48,6 +48,22 @@ public:
     * @param path The path of the file.
     */
     bool save_acl_to_disk(const std::string &path);
+
+    /**
+     * @brief Tries to write the db to disk.
+     *
+     * @param path The path to write the db to.
+     * @return if successful
+     */
+    bool save_db_to_disk(const std::string &path);
+
+    /**
+     * @brief Tries to read the db from disk.
+     *
+     * @param path The path to read the db from.
+     * @return if successful
+     */
+    bool load_db_to_disk(const std::string &path);
 
     /**
      * @brief Starts the TCP server and begins accepting client connections.
