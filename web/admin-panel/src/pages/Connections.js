@@ -121,9 +121,10 @@ function App() {
 
             let found = false;
             savedConnections.forEach((item) => {
-                if (item.id === selectedConnectionId) {
+                if (item.id === selectedConnectionId && !found) {
                     found = true;
                     setSelectedConnection(item);
+                    setSelectedConnectionId(item.id);
                 }
             });
 
@@ -131,9 +132,14 @@ function App() {
                 if (savedConnections.length > 0) {
                     setSelectedConnection(savedConnections[0]);
                     setSelectedConnectionId(savedConnections[0].id);
+                } else {
+                    setSelectedConnectionId(0);
                 }
-                setSelectedConnectionId(0);
             }
+
+            console.log("current selected connection set to: ", selectedConnection);
+
+            refresh().then(r => console.log("page loaded"));
         });
     }, []);
 
