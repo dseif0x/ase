@@ -136,10 +136,6 @@ function App() {
                     setSelectedConnectionId(0);
                 }
             }
-
-            console.log("current selected connection set to: ", selectedConnection);
-
-            refresh().then(r => console.log("page loaded"));
         });
     }, []);
 
