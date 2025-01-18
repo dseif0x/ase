@@ -31,6 +31,10 @@ export async function get(key, connectionId) {
 }
 
 export async function list(key, connectionId) {
+    if (!connectionId) {
+        console.log("failed to call list, because of undefined connectionId");
+        return;
+    }
     try {
         const key64 = btoa(key);
         const response = await fetch(`${API_BASE_URL}/db/list/` + key64, {
