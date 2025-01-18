@@ -70,10 +70,13 @@ namespace tcp2_utils {
      * @param ci Reference to the CommandInfo struct containing additional information for the function.
      * @param self_perms Permissions associated with the client connection.
      * @return int Status code indicating the result:
-     *         - -1: Non-critical error occurred, command not executed, decoder cleared.
-     *         -  0: Command executed successfully.
-     *         -  1: Soft shutdown.
-     *         -  2: Hard shutdown.
+     *         - -99 Hard shutdown
+     *         - -9 Soft shutdown
+     *         - -3 Normal mode
+     *         - -2 Flush if in batching mode
+     *         - -1 Batching mode
+     *         - 0 successful execution of command
+     *         - 0x0001 - 0xFFFF error but recovered
      */
     int client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &ci, int state);
 
@@ -123,6 +126,36 @@ namespace tcp2_utils {
          * @return int returns 0 on success or -1 on error.
         */
         int get(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Enables the Normal mode.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int mode_normal(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Enables the Batching mode.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int mode_batching(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
+
+        /**
+         * @brief Flushes endcoder to tcp.
+         *
+         * @param decoder Reference to the TCP2Decoder instance for decoding client data.
+         * @param encoder Reference to the TCP2Encoder instance for encoding responses.
+         * @param info Reference to the CommandInfo struct containing additional information for the function.
+         * @return int returns 0 on success or -1 on error.
+        */
+        int batching_flush(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info);
 
         /**
          * @brief Executes a test command for debugging and verification purposes.

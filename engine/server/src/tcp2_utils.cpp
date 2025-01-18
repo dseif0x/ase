@@ -46,6 +46,19 @@ int tcp2_utils::client_command_switch(TCP2Decoder &decoder, TCP2Encoder &encoder
             perms = permissions::none;
             illegal_for_batching = true;
             break;
+        case 0xB0: // BATCHING OFF
+            func = command::mode_normal;
+            perms = permissions::none;
+            break;
+        case 0xBA: // BATCHING OFF
+            func = command::mode_batching;
+            perms = permissions::none;
+            illegal_for_batching = true;
+            break;
+        case 0xBF: // BATCHING FLUSH
+            func = command::batching_flush;
+            perms = permissions::none;
+            break;
         // DB Commands
         case 0x01: //GET
             func = command::get;
@@ -189,6 +202,21 @@ int tcp2_utils::command::get(TCP2Decoder &decoder, TCP2Encoder &encoder, Command
         return errors::general_server_error | errors::control_flags::clear_encoder;
     }
     return 0;
+}
+
+int tcp2_utils::command::mode_normal(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    encoder.from_ack();
+    return -3;
+}
+
+int tcp2_utils::command::mode_batching(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    encoder.from_ack();
+    return -1;
+}
+
+int tcp2_utils::command::batching_flush(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
+    encoder.from_ack();
+    return -2;
 }
 
 int tcp2_utils::command::update_scope(TCP2Decoder &decoder, TCP2Encoder &encoder, CommandInfo &info) {
