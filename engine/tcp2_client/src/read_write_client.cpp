@@ -169,11 +169,16 @@ std::vector<std::optional<CopiedValue>> ReadWriteClient::buffered_get(std::vecto
         this->encoder->from_byte(0x01); // get command
         this->encoder->from_string(key);
     }
+
+    bool flush_res = this->flush_batching();
     this->send_buffer();
+
     for (auto &elem : data) {
         if (this->decoder->to_acknak() != 1) res.push_back(std::nullopt); // here we would have to read the error message if errors occured
         else res.push_back(this->decoder->to_general());
     }
+
+    if (flush_res && this->decoder->to_acknak() != 1) std::cout << "Error while trying to get ack for flush." << std::endl;
     return res;
 }
 

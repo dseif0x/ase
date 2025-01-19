@@ -1466,3 +1466,52 @@ TEST_F(IntegrationTests_TCPServer, login_admin_stop) {
     // the set should still be executed correctly
 
 }
+
+TEST_F(IntegrationTests_TCPServer, login_admin_batching) {
+    DumbTCPClient client("127.0.0.1", ServerPort::instance().get());
+    ASSERT_TRUE(client.connect_to_server());
+
+    std::vector<unsigned char> client_information_package{0x00, 0x00, 0x0F};
+    std::vector<unsigned char> user_info_pack = make_hex_vector("FF 05 61646D696E 07 726F6F74707764");
+
+    ASSERT_TRUE(client.send_message(client_information_package));
+    auto server_information_package = client.receive_message(wait_time_success);
+    ASSERT_TRUE(server_information_package.size() == 10);
+    ASSERT_TRUE(server_information_package[0] == 0xFF);
+    ASSERT_TRUE(client.send_message(user_info_pack));
+    auto logged_in = client.receive_message(wait_time_success);
+    ASSERT_TRUE(vec_equ(logged_in, {0xFF}));
+
+    // admin logged in
+
+    // enable batching mode
+
+
+    // the set should still be executed correctly
+    ASSERT_TRUE(client.send_message(make_hex_vector("BA")));
+    auto res = client.receive_message(wait_time_fail);
+    ASSERT_EQ(res.size(), 1); // ack for going into batching mode
+    ASSERT_TRUE(res[0] == 0xFF);
+
+    // set val 1 on .key
+    ASSERT_TRUE(client.send_message((make_hex_vector("03 04 2E6B6579 02 00000001"))));
+    res = client.receive_message(wait_time_fail);
+    ASSERT_EQ(res.size(), 0); // in batching mode, no data is sent.
+
+    // get val from key .key
+    ASSERT_TRUE(client.send_message((make_hex_vector("01 04 2E6B6579"))));
+    res = client.receive_message(wait_time_fail);
+    ASSERT_EQ(res.size(), 0); // in batching mode, no data is sent.
+
+    // flush batching buffer
+    ASSERT_TRUE(client.send_message((make_hex_vector("BF"))));
+    auto correct_res = make_hex_vector("FF FF 02 00000001 FF");
+    res = client.receive_message(wait_time_fail);
+    print_vec(correct_res);
+    print_vec(res);
+    ASSERT_EQ(res.size(), correct_res.size());
+    ASSERT_TRUE(vec_equ(res, correct_res));
+
+    client.close_connection();
+
+}

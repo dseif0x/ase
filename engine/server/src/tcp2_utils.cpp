@@ -563,7 +563,7 @@ void tcp2_utils::client_state_thread(TCP2Decoder &decoder, TCP2Encoder &encoder,
                     state = -1;
                     break; // allows to write before breaking free
                 case -1: // set batching mode
-                    state = 10;
+                    state = 11; // set to 11 so that the ack is flushed out before nothing is sent anymore
                     break;
                 case -2: // flush if in batching state
                     if (state == 10) state = 11;
