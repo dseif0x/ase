@@ -5,6 +5,7 @@ import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 import {connect, disconnect, isLoggedIn, list} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
+import {get} from "../api/Api";
 
 
 const asyncSub = new Subject();
@@ -48,7 +49,7 @@ const buildHierarchy = (obj, prefix = "") => {
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = prefix ? `${prefix}.${key}` : key;
-            const { type, value } = obj[key];
+            const { type, value, pair } = obj[key];
 
             if (type === "KEY_MAP") {
                 result.push({
@@ -61,29 +62,52 @@ const buildHierarchy = (obj, prefix = "") => {
             } else if (type === "ARRAY") {
                 result.push({
                     key: currentKey,
-                    value: JSON.stringify(value),
+                    value: `Array (${value.length} items)`,
+                    type: type,
+                    children: value.map((item, index) => ({
+                        key: `${currentKey}[${index}]`,
+                        value: item.value,
+                        type: item.type,
+                        children: buildHierarchy(item.value, `${currentKey}[${index}]`),
+                        collapsed: false,
+                    })),
+                    collapsed: true,
+                });
+            } else if (type === "PAIR") {
+                const pairChildren = [];
+                if (pair.left) {
+                    pairChildren.push({
+                        key: `${currentKey}.left`,
+                        value: pair.left.value,
+                        type: pair.left.type,
+                        children: buildHierarchy(pair.left.value, `${currentKey}.left`),
+                        collapsed: false,
+                    });
+                }
+                if (pair.right) {
+                    pairChildren.push({
+                        key: `${currentKey}.right`,
+                        value: pair.right.value,
+                        type: pair.right.type,
+                        children: buildHierarchy(pair.right.value, `${currentKey}.right`),
+                        collapsed: false,
+                    });
+                }
+                result.push({
+                    key: currentKey,
+                    value: null,
+                    type: type,
+                    children: pairChildren,
+                    collapsed: true,
+                });
+            } else if (type?.startsWith("SIMPLE")) {
+                result.push({
+                    key: currentKey,
+                    value: type === "SIMPLE (BOOLEAN)" ? (value ? "True" : "False") : value,
                     type: type,
                     children: [],
                     collapsed: false,
                 });
-            } else if (type?.startsWith("SIMPLE")) {
-                if (type === "SIMPLE (BOOLEAN)") {
-                    result.push({
-                        key: currentKey,
-                        value: value ? "True" : "False",
-                        type: type,
-                        children: [],
-                        collapsed: false,
-                    })
-                } else {
-                    result.push({
-                        key: currentKey,
-                        value: value,
-                        type: type,
-                        children: [],
-                        collapsed: false,
-                    });
-                }
             }
         }
     }
@@ -293,6 +317,40 @@ function App() {
         }
     };
 
+
+    function processTcpGeneral(data, key) {
+        if (data.type === "KEY_MAP") {
+            const processedKeyMap = {};
+            for (const subKey in data.keyMap) {
+                const currentKey = key === "." ? subKey : `${key}.${subKey}`;
+                processedKeyMap[subKey] = processTcpGeneral(data.keyMap[subKey], currentKey);
+            }
+            return { type: "KEY_MAP", value: processedKeyMap };
+        } else if (data.type === "ARRAY") {
+            return {
+                type: "ARRAY",
+                value: data.array.map((item, index) =>
+                    processTcpGeneral(item, `${key}[${index}]`)
+                ),
+            };
+        } else if (data.type === "PAIR") {
+            return {
+                type: "PAIR",
+                pair: {
+                    left: processTcpGeneral(data.pair.left, `${key}.left`),
+                    right: processTcpGeneral(data.pair.right, `${key}.right`),
+                },
+            };
+        } else if (data.type === "SIMPLE") {
+            return {
+                type: `SIMPLE (${data.simpleType || "Unknown"})`,
+                value: data.value,
+            };
+        }
+        return { type: data.type, value: data.value || null };
+    }
+
+
     async function buildKeyDataStructure(key = ".") {
         try {
             const response = await list(key, selectedConnection.connectionId);
@@ -305,30 +363,36 @@ function App() {
 
             for (const subKey in keyMap) {
                 const subKeyData = keyMap[subKey];
+                const newKey = key === "." ? subKey : `${key}.${subKey}`;
+
                 if (subKeyData.type === "KEY_MAP") {
-                    const newKey = key === "." ? subKey : `${key}.${subKey}`;
                     result[subKey] = {
                         type: "KEY_MAP",
                         value: await buildKeyDataStructure(newKey),
                     };
-                } else if (subKeyData.type === "ARRAY") {
-                    result[subKey] = {
-                        type: "ARRAY",
-                        value: subKeyData.array || [],
-                    };
+                } else if (subKeyData.type === "ARRAY" || subKeyData.type === "PAIR") {
+                    const fetchedData = await get(newKey, selectedConnection.connectionId);
+                    if (fetchedData.ok && fetchedData.data) {
+                        result[subKey] = processTcpGeneral(fetchedData.data, newKey);
+                    } else {
+                        result[subKey] = {
+                            type: subKeyData.type,
+                            value: null,
+                        };
+                    }
                 } else if (subKeyData.type === "SIMPLE") {
                     result[subKey] = {
                         type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
                         value: subKeyData.value,
                     };
                 } else {
-                    console.log("no such type:", subKey);
+                    console.warn("Unknown type:", subKey);
                 }
             }
 
             return result;
         } catch (error) {
-            console.error("error:", error);
+            console.error("Error in buildKeyDataStructure:", error);
             return {};
         }
     }
