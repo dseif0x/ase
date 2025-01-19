@@ -10,6 +10,11 @@
 int main() {
     DB db;
 
+    CopiedValue stopval{};
+    stopval.type = ValueType::BOOLEAN;
+    stopval.data = false;
+    db.set("producer_stop", std::move(stopval), true);
+
     while (true) {
         auto time = std::chrono::system_clock::now().time_since_epoch();
         auto producer_time = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();

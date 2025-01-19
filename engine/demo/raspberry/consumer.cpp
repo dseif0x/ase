@@ -10,6 +10,11 @@
 int main() {
     DB db;
 
+    CopiedValue stopval{};
+    stopval.type = ValueType::BOOLEAN;
+    stopval.data = false;
+    db.set("consumer_stop", std::move(stopval), true);
+
     while (true) {
         auto prodtime = db.get("producer_time");
         if (prodtime.has_value() && prodtime->type == ValueType::DOUBLE) {
