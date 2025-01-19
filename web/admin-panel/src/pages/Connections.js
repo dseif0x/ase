@@ -67,13 +67,23 @@ const buildHierarchy = (obj, prefix = "") => {
                     collapsed: false,
                 });
             } else if (type?.startsWith("SIMPLE")) {
-                result.push({
-                    key: currentKey,
-                    value: value,
-                    type: type,
-                    children: [],
-                    collapsed: false,
-                });
+                if (type === "SIMPLE (BOOLEAN)") {
+                    result.push({
+                        key: currentKey,
+                        value: value ? "True" : "False",
+                        type: type,
+                        children: [],
+                        collapsed: false,
+                    })
+                } else {
+                    result.push({
+                        key: currentKey,
+                        value: value,
+                        type: type,
+                        children: [],
+                        collapsed: false,
+                    });
+                }
             }
         }
     }

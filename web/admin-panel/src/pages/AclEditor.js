@@ -29,6 +29,9 @@ const SIMPLE_TYPE_MAP = {
     UNKNOWN: "Unknown",
 };
 
+const TcpGeneralType = ["SIMPLE", "ARRAY", "PAIR", "KEY_MAP"];
+const SimpleTypes = ["BOOLEAN", "INT", "STRING", "DOUBLE"];
+
 const AclEditor = () => {
 
 
@@ -43,31 +46,64 @@ const AclEditor = () => {
     ];
 
     const [value, setValue] = useState("");
-    const [valueType, setValueType] = useState("STRING");
+    const [simpleType, setSimpleType] = useState("STRING");
+    const [type, setType] = useState("SIMPLE");
     const [permissions, setPermissions] = useState(initialPermissions);
-
+    const [pair, setPair] = useState({
+        left: { type: "SIMPLE", simpleType: "STRING", value: "" },
+        right: { type: "SIMPLE", simpleType: "STRING", value: "" },
+    });
 
     useEffect(() => {
         if (keyData) {
-          queue(async () => {
-            const val = await get(keyData, connectionId);
-            if (val.ok && val.data?.type === "SIMPLE") {
-              setValue(val.data?.value ?? "");
-              setValueType(val.data?.simpleType || "STRING");
-            } else {
-              toast.error(val.message);
-              console.error()
-            }
-          });
+            get(keyData, connectionId).then(val => {
+                if (val.ok) {
+                    const data = val.data || {};
+                    setType(data.type || "SIMPLE");
 
-          queue(async () => {
-            console.log("gettting acl...");
-            const val = await get_acl("admin", connectionId);
-            console.log("got acl");
-            console.log(val);
-          })
+                    if (data.type === "PAIR") {
+                        setPair({
+                            left: {
+                                type: data.pair?.left?.type || "SIMPLE",
+                                simpleType: data.pair?.left?.simpleType || "STRING",
+                                value: data.pair?.left?.value || "",
+                            },
+                            right: {
+                                type: data.pair?.right?.type || "SIMPLE",
+                                simpleType: data.pair?.right?.simpleType || "STRING",
+                                value: data.pair?.right?.value || "",
+                            },
+                        });
+                    } else {
+                        setValue(data.value || "");
+                    }
+
+                    setSimpleType(val.data?.simpleType || "STRING");
+                    setType(val.data?.type || "SIMPLE");
+                } else {
+                    toast.error(val.message);
+                    console.error()
+                }
+
+            })
         }
     }, [keyData]);
+
+    const handleTypeChange = (e) => {
+        const selectedType = e.target.value;
+        setType(selectedType);
+
+        if (selectedType !== "SIMPLE") {
+            setValue("");
+        }
+    };
+
+    const handlePairChange = (side, field, newValue) => {
+        setPair((prev) => ({
+            ...prev,
+            [side]: { ...prev[side], [field]: newValue },
+        }));
+    };
 
     const togglePermission = (index, permissionType) => {
         const updatedPermissions = [...permissions];
@@ -75,10 +111,9 @@ const AclEditor = () => {
         setPermissions(updatedPermissions);
     };
 
-    const handleUpdate = () => {
+    const parseSimpleType = (simpleType, value) => {
         let toUpdate;
-
-        switch (valueType) {
+        switch (simpleType) {
             case "INT":
                 let parsedInt = parseInt(value, 10);
 
@@ -121,7 +156,47 @@ const AclEditor = () => {
                 break;
             default:
                 toast.error("Unsupported value type.");
+                return null;
+        }
+
+        return toUpdate;
+    }
+    const handleUpdate = () => {
+        let toUpdate;
+
+        if (type === "SIMPLE") {
+            toUpdate = parseSimpleType(simpleType, value);
+            if (!toUpdate) return;
+        } else if (type === "ARRAY" || type === "KEY_MAP") {
+            toUpdate = {
+                type: type
+            };
+        } else if (type === "PAIR") {
+            const { left, right } = pair;
+            toUpdate = {
+                type: "PAIR",
+                pair: {},
+            }
+            if (left.type === "SIMPLE") {
+                const leftUpdate = parseSimpleType(left.simpleType, left.value);
+                if (!leftUpdate) return;
+                toUpdate.pair.left = leftUpdate;
+            } else if (left.type === "ARRAY" || left.type === "KEY_MAP") {
+                toUpdate.pair.left = { type: left.type };
+            }
+
+            if (right.type === "SIMPLE") {
+                const rightUpdate = parseSimpleType(right.simpleType, right.value);
+                if (!rightUpdate) return;
+                toUpdate.pair.right = rightUpdate;
+            } else if (right.type === "ARRAY" || right.type === "KEY_MAP") {
+                toUpdate.pair.right = { type: right.type };
+            }
+
+            if (!toUpdate.pair.left || !toUpdate.pair.right) {
+                toast.error("Invalid pair values.");
                 return;
+            }
         }
 
         set(keyData, toUpdate, true, connectionId).then((response) => {
@@ -139,38 +214,163 @@ const AclEditor = () => {
 
     return (
         <div className="acl-editor">
-            <h2>Key: {keyData}</h2>
-            <div className="value-section">
-                <label>Value:</label>
+            <h2 className="editor-title">Key: {keyData}</h2>
 
-                {valueType === "BOOLEAN" ? (
-                    <select
-                        value={value.toString()}
-                        onChange={(e) => setValue(e.target.value)}
-                    >
-                        <option value="true">True</option>
-                        <option value="false">False</option>
-                    </select>
-                ) : (
-                    <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        placeholder={`Enter a ${SIMPLE_TYPE_MAP[valueType]}`}
-                    />
-                )}
-
+            <div className="editor-section">
                 <label>Type:</label>
-                <select
-                    value={valueType}
-                    onChange={(e) => setValueType(e.target.value)}
-                >
-                    <option value="INT">Integer</option>
-                    <option value="STRING">String</option>
-                    <option value="BOOLEAN">Boolean</option>
-                    <option value="DOUBLE">Double</option>
+                <select value={type} onChange={handleTypeChange}>
+                    <option value="SIMPLE">Simple</option>
+                    <option value="ARRAY">Array</option>
+                    <option value="PAIR">Pair</option>
+                    <option value="KEY_MAP">Key Map</option>
                 </select>
             </div>
+
+            {/* SIMPLE Type */}
+            {type === "SIMPLE" && (
+                <div className="editor-section simple-section">
+                    <h3>SIMPLE Type</h3>
+                    <div className="simple-row">
+                        <label>Simple Type:</label>
+                        <select
+                            value={simpleType}
+                            onChange={(e) => setSimpleType(e.target.value)}
+                        >
+                            {SimpleTypes.map((simpleType) => (
+                                <option key={simpleType} value={simpleType}>
+                                    {simpleType}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="simple-row">
+                        <label>Value:</label>
+                        {simpleType === "BOOLEAN" ? (
+                            <select
+                                value={value.toString()}
+                                onChange={(e) => setValue(e.target.value)}
+                            >
+                                <option value="true">True</option>
+                                <option value="false">False</option>
+                            </select>
+                        ) : (
+                            <input
+                                type="text"
+                                value={value}
+                                onChange={(e) => setValue(e.target.value)}
+                                placeholder={`Enter a ${SIMPLE_TYPE_MAP[simpleType]}`}
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* PAIR Type */}
+            {type === "PAIR" && (
+                <div className="pair-section">
+                    {/* Left Value */}
+                    <div className="pair-item">
+                        <h3>Left Value</h3>
+                        <div className="pair-row">
+                            <label>Type:</label>
+                            <select
+                                value={pair.left.type}
+                                onChange={(e) =>
+                                    handlePairChange("left", "type", e.target.value)
+                                }
+                            >
+                                {TcpGeneralType.map((tcpType) => (
+                                    <option key={tcpType} value={tcpType}>
+                                        {tcpType}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {pair.left.type === "SIMPLE" && (
+                            <>
+                                <div className="pair-row">
+                                    <label>Simple Type:</label>
+                                    <select
+                                        value={pair.left.simpleType}
+                                        onChange={(e) =>
+                                            handlePairChange("left", "simpleType", e.target.value)
+                                        }
+                                    >
+                                        {SimpleTypes.map((simpleType) => (
+                                            <option key={simpleType} value={simpleType}>
+                                                {simpleType}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="pair-row">
+                                    <label>Value:</label>
+                                    <input
+                                        type="text"
+                                        value={pair.left.value}
+                                        onChange={(e) =>
+                                            handlePairChange("left", "value", e.target.value)
+                                        }
+                                        placeholder={`Enter ${pair.left.simpleType}`}
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Right Value */}
+                    <div className="pair-item">
+                        <h3>Right Value</h3>
+                        <div className="pair-row">
+                            <label>Type:</label>
+                            <select
+                                value={pair.right.type}
+                                onChange={(e) =>
+                                    handlePairChange("right", "type", e.target.value)
+                                }
+                            >
+                                {TcpGeneralType.map((tcpType) => (
+                                    <option key={tcpType} value={tcpType}>
+                                        {tcpType}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {pair.right.type === "SIMPLE" && (
+                            <>
+                                <div className="pair-row">
+                                    <label>Simple Type:</label>
+                                    <select
+                                        value={pair.right.simpleType}
+                                        onChange={(e) =>
+                                            handlePairChange("right", "simpleType", e.target.value)
+                                        }
+                                    >
+                                        {SimpleTypes.map((simpleType) => (
+                                            <option key={simpleType} value={simpleType}>
+                                                {simpleType}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="pair-row">
+                                    <label>Value:</label>
+                                    <input
+                                        type="text"
+                                        value={pair.right.value}
+                                        onChange={(e) =>
+                                            handlePairChange("right", "value", e.target.value)
+                                        }
+                                        placeholder={`Enter ${pair.right.simpleType}`}
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <h3>Current ACL Permissions</h3>
             <table className="permissions-table">
