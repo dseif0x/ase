@@ -107,7 +107,7 @@ public class TcpGeneral {
     public SimpleType getElementType() {
         if (type == TcpGeneralType.ARRAY && array != null && !array.isEmpty()) {
             return array.get(0).getSimpleType();
-        } else if (type == TcpGeneralType.PAIR && pair != null) {
+        } else if (type == TcpGeneralType.PAIR && pair != null && pair.getLeft() != null) {
             return pair.getLeft().getSimpleType();
         }
         return SimpleType.UNKNOWN;
