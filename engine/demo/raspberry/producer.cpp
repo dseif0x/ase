@@ -20,7 +20,7 @@ int main() {
         auto producer_time = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
 
         CopiedValue newval{};
-        newval.type = ValueType::INT;
+        newval.type = ValueType::DOUBLE;
         newval.data = static_cast<double>(producer_time);
         db.set("producer_time", std::move(newval), true);
 
