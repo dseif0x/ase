@@ -18,7 +18,7 @@ int main() {
     while (true) {
         auto prodtime = db.get("producer_time");
         if (prodtime.has_value() && prodtime->type == ValueType::DOUBLE) {
-            std::cout << "Producer time: " << get<double>(prodtime->data) << std::endl;
+            std::cout << "Producer time: " << static_cast<long long>(get<double>(prodtime->data)) << std::endl;
         }
 
         auto shallstop = db.get("consumer_stop");
