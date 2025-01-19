@@ -118,7 +118,7 @@ public class TcpGeneral {
             case ARRAY:
                 return array != null && array.stream().anyMatch(TcpGeneral::_isComplex);
             case PAIR:
-                return pair != null && pair.getLeft()._isComplex();
+                return pair != null && pair.getLeft() != null && pair.getLeft()._isComplex();
             case KEY_MAP:
                 return keyMap != null;
             case SIMPLE:
