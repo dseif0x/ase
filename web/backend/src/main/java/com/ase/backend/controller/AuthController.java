@@ -54,6 +54,16 @@ public class AuthController {
     }
 
     /**
+     * Endpoint for login check.
+     *
+     * @return A response indicating if logged in or not.
+     */
+    @PostMapping("/isLoggedIn")
+    public ResponseEntity<Boolean> isLoggedIn(@RequestHeader(value="X-Connection-Id") String connectionId) {
+        return ResponseEntity.ok(connectionService.getClient(connectionId) != null);
+    }
+
+    /**
      * Logs out by removing and disconnecting the DatabaseClient.
      */
     @PostMapping("/logout")

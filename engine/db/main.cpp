@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Project Contributors
+ * Copyright 2025 Project Contributors
  *
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
@@ -125,6 +125,7 @@ int main(int argc, char* argv[]) {
     bool doMap = true;
     bool doReference = true;
     bool doDelete = true;
+    bool doSum = true;
 
     for (int i: std::views::iota(0, 1024 * 1024)) {
         if (doInteger) {
@@ -278,6 +279,35 @@ int main(int argc, char* argv[]) {
             db.remove("delete.me.1");
             db.remove("delete.me.2");
             db.remove("delete.me");
+        }
+
+        if (doSum)
+        {
+            CopiedValue newval{};
+            newval.type = ValueType::INT;
+            newval.data.emplace<int>(1);
+            db.set("GraphRoot.value", std::move(newval), true);
+
+            CopiedValue newval3{};
+            newval3.type = ValueType::INT;
+            newval3.data.emplace<int>(2);
+            db.set("GraphRoot.left.value", std::move(newval3), true);
+
+            CopiedValue newval4{};
+            newval4.type = ValueType::INT;
+            newval4.data.emplace<int>(3);
+            db.set("GraphRoot.right.value", std::move(newval4), true);
+
+            CopiedValue newval5{};
+            newval5.type = ValueType::INT;
+            newval5.data.emplace<int>(4);
+            db.set("GraphRoot.left.left.value", std::move(newval5), true);
+
+            std::optional<CopiedValue> res = db.aggregate<ValueType::INT>(Aggregation::AVERAGE, "GraphRoot", "value", {"left", "right"});
+            if (res.has_value())
+                std::cout << "Aggregated Value: " << std::get<double>(res.value().data) << std::endl;
+            else
+                std::cout << "Could not aggregate value" << std::endl;
         }
 
 

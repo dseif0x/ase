@@ -1,5 +1,5 @@
 /*
-* Copyright 2024 Project Contributors
+ * Copyright 2025 Project Contributors
  *
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
@@ -26,6 +26,16 @@ bool TCP2Server::load_acl_from_disk(const std::string &path) {
 bool TCP2Server::save_acl_to_disk(const std::string &path) {
     if (this->running) return false;
     return this->acl.save_to_disk(path);
+}
+
+bool TCP2Server::save_db_to_disk(const std::string &path) {
+    if (this->running) return false;
+    return this->db.dump_data(path);
+}
+
+bool TCP2Server::load_db_to_disk(const std::string &path) {
+    if (this->running) return false;
+    return this->db.load_data(path);
 }
 
 void TCP2Server::start() {

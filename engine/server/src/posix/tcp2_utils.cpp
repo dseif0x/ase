@@ -1,5 +1,5 @@
 /*
-* Copyright 2024 Project Contributors
+ * Copyright 2025 Project Contributors
  *
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
@@ -101,10 +101,14 @@ void tcp2_utils::client_acceptor(std::atomic<bool> &kys, ASE::ACL &acl, DB &db, 
     }
     kill_all = true;
     for (auto &x : clientThreads) x.join();
+#ifdef DEBUG
     std::cout << "all joined" << std::endl;
+#endif
 
     close(serverSocket);
+#ifdef DEBUG
     std::cout << "server closed" << std::endl;
+#endif
 }
 
 void tcp2_utils::client_coding_setup(std::atomic<bool> &kys, int client_socket, ASE::ACL &acl, DB &db) {
