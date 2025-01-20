@@ -85,7 +85,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    output_file = args.output
-    print(f"Output file specified: {output_file}")
+    output_path = args.output
+    print(f"Output file specified: {output_path}")
     print(f"cycles  : {args.cycles}")
-    execute_benchmarks(1)
+
+    execute_benchmarks(args.cycles)
