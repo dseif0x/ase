@@ -245,7 +245,7 @@ public class DynamicDataWriter {
             Pair<TcpGeneral, TcpGeneral> pair = value.getPair();
             TcpGeneral left = pair.getLeft();
 
-            if (left.isComplex()) writeGeneral(pair.getLeft());
+            if (value.isComplex()) writeGeneral(left);
             else writeSimpleType(left.getSimpleType(), left.getValue());
 
             writeGeneral(pair.getRight());
