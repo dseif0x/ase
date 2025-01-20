@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <fstream>
 #include <unordered_map>
 #include <string>
 #include <stopwatch.h>
@@ -60,8 +61,20 @@ inline std::unordered_map<std::string, std::string> get_test_data_1048576_flat()
     return data;
 }
 
-inline void print_stopwatch(stopwatch& s, std::string prefix = "Time: ") {
+inline void print_stopwatch(stopwatch& s, std::string prefix, std::optional<std::ofstream> &out) {
     auto duration = s.peek();
+    auto microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    if (out && out->is_open()) *out << microsduration << ";";
+    std::stringstream ss;
+    if (microsduration < 9999) {
+        ss << prefix << microsduration << "µs" << std::endl;
+    } else {
+        ss << prefix << microsduration / 1000 << "ms" << std::endl;
+    }
+    std::cout << ss.str();
+}
+
+inline void print_duration(std::chrono::high_resolution_clock::duration duration, std::string prefix = "Time: ") {
     auto microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     std::stringstream ss;
     if (microsduration < 9999) {

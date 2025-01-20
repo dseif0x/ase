@@ -9,7 +9,7 @@
 #include <db.h>
 #include "read_write_client.h"
 
-int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client) {
+int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client, std::optional<std::ofstream> &out) {
     stopwatch s;
     int ind = 0;
     for (const auto& [key, value] : test_data) {
@@ -20,7 +20,7 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
         client.simple_set(key, newval);
     }
 
-    print_stopwatch(s, "\tSet Time: ");
+    print_stopwatch(s, "\tSet Time: ", out);
     //client.clear_decoder();
     //std::cout << "\tUsed Memory: " << db.get_used_memory() / 1024. / 1024. << " Mib" << std::endl;
     s.reset();
@@ -29,14 +29,14 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
         //std::cout << ind++ << ": " << key << std::endl;
         auto val = client.simple_get(key);
     }
-    print_stopwatch(s, "\tGet Time: ");
+    print_stopwatch(s, "\tGet Time: ", out);
 
     client.disconnect();
     return 0;
 }
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     constexpr int num_threads = 2;
     std::cout << "Running TCP2 Parallel - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
@@ -53,7 +53,7 @@ int run_test(const char* name, T&& generate_test_data) {
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i])));
+        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i]), std::ref(out)));
     }
 
     for (auto& thread : threads) {

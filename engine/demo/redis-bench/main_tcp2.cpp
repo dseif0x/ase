@@ -10,7 +10,8 @@
 #include "read_write_client.h"
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
+    if (out && out->is_open()) *out << "TCP2;" << name << ";";
     std::cout << "Running TCP2 - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
     ReadWriteClient client{"127.0.0.1", 42069, "admin", "rootpwd"};
@@ -25,7 +26,7 @@ int run_test(const char* name, T&& generate_test_data) {
         client.simple_set(key, newval);
     }
 
-    print_stopwatch(s, "\tSet Time: ");
+    print_stopwatch(s, "\tSet Time: ", out);
     //client.clear_decoder();
     //std::cout << "\tUsed Memory: " << db.get_used_memory() / 1024. / 1024. << " Mib" << std::endl;
     s.reset();
@@ -34,7 +35,8 @@ int run_test(const char* name, T&& generate_test_data) {
         //std::cout << ind++ << ": " << key << std::endl;
         auto val = client.simple_get(key);
     }
-    print_stopwatch(s, "\tGet Time: ");
+    print_stopwatch(s, "\tGet Time: ", out);
+    if (out && out->is_open()) *out << std::endl;
 
     client.disconnect();
     return 0;

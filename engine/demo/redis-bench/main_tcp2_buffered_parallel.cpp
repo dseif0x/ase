@@ -9,7 +9,7 @@
 #include <db.h>
 #include "read_write_client.h"
 
-int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client) {
+int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client, std::optional<std::ofstream> &out) {
     stopwatch s;
 
     // generate data array
@@ -30,7 +30,7 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
     if (!std::all_of(res.begin(), res.end(), [](bool b) { return b; })) std::cout << "ERROR" << std::endl;
 
 
-    print_stopwatch(s, std::string("\t") + name + " Set Time: ");
+    print_stopwatch(s, std::string("\t") + name + " Set Time: ", out);
     s.reset();
 
     // create a list of keys
@@ -61,7 +61,7 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
     }
     if (error) std::cout << "ERROR" << std::endl;
 
-    print_stopwatch(s, std::string("\t") + name + " Get Time: ");
+    print_stopwatch(s, std::string("\t") + name + " Get Time: ", out);
 
     client.disconnect();
 
@@ -69,7 +69,7 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
 }
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     constexpr int num_threads = 2;
     std::cout << "Running TCP2 Locally-Buffered Parallel - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
@@ -86,7 +86,7 @@ int run_test(const char* name, T&& generate_test_data) {
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i])));
+        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i]), std::ref(out)));
     }
 
     for (auto& thread : threads) {

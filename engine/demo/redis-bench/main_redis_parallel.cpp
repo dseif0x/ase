@@ -10,7 +10,7 @@
 #include <hiredis.h>
 #include <vector>
 
-int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data) {
+int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, std::optional<std::ofstream> &out) {
     redisContext* c = redisConnect("127.0.0.1", 6379);
     if (c->err) {
         std::cerr << "error: " << c->errstr << std::endl;
@@ -28,7 +28,7 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
         }
         freeReplyObject(reply);
     }
-    print_stopwatch(s, std::string("\t") + name + " Set Time: ");
+    print_stopwatch(s, std::string("\t") + name + " Set Time: ", out);
     s.reset();
     for (const auto& [key, _] : test_data) {
         redisReply* reply = (redisReply*)redisCommand(c, "GET %s", key.c_str());
@@ -40,12 +40,12 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
         }
         freeReplyObject(reply);
     }
-    print_stopwatch(s, std::string("\t") + name + " Get Time: ");
+    print_stopwatch(s, std::string("\t") + name + " Get Time: ", out);
     return 0;
 }
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     std::cout << "Running Redis Parallel Test: " << name << std::endl;
     auto test_data = generate_test_data();
 
@@ -53,7 +53,7 @@ int run_test(const char* name, T&& generate_test_data) {
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data));
+        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(out)));
     }
 
     for (auto& thread : threads) {
