@@ -30,6 +30,9 @@ inline void print_vec(std::vector<unsigned char> &vec) {
     std::cout << "vek:";
     for (auto &x : vec) std::cout << (int)x << ", ";
     std::cout << std::endl;
+    std::cout << "vek (str): START" << std::endl;
+    for (auto &x : vec) std::cout << x;
+    std::cout << std::endl << "END" << std::endl;
 }
 
 constexpr unsigned char hex_to_byte(char c) {

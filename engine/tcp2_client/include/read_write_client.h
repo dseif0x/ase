@@ -17,6 +17,10 @@ class ReadWriteClient {
     std::string server_ip;
     int server_port;
 
+    // 0 = normal
+    // 1 = batching
+    int mode = 0;
+
     std::unique_ptr<TCP2Decoder> decoder;
     std::unique_ptr<TCP2Encoder> encoder;
 
@@ -31,6 +35,9 @@ public:
     bool delete_user(const std::string &name);
     bool simple_set(const std::string &key, CopiedValue &val);
     std::optional<CopiedValue> simple_get(const std::string &key);
+    bool set_mode_normal();
+    bool set_mode_batching();
+    bool flush_batching();
 
     std::vector<bool> buffered_set(std::vector<std::pair<std::string, CopiedValue>> &data);
     std::vector<std::optional<CopiedValue>> buffered_get(std::vector<std::string> &data);

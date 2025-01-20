@@ -19,26 +19,31 @@
  * @brief Contains error codes and their corresponding messages for the protocol.
  */
 namespace errors {
-    constexpr uint16_t general_protocol_error       = 0xFFFF;
-    constexpr uint16_t general_server_error         = 0xFFFE;
+    constexpr uint16_t general_protocol_error        = 0xFFFF;
+    constexpr uint16_t general_server_error          = 0xFFFE;
 
-    constexpr uint16_t permission_denied_self       = 0xFFF0;
-    constexpr uint16_t permission_denied            = 0xFF00;
+    constexpr uint16_t permission_denied_self        = 0xFFF0;
+    constexpr uint16_t permission_denied             = 0xFF00;
 
-    constexpr uint16_t invalid_version              = 0xFF01;
-    constexpr uint16_t user_not_found               = 0xFF02;
-    constexpr uint16_t wrong_password               = 0xFF03;
-    constexpr uint16_t already_connected            = 0xFF04;
-    constexpr uint16_t username_already_exists      = 0xFF05;
-    constexpr uint16_t unknown_command              = 0xFF06;
+    constexpr uint16_t invalid_version               = 0xFF01;
+    constexpr uint16_t user_not_found                = 0xFF02;
+    constexpr uint16_t wrong_password                = 0xFF03;
+    constexpr uint16_t already_connected             = 0xFF04;
+    constexpr uint16_t username_already_exists       = 0xFF05;
+    constexpr uint16_t unknown_command               = 0xFF06;
+    constexpr uint16_t illegal_batching_command      = 0xFF07;
 
-    constexpr uint16_t invalid_key                  = 0x0100;
-    constexpr uint16_t key_not_found                = 0x0101;
-    constexpr uint16_t key_already_exists           = 0x0200;
-    constexpr uint16_t invalid_value                = 0x0201;
-    constexpr uint16_t unsafe_write                 = 0x0202;
-    constexpr uint16_t unknown_option               = 0x8001;
-    constexpr uint16_t user_connected               = 0x8201;
+    constexpr uint16_t batch_decoder_cleared         = 0xBA80;
+    constexpr uint16_t batch_encoder_cleared         = 0xBA40;
+    constexpr uint16_t batch_decoder_encoder_cleared = batch_decoder_cleared | batch_encoder_cleared;
+
+    constexpr uint16_t invalid_key                   = 0x0100;
+    constexpr uint16_t key_not_found                 = 0x0101;
+    constexpr uint16_t key_already_exists            = 0x0200;
+    constexpr uint16_t invalid_value                 = 0x0201;
+    constexpr uint16_t unsafe_write                  = 0x0202;
+    constexpr uint16_t unknown_option                = 0x8001;
+    constexpr uint16_t user_connected                = 0x8201;
 
     static std::unordered_map<uint16_t, std::string> messages{
         {general_protocol_error, "General Protocol Error."},
@@ -57,9 +62,19 @@ namespace errors {
         {invalid_value, "Invalid value. Could not extract a valid value."},
         {unsafe_write, "The selected key exists. Use forced-SET to override."},
         {unknown_option, "The provided option is not known by the server."},
+        {illegal_batching_command, "The provided command is not allowed in batching mode."},
         {user_connected, "The user is currently connected and can therefore not be deleted."},
+        {batch_decoder_cleared, "Because of an unexpected error, the decoder had to be scraped. This batch is incomplete."},
+        {batch_encoder_cleared, "Because of an unexpected error, the encoder had to be scraped. This batch is incomplete."},
+        {batch_decoder_encoder_cleared, "Because of an unexpected error, the decoder and encoder had to be scraped. This batch is incomplete."},
     };
+
+    namespace control_flags {
+        constexpr uint32_t clear_decoder = 0x00010000;
+        constexpr uint32_t clear_encoder = 0x00020000;
+    }
 }
+
 
 namespace info_block {
     constexpr unsigned char array_bit = 0x80;

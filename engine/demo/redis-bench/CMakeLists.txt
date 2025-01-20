@@ -33,6 +33,10 @@ add_executable(bench_tcp2_buff main_tcp2_buffered.cpp)
 target_link_libraries(bench_tcp2_buff client_static)
 target_include_directories(bench_tcp2_buff PRIVATE include)
 
+add_executable(bench_tcp2_bat main_tcp2_batching.cpp)
+target_link_libraries(bench_tcp2_bat client_static)
+target_include_directories(bench_tcp2_bat PRIVATE include)
+
 add_executable(bench_tcp2_buff_parallel main_tcp2_buffered_parallel.cpp)
 target_link_libraries(bench_tcp2_buff_parallel client_static)
 target_include_directories(bench_tcp2_buff_parallel PRIVATE include)
