@@ -49,66 +49,16 @@ const buildHierarchy = (obj, prefix = "") => {
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = prefix ? `${prefix}.${key}` : key;
-            const { type, value, pair } = obj[key];
+            const { type, value, children, processedKey } = obj[key];
 
-            if (type === "KEY_MAP") {
-                result.push({
-                    key: currentKey,
-                    value: null,
-                    type: type,
-                    children: buildHierarchy(value, currentKey),
-                    collapsed: true,
-                });
-            } else if (type === "ARRAY") {
-                result.push({
-                    key: currentKey,
-                    value: `Array (${value.length} items)`,
-                    type: type,
-                    children: value.map((item, index) => ({
-                        key: `${currentKey}[${index}]`,
-                        value: item.value,
-                        type: item.type,
-                        children: buildHierarchy(item.value, `${currentKey}[${index}]`),
-                        collapsed: false,
-                    })),
-                    collapsed: true,
-                });
-            } else if (type === "PAIR") {
-                const pairChildren = [];
-                if (pair.left) {
-                    pairChildren.push({
-                        key: `${currentKey}.left`,
-                        value: pair.left.value,
-                        type: pair.left.type,
-                        children: buildHierarchy(pair.left.value, `${currentKey}.left`),
-                        collapsed: false,
-                    });
-                }
-                if (pair.right) {
-                    pairChildren.push({
-                        key: `${currentKey}.right`,
-                        value: pair.right.value,
-                        type: pair.right.type,
-                        children: buildHierarchy(pair.right.value, `${currentKey}.right`),
-                        collapsed: false,
-                    });
-                }
-                result.push({
-                    key: currentKey,
-                    value: null,
-                    type: type,
-                    children: pairChildren,
-                    collapsed: true,
-                });
-            } else if (type?.startsWith("SIMPLE")) {
-                result.push({
-                    key: currentKey,
-                    value: type === "SIMPLE (BOOLEAN)" ? (value ? "True" : "False") : value,
-                    type: type,
-                    children: [],
-                    collapsed: false,
-                });
-            }
+            result.push({
+                key: processedKey || currentKey,
+                value: value || "",
+                type: type,
+                children: buildHierarchy(children || {}, currentKey),
+                collapsed: true,
+            });
+
         }
     }
     return result;
@@ -122,18 +72,19 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 
                 <td>{node.value !== null ? node.value : ""}</td>
                 <td>{node.type}</td>
                 <td>
-                    <button
-                        className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, {
-                            state: {
-                                keyData: node.key,
-                                connectionId: connectionId
-                            }
-                        })}
-                    >
-                        Edit
-                    </button>
-
+                    {!node.noEdit && (
+                        <button
+                            className="edit-button"
+                            onClick={() => navigate(`/edit/${node.key}`, {
+                                state: {
+                                    keyData: node.key,
+                                    connectionId: connectionId,
+                                }
+                            })}
+                        >
+                            Edit
+                        </button>
+                    )}
                     {node.children.length > 0 && (
                         <button
                             className="list-button"
@@ -317,7 +268,6 @@ function App() {
         }
     };
 
-
     function processTcpGeneral(data, key) {
         if (data.type === "KEY_MAP") {
             const processedKeyMap = {};
@@ -325,29 +275,51 @@ function App() {
                 const currentKey = key === "." ? subKey : `${key}.${subKey}`;
                 processedKeyMap[subKey] = processTcpGeneral(data.keyMap[subKey], currentKey);
             }
-            return { type: "KEY_MAP", value: processedKeyMap };
+            return {
+                type: "KEY_MAP",
+                value: null,
+                children: processedKeyMap,
+            };
         } else if (data.type === "ARRAY") {
-            return {
-                type: "ARRAY",
-                value: data.array.map((item, index) =>
-                    processTcpGeneral(item, `${key}[${index}]`)
-                ),
-            };
+            return processArray(data, key);
         } else if (data.type === "PAIR") {
-            return {
-                type: "PAIR",
-                pair: {
-                    left: processTcpGeneral(data.pair.left, `${key}.left`),
-                    right: processTcpGeneral(data.pair.right, `${key}.right`),
-                },
-            };
+            return processPair(data, key);
         } else if (data.type === "SIMPLE") {
             return {
+                processedKey: key,
                 type: `SIMPLE (${data.simpleType || "Unknown"})`,
-                value: data.value,
+                value: data.value?.toString() || "",
+                children: [],
             };
         }
-        return { type: data.type, value: data.value || null };
+        return { type: data.type, value: null, children: [] };
+    }
+
+
+    function processArray(data, key) {
+        return {
+            processedKey: key,
+            type: "ARRAY",
+            value: `Array (${data.array.length} items)`,
+            children: data.array.map((item, index) => processTcpGeneral(item, `${key}[${index}]`)),
+        };
+    }
+
+    function processPair(data, key) {
+        return {
+            type: "PAIR",
+            value: null, // Renderable string for a pair
+            children: [
+                {
+                    processedKey: `${key}.left`,
+                    ...processTcpGeneral(data.pair.left, `${key}.left`),
+                },
+                {
+                    processedKey: `${key}.right`,
+                    ...processTcpGeneral(data.pair.right, `${key}.right`),
+                },
+            ],
+        };
     }
 
 
@@ -368,25 +340,40 @@ function App() {
                 if (subKeyData.type === "KEY_MAP") {
                     result[subKey] = {
                         type: "KEY_MAP",
-                        value: await buildKeyDataStructure(newKey),
+                        value: null,
+                        children: await buildKeyDataStructure(newKey),
                     };
-                } else if (subKeyData.type === "ARRAY" || subKeyData.type === "PAIR") {
+                } else if (subKeyData.type === "ARRAY") {
                     const fetchedData = await get(newKey, selectedConnection.connectionId);
                     if (fetchedData.ok && fetchedData.data) {
-                        result[subKey] = processTcpGeneral(fetchedData.data, newKey);
+                        result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
                         result[subKey] = {
-                            type: subKeyData.type,
+                            type: "ARRAY",
+                            value: `Array (${subKeyData.array?.length || 0} items)`,
+                            children: [],
+                        };
+                    }
+                } else if (subKeyData.type === "PAIR") {
+                    // Fetch the entire pair using `get`
+                    const fetchedData = await get(newKey, selectedConnection.connectionId);
+                    if (fetchedData.ok && fetchedData.data) {
+                        result[subKey] = processPair(fetchedData.data, newKey);
+                    } else {
+                        result[subKey] = {
+                            type: "PAIR",
                             value: null,
+                            children: [],
                         };
                     }
                 } else if (subKeyData.type === "SIMPLE") {
                     result[subKey] = {
                         type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
-                        value: subKeyData.value,
+                        value: subKeyData.value?.toString() || "", // Convert to string for rendering
+                        children: [],
                     };
                 } else {
-                    console.warn("Unknown type:", subKey);
+                    console.warn("Unknown type:", subKeyData.type);
                 }
             }
 
@@ -396,6 +383,7 @@ function App() {
             return {};
         }
     }
+
 
     useEffect(() => {
         (async () => {
@@ -416,6 +404,8 @@ function App() {
           queue(async() => {
             const data = await buildKeyDataStructure();
             setHierarchicalData(buildHierarchy(data) || {});
+              console.log("data", hierarchicalData)
+
           })
         }
     }

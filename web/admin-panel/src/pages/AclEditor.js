@@ -4,7 +4,6 @@ import "../styles/pages/AclEditor.css";
 import {get, set} from "../api/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
 const SIMPLE_TYPE_MAP = {
     BOOLEAN: "Boolean",
     INT: "Integer",
