@@ -2,7 +2,7 @@ import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
-export async function get_acl(username, connectionId) {
+export async function get_acl(connectionId) {
     try {
         const response = await fetch(`${API_BASE_URL}/db/getUserPermissions`, {
           method: "POST",
@@ -14,22 +14,9 @@ export async function get_acl(username, connectionId) {
             "type": "ARRAY",
             "simpleType": null,
             "value": null,
-            "array": [
-              {
-                "type": "SIMPLE",
-                "simpleType": "STRING",
-                "value": username,
-                "array": null,
-                "pair": null,
-                "keyMap": null,
-                "complex": false,
-                "elementType": null
-              }
-            ],
+            "array": [],
             "pair": null,
             "keyMap": null,
-            "complex": false,
-            "elementType": "STRING"
           })
         });
 

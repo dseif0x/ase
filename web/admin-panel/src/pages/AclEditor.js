@@ -19,6 +19,22 @@ function queue(fn) {
 }
 
 
+function evaluatePermissions(permission, key) {
+  const splitKey = key.split(".");
+  let perm = 0;
+  let itObj = permission;
+  for (let i = 0; i < splitKey.length; i++) {
+    if (!itObj[splitKey[i]]) return perm;
+    itObj = itObj[splitKey[i]].keyMap;
+  }
+  if (itObj["$"]) {
+    itObj = itObj["$"];
+    if (itObj["simpleType"] === "INT" && typeof(itObj["value"]) === "number")
+      perm |= itObj["value"];
+  } 
+  return perm;
+}
+
 const SIMPLE_TYPE_MAP = {
     BOOLEAN: "Boolean",
     INT: "Integer",
@@ -39,11 +55,7 @@ const AclEditor = () => {
     const navigate = useNavigate();
 
     const { keyData, connectionId } = location.state || {};
-    const initialPermissions = [
-        { user: "JH", read: false, update: false, delete: false },
-        { user: "Group1", read: false, update: false, delete: false },
-        { user: "@ALL", read: false, update: false, delete: false },
-    ];
+    const initialPermissions = [];
 
     const [value, setValue] = useState("");
     const [simpleType, setSimpleType] = useState("STRING");
@@ -56,36 +68,48 @@ const AclEditor = () => {
 
     useEffect(() => {
         if (keyData) {
-            get(keyData, connectionId).then(val => {
-                if (val.ok) {
-                    const data = val.data || {};
-                    setType(data.type || "SIMPLE");
+          queue(async () => {
+            const val = await get(keyData, connectionId);
+            if (val.ok) {
+              const data = val.data || {};
+              setType(data.type || "SIMPLE");
 
-                    if (data.type === "PAIR") {
-                        setPair({
-                            left: {
-                                type: data.pair?.left?.type || "SIMPLE",
-                                simpleType: data.pair?.left?.simpleType || "STRING",
-                                value: data.pair?.left?.value || "",
-                            },
-                            right: {
-                                type: data.pair?.right?.type || "SIMPLE",
-                                simpleType: data.pair?.right?.simpleType || "STRING",
-                                value: data.pair?.right?.value || "",
-                            },
-                        });
-                    } else {
-                        setValue(data.value || "");
-                    }
+              if (data.type === "PAIR") {
+                setPair({
+                  left: {
+                    type: data.pair?.left?.type || "SIMPLE",
+                    simpleType: data.pair?.left?.simpleType || "STRING",
+                    value: data.pair?.left?.value || "",
+                  },
+                  right: {
+                    type: data.pair?.right?.type || "SIMPLE",
+                    simpleType: data.pair?.right?.simpleType || "STRING",
+                    value: data.pair?.right?.value || "",
+                  },
+                });
+              } else {
+                setValue(data.value || "");
+              }
 
-                    setSimpleType(val.data?.simpleType || "STRING");
-                    setType(val.data?.type || "SIMPLE");
-                } else {
-                    toast.error(val.message);
-                    console.error()
-                }
-
-            })
+              setSimpleType(val.data?.simpleType || "STRING");
+              setType(val.data?.type || "SIMPLE");
+            } else {
+              toast.error(val.message);
+              console.error()
+            }
+          })
+          queue(async () => {
+            const val = await get_acl(connectionId);
+            if (val.ok) {
+              const data = val.data.keyMap;
+              const permList = [];
+              for(const key in data) {
+                const perm = evaluatePermissions(data[key].pair.right.keyMap, keyData);
+                permList.push({user: key, read: perm & 0b1 !== 0, write: perm & 0b10 !== 0, delete: perm & 0b100 !== 0});
+              }
+              setPermissions(permList);
+            }
+          })
         }
     }, [keyData]);
 
