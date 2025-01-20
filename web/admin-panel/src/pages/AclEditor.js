@@ -1,13 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, {useEffect, useState} from "react";
+import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/AclEditor.css";
 import {get, set} from "../api/Api";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+const SIMPLE_TYPE_MAP = {
+    BOOLEAN: "Boolean",
+    INT: "Integer",
+    STRING: "String",
+    DOUBLE: "Double",
+    SEMAPHORE: "Semaphore",
+    REFERENCE: "Reference",
+    UNKNOWN: "Unknown",
+};
 
 const AclEditor = () => {
+
+
     const location = useLocation();
     const navigate = useNavigate();
 
-    const { keyData } = location.state || {};
+    const { keyData, connectionId } = location.state || {};
     const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
@@ -15,15 +29,21 @@ const AclEditor = () => {
     ];
 
     const [value, setValue] = useState("");
-    const [valueType, setValueType] = useState("String");
+    const [valueType, setValueType] = useState("STRING");
     const [permissions, setPermissions] = useState(initialPermissions);
 
 
     useEffect(() => {
         if (keyData) {
-            console.log("current key: " + keyData);
-            get(keyData).then(val => {
-                setValue(val.data?.value ?? "");
+            get(keyData, connectionId).then(val => {
+                if (val.ok && val.data?.type === "SIMPLE") {
+                    setValue(val.data?.value ?? "");
+                    setValueType(val.data?.simpleType || "STRING");
+                } else {
+                    toast.error(val.message);
+                    console.error()
+                }
+
             })
         }
     }, [keyData]);
@@ -35,10 +55,60 @@ const AclEditor = () => {
     };
 
     const handleUpdate = () => {
+        let toUpdate;
 
-        set(keyData, parseInt(value), true).then(response => {
-            navigate(-1);
+        switch (valueType) {
+            case "INT":
+                let parsedInt = parseInt(value, 10);
+
+                if (isNaN(parsedInt)) {
+                    toast.error("Invalid Integer value.");
+                    return;
+                }
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: parsedInt,
+                    simpleType: "INT",
+                }
+                break;
+            case "BOOLEAN":
+                let parsedBoolean = value.toLowerCase() === "true";
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: parsedBoolean,
+                    simpleType: "BOOLEAN",
+                }
+                break;
+            case "DOUBLE":
+                let parsedDouble = parseFloat(value);
+                if (isNaN(parsedDouble)) {
+                    toast.error("Invalid Double value.");
+                    return;
+                }
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: parsedDouble,
+                    simpleType: "DOUBLE",
+                }
+                break;
+            case "STRING":
+                toUpdate = {
+                    type: "SIMPLE",
+                    value: value,
+                    simpleType: "STRING",
+                }
+                break;
+            default:
+                toast.error("Unsupported value type.");
+                return;
+        }
+
+        set(keyData, toUpdate, true, connectionId).then((response) => {
+            if (!response.ok) {
+                toast.error(response.message);
+            } else toast.success("Value updated successfully.");
         });
+
 
     };
 
@@ -51,18 +121,33 @@ const AclEditor = () => {
             <h2>Key: {keyData}</h2>
             <div className="value-section">
                 <label>Value:</label>
-                <input
-                    type="text"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                />
+
+                {valueType === "BOOLEAN" ? (
+                    <select
+                        value={value.toString()}
+                        onChange={(e) => setValue(e.target.value)}
+                    >
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                    </select>
+                ) : (
+                    <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        placeholder={`Enter a ${SIMPLE_TYPE_MAP[valueType]}`}
+                    />
+                )}
+
+                <label>Type:</label>
                 <select
                     value={valueType}
                     onChange={(e) => setValueType(e.target.value)}
                 >
-                    <option>Integer</option>
-                    <option>String</option>
-                    <option>Boolean</option>
+                    <option value="INT">Integer</option>
+                    <option value="STRING">String</option>
+                    <option value="BOOLEAN">Boolean</option>
+                    <option value="DOUBLE">Double</option>
                 </select>
             </div>
 
@@ -101,7 +186,6 @@ const AclEditor = () => {
                                 }}
                             >
                                 <span className="trash">&#128465;</span>
-
                             </button>
                         </td>
                     </tr>
@@ -114,7 +198,12 @@ const AclEditor = () => {
                 onClick={() =>
                     setPermissions([
                         ...permissions,
-                        { user: `NewUser/Group${permissions.length + 1}`, read: false, update: false, delete: false },
+                        {
+                            user: `NewUser/Group${permissions.length + 1}`,
+                            read: false,
+                            update: false,
+                            delete: false,
+                        },
                     ])
                 }
             >
@@ -128,8 +217,21 @@ const AclEditor = () => {
                     Update
                 </button>
             </div>
+            <ToastContainer
+                position="bottom-center"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="colored"
+            />
         </div>
     );
+
 };
 
 export default AclEditor;

@@ -9,8 +9,8 @@
 #include "db_types.h"
 
 #include <iostream>
+#include <iomanip>
 #include <cassert>
-#include <format>
 
 CopiedValue::CopiedValue(const Value &value, shmem& mem) {
     type = value.type;
@@ -89,7 +89,9 @@ std::string CopiedValue::get_python_style(CopiedValue &val) {
     } else if (val.type == ValueType::STRING) {
         res += "\"" + std::get<std::string>(val.data) + "\"";
     } else if (val.type == ValueType::DOUBLE) {
-        res += std::format("{:.3f}", std::get<double>(val.data));
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(3) << std::get<double>(val.data);
+        res += oss.str();
     } else if (val.type == ValueType::BOOLEAN) {
         res += std::get<bool>(val.data) ? "true" : "false";
     } else if (val.type == ValueType::SEMAPHORE) {

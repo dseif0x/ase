@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include "db_types.h"
+#include <optional>
 
 class ACLUser;
 
