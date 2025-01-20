@@ -1506,7 +1506,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_batching) {
     // flush batching buffer
     ASSERT_TRUE(client.send_message((make_hex_vector("BF"))));
     auto correct_res = make_hex_vector("FF FF 02 00000001 FF");
-    res = client.receive_message(wait_time_fail);
+    res = client.receive_message(wait_time_error);
     print_vec(correct_res);
     print_vec(res);
     ASSERT_EQ(res.size(), correct_res.size());
