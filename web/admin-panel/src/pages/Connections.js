@@ -77,6 +77,8 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 
                             className="edit-button"
                             onClick={() => navigate(`/edit/${node.key}`, {
                                 state: {
+                                    parentKey: "exampleKey.innerKey3",
+                                    arrayPath: [0, 0],
                                     keyData: node.key,
                                     connectionId: connectionId,
                                 }
@@ -285,10 +287,13 @@ function App() {
         } else if (data.type === "PAIR") {
             return processPair(data, key);
         } else if (data.type === "SIMPLE") {
+            let valueToShow = data.value?.toString() || "";
+            if (data.simpleType === "BOOLEAN") valueToShow = (data.value ? "True" : "False");
+
             return {
                 processedKey: key,
                 type: `SIMPLE (${data.simpleType || "Unknown"})`,
-                value: data.value?.toString() || "",
+                value: valueToShow,
                 children: [],
             };
         }
@@ -355,7 +360,6 @@ function App() {
                         };
                     }
                 } else if (subKeyData.type === "PAIR") {
-                    // Fetch the entire pair using `get`
                     const fetchedData = await get(newKey, selectedConnection.connectionId);
                     if (fetchedData.ok && fetchedData.data) {
                         result[subKey] = processPair(fetchedData.data, newKey);
@@ -367,9 +371,12 @@ function App() {
                         };
                     }
                 } else if (subKeyData.type === "SIMPLE") {
+                    let valueToShow = subKeyData.value?.toString() || "";
+                    if (subKeyData.simpleType === "BOOLEAN") valueToShow = (subKeyData.value ? "True" : "False");
+
                     result[subKey] = {
                         type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
-                        value: subKeyData.value?.toString() || "", // Convert to string for rendering
+                        value: valueToShow,
                         children: [],
                     };
                 } else {
