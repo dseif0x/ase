@@ -164,3 +164,17 @@ th {
 .blue-button:hover {
     background-color: #003399;
 }
+
+.left {
+    float: left;
+}
+
+.add-key-button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 8px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 12px;
+}
