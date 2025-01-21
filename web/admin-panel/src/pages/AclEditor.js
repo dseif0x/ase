@@ -49,13 +49,14 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const { keyData, connectionId, parentKey, arrayPath } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath } = location.state || {};
     const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
         { user: "@ALL", read: false, update: false, delete: false },
     ];
 
+    const [newKey, setNewKey] = useState("");
     const [value, setValue] = useState("");
     const [simpleType, setSimpleType] = useState("STRING");
     const [type, setType] = useState("SIMPLE");
@@ -71,7 +72,7 @@ const AclEditor = () => {
         if (arrayPath && parentKey) {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
-        } else if (keyData) {
+        } else if (keyData && !addKey) {
             get(keyData, connectionId).then(val => {
                 if (val.ok) {
                     const data = val.data || {};
@@ -105,7 +106,7 @@ const AclEditor = () => {
 
             })
         }
-    }, [keyData, connectionId, parentKey, arrayPath]);
+    }, [keyData, connectionId, parentKey, arrayPath, addKey]);
 
     async function loadArrayElement(key, path) {
         const res = await get(key, connectionId);
@@ -295,6 +296,10 @@ const AclEditor = () => {
             };
         }
 
+        if (addKey) {
+            keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
+        }
+
         // 4) Send to the server
         set(keyData, toUpdate, true, connectionId).then((response) => {
             if (!response.ok) {
@@ -311,8 +316,22 @@ const AclEditor = () => {
 
     return (
         <div className="acl-editor">
-            <h2 className="editor-title">Key: {keyData}</h2>
+            <h2 className="editor-title">{addKey ? 'Parent ' : ''} Key: {keyData}</h2>
 
+            {addKey && (
+                <div className="editor-section">
+                    <h3>Add Key</h3>
+                    <div className="add-key-row">
+                        <label>Key:</label>
+                        <input
+                            type="text"
+                            value={newKey}
+                            onChange={(e) => setNewKey(e.target.value)}
+                            placeholder="Enter key"
+                        />
+                    </div>
+                </div>
+            )}
             <div className="editor-section">
                 <label>Type:</label>
                 <select value={type} onChange={handleTypeChange}>

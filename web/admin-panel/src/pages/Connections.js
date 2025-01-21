@@ -52,7 +52,8 @@ const buildHierarchy = (obj, prefix = "") => {
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
-            result.push({
+            const elem = {
+                displayKey: key,
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
@@ -61,50 +62,12 @@ const buildHierarchy = (obj, prefix = "") => {
                 noEdit: noEdit,
                 parentKey: parentKey,
                 path: path,
-            });
+            };
 
+            result.push(elem);
         }
     }
     return result;
-};
-
-const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5) => {
-    return nodes.map((node, index) => (
-        <React.Fragment key={node.key + index}>
-            <tr>
-                <td style={{paddingLeft: `${level * 20}px`}}>{node.key}</td>
-                <td>{node.value !== null ? node.value : ""}</td>
-                <td>{node.type}</td>
-                <td>
-                    {!node.noEdit && (
-                        <button
-                            className="edit-button"
-                            onClick={() => navigate(`/edit/${node.key}`, {
-                                state: {
-                                    parentKey: node.parentKey,
-                                    arrayPath: node.path,
-                                    keyData: node.key,
-                                    connectionId: connectionId,
-                                }
-                            })}
-                        >
-                            Edit
-                        </button>
-                    )}
-                    {node.children.length > 0 && (
-                        <button
-                            className="list-button"
-                            onClick={() => toggleCollapse(node)}
-                        >
-                            {node.collapsed ? "List" : "Close"}
-                        </button>
-                    )}
-                </td>
-            </tr>
-            {!node.collapsed &&
-                renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1)}
-        </React.Fragment>
-    ));
 };
 
 function App() {
@@ -116,6 +79,7 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
+        toggle = false;
         cleanupConnections().then(() => {
 
             let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
@@ -176,7 +140,7 @@ function App() {
         toggle = !toggle;
         const openAll = (nodes) => {
             nodes.forEach((node) => {
-                node.collapsed = toggle;
+                node.collapsed = !toggle;
                 if (node.children.length > 0) {
                     openAll(node.children);
                 }
@@ -438,15 +402,82 @@ function App() {
     }, [selectedConnection]);
 
     async function refresh() {
+        toggle = false;
         if (await checkLogin()) {
           queue(async() => {
             const data = await buildKeyDataStructure();
             setHierarchicalData(buildHierarchy(data) || {});
-              console.log("data", hierarchicalData)
-
           })
         }
     }
+
+    function handleAdd(key, connectionId) {
+        navigate(`/edit/key`, {
+            state: {
+                keyData: key,
+                connectionId: connectionId,
+                addKey: true
+            }
+        })
+    }
+
+    function printDisplayKey(node, parentNode) {
+        if (parentNode && parentNode.type === "PAIR") {
+            return node.displayKey === '0' ? "left" : "right";
+        }
+        return node.path ? '[' + node.path + ']' : node.displayKey;
+    }
+
+    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
+        return nodes.map((node, index) => (
+            <React.Fragment key={node.key + index}>
+                <tr>
+                    <td style={{paddingLeft: `${level * 20}px`}}>{printDisplayKey(node, parentNode)}</td>
+                    <td>{node.value !== null ? node.value : ""}</td>
+                    <td>{node.type}</td>
+                    <td>
+                        {!node.noEdit && (
+                            <button
+                                className="edit-button"
+                                onClick={() => {
+                                    navigate(`/edit/${node.key}`, {
+                                        state: {
+                                            parentKey: node.parentKey,
+                                            arrayPath: node.path,
+                                            keyData: node.key,
+                                            connectionId: connectionId,
+                                            addKey: false
+                                        }
+                                    });
+                                    console.log("displaykey: ", node.displayKey);
+                                    console.log("path: ", node.path);
+                                }
+                                }
+                            >
+                                Edit
+                            </button>
+                        )}
+                        {node.children.length > 0 && (
+                            <button
+                                className="list-button"
+                                onClick={() => toggleCollapse(node)}
+                            >
+                                {node.collapsed ? "List" : "Close"}
+                            </button>
+                        )}
+                        {node.type === "KEY_MAP" && (
+                            <button onClick={() => handleAdd(node.key, connectionId)} className="add-key-button">
+                                Add Key
+                            </button>
+                        )}
+                    </td>
+                </tr>
+                {!node.collapsed &&
+                    renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1, node)}
+
+            </React.Fragment>
+        ));
+    };
 
     return (
         <div className="app-container">
@@ -515,7 +546,7 @@ function App() {
                     </tr>
                     </thead>
                     <tbody>
-                        {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
+                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
                     </tbody>
                 </table>
             </div>
