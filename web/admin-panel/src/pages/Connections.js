@@ -333,9 +333,8 @@ function App() {
             type: "ARRAY",
             value: `Array (${data.array.length} items)`,
             children,
-            // The array node itself can also have metadata if needed.
-            parentKey: rootParentKey,
-            path: parentPath
+            parentKey: null,
+            path: null
         };
     }
 
