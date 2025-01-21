@@ -52,7 +52,8 @@ const buildHierarchy = (obj, prefix = "") => {
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
-            result.push({
+            const elem = {
+                displayKey: key,
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
@@ -61,8 +62,9 @@ const buildHierarchy = (obj, prefix = "") => {
                 noEdit: noEdit,
                 parentKey: parentKey,
                 path: path,
-            });
+            };
 
+            result.push(elem);
         }
     }
     return result;
@@ -419,26 +421,38 @@ function App() {
         })
     }
 
-    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5) => {
+    function printDisplayKey(node, parentNode) {
+        if (parentNode && parentNode.type === "PAIR") {
+            return node.displayKey === '0' ? "left" : "right";
+        }
+        return node.path ? '[' + node.path + ']' : node.displayKey;
+    }
+
+    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
                 <tr>
-                    <td style={{paddingLeft: `${level * 20}px`}}>{node.key}</td>
+                    <td style={{paddingLeft: `${level * 20}px`}}>{printDisplayKey(node, parentNode)}</td>
                     <td>{node.value !== null ? node.value : ""}</td>
                     <td>{node.type}</td>
                     <td>
                         {!node.noEdit && (
                             <button
                                 className="edit-button"
-                                onClick={() => navigate(`/edit/${node.key}`, {
-                                    state: {
-                                        parentKey: node.parentKey,
-                                        arrayPath: node.path,
-                                        keyData: node.key,
-                                        connectionId: connectionId,
-                                        addKey: false
-                                    }
-                                })}
+                                onClick={() => {
+                                    navigate(`/edit/${node.key}`, {
+                                        state: {
+                                            parentKey: node.parentKey,
+                                            arrayPath: node.path,
+                                            keyData: node.key,
+                                            connectionId: connectionId,
+                                            addKey: false
+                                        }
+                                    });
+                                    console.log("displaykey: ", node.displayKey);
+                                    console.log("path: ", node.path);
+                                }
+                                }
                             >
                                 Edit
                             </button>
@@ -459,7 +473,7 @@ function App() {
                     </td>
                 </tr>
                 {!node.collapsed &&
-                    renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1)}
+                    renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1, node)}
 
             </React.Fragment>
         ));
