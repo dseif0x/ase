@@ -11,7 +11,7 @@
 
 int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client, std::optional<std::ofstream> &out, std::string bench_type) {
     std::stringstream ss;
-    ss << "DMA par;" << bench_type << ";";
+    ss << "TCP2 par;" << bench_type << ";";
 
     stopwatch s;
     int ind = 0;

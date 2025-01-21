@@ -18,7 +18,7 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
     }
 
     std::stringstream ss;
-    ss << "DMA par;" << bench_type << ";";
+    ss << "Redis par;" << bench_type << ";";
 
     stopwatch s;
     for (const auto& [key, value] : test_data) {
