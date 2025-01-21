@@ -319,7 +319,7 @@ const AclEditor = () => {
                     <option value="SIMPLE">Simple</option>
                     <option value="ARRAY">Array</option>
                     <option value="PAIR">Pair</option>
-                    <option value="KEY_MAP">Key Map</option>
+                    {type === "KEY_MAP" && <option value="KEY_MAP">Key Map</option>}
                 </select>
             </div>
 
