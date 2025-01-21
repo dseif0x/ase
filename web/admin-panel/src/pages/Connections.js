@@ -343,6 +343,7 @@ function App() {
         return {
             type: "PAIR",
             value: null,
+            processedKey: key,
             children: [
                 {
                     processedKey: `${key}.left`,
