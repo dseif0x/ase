@@ -68,8 +68,6 @@ const buildHierarchy = (obj, prefix = "") => {
     return result;
 };
 
-
-
 function App() {
     const [connections, setConnections] = useState([]);
     const [selectedConnection, setSelectedConnection] = useState([]);
@@ -79,6 +77,7 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
+        toggle = false;
         cleanupConnections().then(() => {
 
             let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
@@ -139,7 +138,7 @@ function App() {
         toggle = !toggle;
         const openAll = (nodes) => {
             nodes.forEach((node) => {
-                node.collapsed = toggle;
+                node.collapsed = !toggle;
                 if (node.children.length > 0) {
                     openAll(node.children);
                 }
@@ -401,18 +400,16 @@ function App() {
     }, [selectedConnection]);
 
     async function refresh() {
+        toggle = false;
         if (await checkLogin()) {
           queue(async() => {
             const data = await buildKeyDataStructure();
             setHierarchicalData(buildHierarchy(data) || {});
-              console.log("data", hierarchicalData)
-
           })
         }
     }
 
     function handleAdd(key, connectionId) {
-        console.log(key);
         navigate(`/edit/key`, {
             state: {
                 keyData: key,
@@ -454,20 +451,16 @@ function App() {
                                 {node.collapsed ? "List" : "Close"}
                             </button>
                         )}
+                        {node.type === "KEY_MAP" && (
+                            <button onClick={() => handleAdd(node.key, connectionId)} className="add-key-button">
+                                Add Key
+                            </button>
+                        )}
                     </td>
                 </tr>
                 {!node.collapsed &&
                     renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1)}
 
-                {!node.collapsed && node.type === "KEY_MAP" && (
-                    <tr>
-                        <td colSpan="4" style={{ paddingLeft: `${(level + 1) * 20}px`}}>
-                            <button onClick={() => handleAdd(node.key, connectionId)} className="add-key-button">
-                                Add Key
-                            </button>
-                        </td>
-                    </tr>
-                )}
             </React.Fragment>
         ));
     };
@@ -540,13 +533,6 @@ function App() {
                     </thead>
                     <tbody>
                     {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
-                    <tr>
-                        <td colSpan="4" style={{textAlign: 'center'}}>
-                            <button onClick={() => handleAdd(".", selectedConnection.connectionId)}
-                                    className="add-key-button left">Add Key
-                            </button>
-                        </td>
-                    </tr>
                     </tbody>
                 </table>
             </div>
