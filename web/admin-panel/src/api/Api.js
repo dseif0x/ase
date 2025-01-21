@@ -2,6 +2,44 @@ import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
+export async function update_acl(connectionId, username, key, permission) {
+  try {
+    const url = new URL(`${API_BASE_URL}/db/updateScope`);
+    const params = {
+      username: username,
+      key: key,
+      options: permission
+    };
+    Object.keys(params).forEach((key) =>
+      url.searchParams.append(key, params[key])
+    );
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Connection-Id": "example-connection-id", // Replace with your connection ID
+      },
+    });
+
+    if (!response.ok)
+      throw new Error(`Msg: ${response.status}`);
+
+    const contentType = response.headers.get("Content-Type");
+    let data;
+
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      data = await response.text();
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error while updating acl", error);
+    throw error;
+  }
+}
+
 export async function get_acl(connectionId) {
     try {
         const response = await fetch(`${API_BASE_URL}/db/getUserPermissions`, {

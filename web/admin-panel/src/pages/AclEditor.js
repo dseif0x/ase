@@ -1,8 +1,8 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useState, useRef} from "react";
 import {Subject, zip} from "rxjs";
 import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/AclEditor.css";
-import {get, set, get_acl} from "../api/Api";
+import {get, set, get_acl, update_acl} from "../api/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -55,12 +55,12 @@ const AclEditor = () => {
     const navigate = useNavigate();
 
     const { keyData, connectionId } = location.state || {};
-    const initialPermissions = [];
+    const initialPermissions = useRef([]);
 
     const [value, setValue] = useState("");
     const [simpleType, setSimpleType] = useState("STRING");
     const [type, setType] = useState("SIMPLE");
-    const [permissions, setPermissions] = useState(initialPermissions);
+    const [permissions, setPermissions] = useState([]);
     const [pair, setPair] = useState({
         left: { type: "SIMPLE", simpleType: "STRING", value: "" },
         right: { type: "SIMPLE", simpleType: "STRING", value: "" },
@@ -102,12 +102,13 @@ const AclEditor = () => {
             const val = await get_acl(connectionId);
             if (val.ok) {
               const data = val.data.keyMap;
-              const permList = [];
+              const perms = []
               for(const key in data) {
                 const perm = evaluatePermissions(data[key].pair.right.keyMap, keyData);
-                permList.push({user: key, read: perm & 0b1 !== 0, write: perm & 0b10 !== 0, delete: perm & 0b100 !== 0});
+                perms.push({user: key, read: (perm & 0b1) !== 0, update: (perm & 0b10) !== 0, delete: (perm & 0b100) !== 0});
               }
-              setPermissions(permList);
+              initialPermissions.current = perms;
+              setPermissions(perms);
             }
           })
         }
@@ -221,13 +222,16 @@ const AclEditor = () => {
                 toast.error("Invalid pair values.");
                 return;
             }
+
         }
 
-        set(keyData, toUpdate, true, connectionId).then((response) => {
+      console.log("permissions", initialPermissions.current, permissions);
+      queue(async() => update_acl(connectionId, "admin", keyData, 3))
+        queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
             if (!response.ok) {
                 toast.error(response.message);
             } else toast.success("Value updated successfully.");
-        });
+        }));
 
 
     };
