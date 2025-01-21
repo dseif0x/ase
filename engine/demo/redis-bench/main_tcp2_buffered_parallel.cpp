@@ -9,7 +9,10 @@
 #include <db.h>
 #include "read_write_client.h"
 
-int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client, std::optional<std::ofstream> &out) {
+int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client, std::optional<std::ofstream> &out, std::string bench_type) {
+    std::stringstream ss;
+    ss << "DMA par;" << bench_type << ";";
+
     stopwatch s;
 
     // generate data array
@@ -30,7 +33,12 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
     if (!std::all_of(res.begin(), res.end(), [](bool b) { return b; })) std::cout << "ERROR" << std::endl;
 
 
-    print_stopwatch(s, std::string("\t") + name + " Set Time: ", out);
+    auto duration = s.peek();
+    auto microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    //print_stopwatch(s, std::string("\t") + name + " Set Time: ", out);
+    std::string temp = std::string("\t") + name + " Set Time: ";
+    print_duration(microsduration, temp);
+    ss << microsduration << ";";
     s.reset();
 
     // create a list of keys
@@ -61,7 +69,13 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
     }
     if (error) std::cout << "ERROR" << std::endl;
 
-    print_stopwatch(s, std::string("\t") + name + " Get Time: ", out);
+    duration = s.peek();
+    microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    //print_stopwatch(s, std::string("\t") + name + " Set Time: ", out);
+    std::string temp2 = std::string("\t") + name + " Get Time: ";
+    print_duration(microsduration, temp2);
+    ss << microsduration << ";\n";
+    if (out && out->is_open()) *out << ss.str();
 
     client.disconnect();
 
@@ -86,7 +100,7 @@ int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstre
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i]), std::ref(out)));
+        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i]), std::ref(out), name));
     }
 
     for (auto& thread : threads) {

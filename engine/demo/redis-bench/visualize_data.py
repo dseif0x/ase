@@ -26,11 +26,11 @@ def format_y_axis_labels(value):
     - 'µs' for microseconds.
     """
     if value >= 1:
-        return f"{value:.2f}s"  # Seconds
+        return f"{value:.0f}s"  # Seconds
     elif value >= 1e-3:
-        return f"{value * 1e3:.2f}ms"  # Milliseconds
+        return f"{value * 1e3:.0f}ms"  # Milliseconds
     else:
-        return f"{value * 1e6:.2f}µs"  # Microseconds
+        return f"{value * 1e6:.0f}µs"  # Microseconds
 
 def generate_custom_ticks(y_min, y_max):
     """
@@ -109,6 +109,7 @@ def plot_boxplots_with_custom_labels(df):
         # Apply the formatting function to the ticks
         ticktext = [format_y_axis_labels(val) for val in tickvals]
 
+        '''
         # Add average markers
         for _, row in averages.iterrows():
             fig.add_scatter(
@@ -121,6 +122,7 @@ def plot_boxplots_with_custom_labels(df):
                 name=f"Avg {row['TimeType']}",       # Legend entry for the average
                 showlegend=False                    # Don't show legend for averages
             )
+        '''
 
         # Update layout with custom tick labels
         fig.update_layout(
