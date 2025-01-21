@@ -49,7 +49,7 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const { keyData, connectionId, parentKey, arrayPath } = location.state || {};
+    const { keyData, connectionId, addKey, parentKey, arrayPath } = location.state || {};
     const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
@@ -71,7 +71,7 @@ const AclEditor = () => {
         if (arrayPath && parentKey) {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
-        } else if (keyData) {
+        } else if (keyData && !addKey) {
             get(keyData, connectionId).then(val => {
                 if (val.ok) {
                     const data = val.data || {};
@@ -104,6 +104,9 @@ const AclEditor = () => {
                 }
 
             })
+        }
+        if (addKey) {
+            console.log("add key");
         }
     }, [keyData, connectionId, parentKey, arrayPath]);
 
@@ -311,7 +314,7 @@ const AclEditor = () => {
 
     return (
         <div className="acl-editor">
-            <h2 className="editor-title">Key: {keyData}</h2>
+            <h2 className="editor-title">{ addKey ?  'Parent ' : '' } Key: {keyData}</h2>
 
             <div className="editor-section">
                 <label>Type:</label>
