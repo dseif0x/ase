@@ -14,7 +14,6 @@ def load_data(file_path):
     df = pd.read_csv(file_path, sep=";", index_col=False, header=None, names=["Execution", "TestType", "SetTime", "GetTime"])
     df["SetTime"] = pd.to_timedelta(df["SetTime"], unit="us")
     df["GetTime"] = pd.to_timedelta(df["GetTime"], unit="us")
-    print(df)
     return df
 
 
@@ -31,6 +30,20 @@ def format_y_axis_labels(value):
         return f"{value * 1e3:.0f}ms"  # Milliseconds
     else:
         return f"{value * 1e6:.0f}µs"  # Microseconds
+
+def table_formater(value):
+    """
+    Format y-axis labels dynamically based on the value range.
+    - 's' for seconds.
+    - 'ms' for milliseconds.
+    - 'µs' for microseconds.
+    """
+    if value >= 1:
+        return f"{value:.2f}s"  # Seconds
+    elif value >= 1e-3:
+        return f"{value * 1e3:.2f}ms"  # Milliseconds
+    else:
+        return f"{value * 1e6:.2f}µs"  # Microseconds
 
 def generate_custom_ticks(y_min, y_max):
     """
@@ -140,6 +153,62 @@ def plot_boxplots_with_custom_labels(df):
         # Show the figure
         fig.show()
 
+def generate_tables(df):
+    df["SetTimeSeconds"] = df["SetTime"].dt.total_seconds()
+    df["GetTimeSeconds"] = df["GetTime"].dt.total_seconds()
+
+    markdown_tables = []
+
+    # Separate single-threaded and parallel executables
+    single_threaded = df[~df["Execution"].str.endswith("par")]
+    parallel = df[df["Execution"].str.endswith("par")]
+
+    # Helper function to generate the summary table
+    def generate_table(data):
+        tables = {}
+        for test_type in data["TestType"].unique():
+            # Filter data for the current test type
+            test_data = data[data["TestType"] == test_type]
+
+            # Prepare an empty summary DataFrame
+            summary_data = {"Metric": [
+                "Min (Set)", "**Avg** (Set)", "Max (Set)",
+                "Min (Get)", "**Avg** (Get)", "Max (Get)"
+            ]}
+
+            # Compute min, avg, max for each execution
+            for execution in test_data["Execution"].unique():
+                execution_data = test_data[test_data["Execution"] == execution]
+                min_set = execution_data["SetTimeSeconds"].min()
+                avg_set = execution_data["SetTimeSeconds"].mean()
+                max_set = execution_data["SetTimeSeconds"].max()
+                min_get = execution_data["GetTimeSeconds"].min()
+                avg_get = execution_data["GetTimeSeconds"].mean()
+                max_get = execution_data["GetTimeSeconds"].max()
+
+                # Add to the summary
+                summary_data[execution] = [
+                    table_formater(min_set), f"**{table_formater(avg_set)}**", table_formater(max_set),
+                    table_formater(min_get), f"**{table_formater(avg_get)}**", table_formater(max_get)
+                ]
+
+            # Convert summary data to DataFrame
+            summary_df = pd.DataFrame(summary_data)
+
+            # Convert to Markdown
+            markdown_table = summary_df.to_markdown(index=False, tablefmt="github")
+
+            # Store the Markdown table with label
+            tables[f"{test_type}"] = markdown_table
+
+        return tables
+
+    # Generate tables for single-threaded and parallel executables
+    markdown_tables.append(generate_table(single_threaded))
+    markdown_tables.append(generate_table(parallel))
+
+    return markdown_tables
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Visualizes the provided benchmark data."
@@ -157,4 +226,13 @@ if __name__ == "__main__":
     input_path = args.input
     print(f"Output file specified: {input_path}")
     data = load_data(input_path)
-    plot_boxplots_with_custom_labels(data)
+    #plot_boxplots_with_custom_labels(data)
+    tables = generate_tables(data)
+    print("START PRINTING MARKDOWN:\n\n")
+    for x in tables[0]:
+        print(f"### Benchmark: {x}\n")
+        print(tables[0][x])
+        print("\n")
+        print(tables[1][x])
+        print("\n")
+    print("\n\nEND PRINTING MARKDOWN:")
