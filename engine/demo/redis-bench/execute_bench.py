@@ -9,14 +9,16 @@ ase_server_path = os.environ["ASE_SERVER_PATH"]+"ase_server"
 benchmark_path = os.environ["ASE_BENCH_PATH"]
 
 output_path = "test.txt"
-benches = ["bench_dma",  "bench_dma_parallel"]
-start_ase_server_f = [False, True]
-start_redis_server_f = [False, False]
-'''
-benches = ["bench_dma", "bench_redis", "bench_tcp2", "bench_tcp2_buff", "bench_tcp2_bat", "bench_dma_parallel"]
-start_ase_server_f = [False, False, True, True, True, True]
-start_redis_server_f = [False, True, False, False, False, False]
-'''
+
+benches = [
+    "bench_dma", "bench_redis", "bench_tcp2", "bench_tcp2_buff", "bench_tcp2_bat",
+    "bench_dma_parallel", "bench_redis_parallel", "bench_tcp2_parallel", "bench_tcp2_buff_parallel", "bench_tcp2_bat_parallel"]
+start_ase_server_f = [
+    False, False, True, True, True,
+    False, False, True, True, True]
+start_redis_server_f = [
+    False, True, False, False, False,
+    False, True, False, False, False]
 
 ase_server_process = None
 redis_server_process = None
@@ -75,6 +77,7 @@ def stop_ase_server():
 
 def execute_benchmarks(cycles):
     for cycle in range(0, cycles):
+        print_info(f"CYCLE: {cycle}")
         for x in range(0, len(benches)):
             bench = benches[x]
             exe_path = get_bench_path(bench)

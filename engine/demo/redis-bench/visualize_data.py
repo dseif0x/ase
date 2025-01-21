@@ -96,7 +96,7 @@ def plot_boxplots_with_custom_labels(df):
             x="Execution",               # Group by execution type
             y="TimeInSeconds",           # Time in seconds
             color="TimeType",            # Distinguish SetTime and GetTime
-            title=f"Set and Get Times for Test Type: {test_type}",
+            title=f"Benchmark: {test_type} (2 Threads on parallel benchmarks)",
             labels={"TimeInSeconds": "Time", "Execution": "Execution Type"},
             boxmode="group"              # Group SetTime and GetTime in one chart
         )
@@ -132,7 +132,7 @@ def plot_boxplots_with_custom_labels(df):
                 title="Time",
                 type="log"
             ),
-            xaxis_title="Execution Type",
+            xaxis_title="Executable",
             legend_title="Time Type",
             boxmode="group",
         )

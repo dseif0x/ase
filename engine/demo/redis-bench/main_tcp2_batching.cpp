@@ -11,7 +11,7 @@
 
 template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
-    if (out && out->is_open()) *out << "TCP2 Batching;" << name << ";";
+    if (out && out->is_open()) *out << "TCP2 bat;" << name << ";";
     std::cout << "Running TCP2 Locally-Buffered - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
     ReadWriteClient client{"127.0.0.1", 42069, "admin", "rootpwd"};
