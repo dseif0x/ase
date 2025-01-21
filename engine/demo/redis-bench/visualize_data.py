@@ -226,7 +226,7 @@ if __name__ == "__main__":
     input_path = args.input
     print(f"Output file specified: {input_path}")
     data = load_data(input_path)
-    #plot_boxplots_with_custom_labels(data)
+    plot_boxplots_with_custom_labels(data)
     tables = generate_tables(data)
     print("START PRINTING MARKDOWN:\n\n")
     for x in tables[0]:
