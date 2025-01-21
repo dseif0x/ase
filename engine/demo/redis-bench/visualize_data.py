@@ -10,8 +10,6 @@ import plotly.express as px
 import pandas as pd
 
 
-output_path = "test.txt"
-
 def load_data(file_path):
     df = pd.read_csv(file_path, sep=";", index_col=False, header=None, names=["Execution", "TestType", "SetTime", "GetTime"])
     df["SetTime"] = pd.to_timedelta(df["SetTime"], unit="us")
@@ -106,7 +104,6 @@ def plot_boxplots_with_custom_labels(df):
         # Get tick values dynamically
         y_min = test_data["TimeInSeconds"].min()
         y_max = test_data["TimeInSeconds"].max()
-        print(y_min)
         tickvals = generate_custom_ticks(y_min, y_max)
 
         # Apply the formatting function to the ticks
@@ -149,13 +146,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "-i", "--input",
         type=str,
-        required=False,
+        required=True,
         help="Path to the output file."
     )
 
     args = parser.parse_args()
 
-    #output_path = args.input
-    print(f"Output file specified: {output_path}")
-    data = load_data(output_path)
+    input_path = args.input
+    print(f"Output file specified: {input_path}")
+    data = load_data(input_path)
     plot_boxplots_with_custom_labels(data)

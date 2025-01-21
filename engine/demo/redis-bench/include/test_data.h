@@ -61,10 +61,7 @@ inline std::unordered_map<std::string, std::string> get_test_data_1048576_flat()
     return data;
 }
 
-inline void print_stopwatch(stopwatch& s, std::string prefix, std::optional<std::ofstream> &out) {
-    auto duration = s.peek();
-    auto microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-    if (out && out->is_open()) *out << microsduration << ";";
+inline void print_duration(long long microsduration, const std::string &prefix) {
     std::stringstream ss;
     if (microsduration < 9999) {
         ss << prefix << microsduration << "µs" << std::endl;
@@ -74,13 +71,10 @@ inline void print_stopwatch(stopwatch& s, std::string prefix, std::optional<std:
     std::cout << ss.str();
 }
 
-inline void print_duration(std::chrono::high_resolution_clock::duration duration, std::string prefix = "Time: ") {
+inline void print_stopwatch(stopwatch& s, const std::string &prefix, std::optional<std::ofstream> &out) {
+    auto duration = s.peek();
     auto microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-    std::stringstream ss;
-    if (microsduration < 9999) {
-        ss << prefix << microsduration << "µs" << std::endl;
-    } else {
-        ss << prefix << microsduration / 1000 << "ms" << std::endl;
-    }
-    std::cout << ss.str();
+    if (out && out->is_open()) *out << microsduration << ";";
+    print_duration(microsduration, prefix);
 }
+

@@ -9,18 +9,46 @@ ase_server_path = os.environ["ASE_SERVER_PATH"]+"ase_server"
 benchmark_path = os.environ["ASE_BENCH_PATH"]
 
 output_path = "test.txt"
-
-benches = ["bench_dma", "bench_tcp2", "bench_tcp2_buff", "bench_tcp2_bat"]
-start_ase_server_f = [False, True, True, True]
-start_redis_server_f = [False, False, False, False]
+benches = ["bench_dma",  "bench_dma_parallel"]
+start_ase_server_f = [False, True]
+start_redis_server_f = [False, False]
+'''
+benches = ["bench_dma", "bench_redis", "bench_tcp2", "bench_tcp2_buff", "bench_tcp2_bat", "bench_dma_parallel"]
+start_ase_server_f = [False, False, True, True, True, True]
+start_redis_server_f = [False, True, False, False, False, False]
+'''
 
 ase_server_process = None
+redis_server_process = None
 
 def get_bench_path(name):
     return benchmark_path+name
 
 def print_info(name):
     print(f"> {name}")
+
+def start_redis_server():
+    global redis_server_process
+
+    if redis_server_process and redis_server_process.poll() is None:
+        stop_redis_server()
+
+    # Start the background program and return its handler
+    redis_server_process = subprocess.Popen(["redis-server", "--save \"\"", "--appendonly no", "--dbfilename \"\""], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print_info("Starting redis-server...")
+    sleep(2.5)
+    print_info("redis-server started!")
+    return
+
+def stop_redis_server():
+    global redis_server_process
+    if redis_server_process and redis_server_process.poll() is None:
+        print_info("Stopping redis-server...")
+        redis_server_process.terminate()
+        redis_server_process.wait()
+        redis_server_process = None
+        print_info("redis-server stopped!")
+    return
 
 def start_ase_server():
     global ase_server_process
@@ -31,7 +59,7 @@ def start_ase_server():
     # Start the background program and return its handler
     ase_server_process = subprocess.Popen([ase_server_path, "-p 42069", "--destroy"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print_info("Starting ase_server...")
-    sleep(1)
+    sleep(2.5)
     print_info("ase_server started!")
     return
 
@@ -41,7 +69,7 @@ def stop_ase_server():
         print_info("Stopping ase_server...")
         ase_server_process.terminate()
         ase_server_process.wait()
-        background_process = None
+        ase_server_process = None
         print_info("ase_server stopped!")
     return
 
@@ -55,6 +83,8 @@ def execute_benchmarks(cycles):
 
             if start_ase_server_f[x]:
                 start_ase_server()
+            if start_redis_server_f[x]:
+                start_redis_server()
 
             try:
                 subprocess.run([exe_path, output_path])
@@ -64,6 +94,8 @@ def execute_benchmarks(cycles):
 
             if start_ase_server_f[x]:
                 stop_ase_server()
+            if start_redis_server_f[x]:
+                stop_redis_server()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
