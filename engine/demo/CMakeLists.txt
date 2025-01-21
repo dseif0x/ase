@@ -10,3 +10,4 @@ file(
 include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 
 add_subdirectory(redis-bench)
+add_subdirectory(raspberry)
