@@ -49,7 +49,8 @@ const buildHierarchy = (obj, prefix = "") => {
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = prefix ? `${prefix}.${key}` : key;
-            const { type, value, children, processedKey } = obj[key];
+            const { type, value, children, processedKey, noEdit } = obj[key];
+            const { parentKey, path } = obj[key] || {};
 
             result.push({
                 key: processedKey || currentKey,
@@ -57,6 +58,9 @@ const buildHierarchy = (obj, prefix = "") => {
                 type: type,
                 children: buildHierarchy(children || {}, currentKey),
                 collapsed: true,
+                noEdit: noEdit,
+                parentKey: parentKey,
+                path: path,
             });
 
         }
@@ -77,8 +81,8 @@ const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 
                             className="edit-button"
                             onClick={() => navigate(`/edit/${node.key}`, {
                                 state: {
-                                    parentKey: "exampleKey.innerKey3",
-                                    arrayPath: [0, 0],
+                                    parentKey: node.parentKey,
+                                    arrayPath: node.path,
                                     keyData: node.key,
                                     connectionId: connectionId,
                                 }
@@ -112,7 +116,7 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        cleanupConnections().then(r => {
+        cleanupConnections().then(() => {
 
             let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
             let selectedConnectionId = JSON.parse(localStorage.getItem("selectedConnectionId")) || 1;
@@ -145,7 +149,7 @@ function App() {
     }
 
     const deleteConnection = async (id, connectionId) => {
-        await disconnect(connectionId).then((r: WebReturnDto) => {
+        await disconnect(connectionId).then(((r: WebReturnDto) => {
             const updatedConnections = connections.filter((connection) => connection.id !== id);
 
             setConnections(updatedConnections);
@@ -283,7 +287,7 @@ function App() {
                 children: processedKeyMap,
             };
         } else if (data.type === "ARRAY") {
-            return processArray(data, key);
+            return processArray(data, key, []);
         } else if (data.type === "PAIR") {
             return processPair(data, key);
         } else if (data.type === "SIMPLE") {
@@ -301,27 +305,54 @@ function App() {
     }
 
 
-    function processArray(data, key) {
+    function processArray(data, key, parentPath = [], rootParentKey = key) {
+        const children = data.array.map((item, index) => {
+            const childPath = [...parentPath, index];
+
+            const childKey = `${key}[${index}]`;
+
+            let childNode;
+
+            if (item.type === "ARRAY") {
+                childNode = processArray(item, childKey, childPath, rootParentKey);
+                childNode.parentKey = rootParentKey;
+                childNode.path = childPath;
+            } else {
+                childNode = processTcpGeneral(item, childKey);
+
+                // Attach metadata for non-array elements.
+                childNode.parentKey = rootParentKey;
+                childNode.path = childPath;
+            }
+
+            return childNode;
+        });
+
         return {
             processedKey: key,
             type: "ARRAY",
             value: `Array (${data.array.length} items)`,
-            children: data.array.map((item, index) => processTcpGeneral(item, `${key}[${index}]`)),
+            children,
+            // The array node itself can also have metadata if needed.
+            parentKey: rootParentKey,
+            path: parentPath
         };
     }
 
     function processPair(data, key) {
         return {
             type: "PAIR",
-            value: null, // Renderable string for a pair
+            value: null,
             children: [
                 {
                     processedKey: `${key}.left`,
                     ...processTcpGeneral(data.pair.left, `${key}.left`),
+                    noEdit: true
                 },
                 {
                     processedKey: `${key}.right`,
                     ...processTcpGeneral(data.pair.right, `${key}.right`),
+                    noEdit: true
                 },
             ],
         };

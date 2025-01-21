@@ -15,7 +15,7 @@ const SIMPLE_TYPE_MAP = {
     UNKNOWN: "Unknown",
 };
 
-const TcpGeneralType = ["SIMPLE", "ARRAY"];
+const TcpGeneralType = ["SIMPLE"];
 const SimpleTypes = ["BOOLEAN", "INT", "STRING", "DOUBLE"];
 
 function setElementByPath(rootArray, arrayPath, newElement) {
@@ -217,11 +217,11 @@ const AclEditor = () => {
             }
 
             let updatedElement = structuredClone(element);
-            if (updatedElement.type === "SIMPLE") {
+            if (type === "SIMPLE") {
                 const newVal = buildSimpleTcpGeneral(simpleType, value);
-                if (!newVal) return; // parse error or similar
+                if (!newVal) return;
                 updatedElement = newVal;
-            } else if (updatedElement.type === "PAIR") {
+            } else if (type === "PAIR") {
                 let leftObj, rightObj;
                 if (pair.left.type === "SIMPLE") {
                     leftObj = buildSimpleTcpGeneral(pair.left.simpleType, pair.left.value);
