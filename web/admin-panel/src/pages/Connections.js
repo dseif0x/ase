@@ -149,7 +149,7 @@ function App() {
     }
 
     const deleteConnection = async (id, connectionId) => {
-        await disconnect(connectionId).then(((r: WebReturnDto) => {
+        await disconnect(connectionId).then((r: WebReturnDto) => {
             const updatedConnections = connections.filter((connection) => connection.id !== id);
 
             setConnections(updatedConnections);
