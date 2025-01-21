@@ -205,6 +205,11 @@ public class DynamicDataWriter {
 
         try {
             HashMap<String, TcpGeneral> keyMap = value.getKeyMap();
+
+            if (keyMap == null) {
+                throw new TCPClientWriteException("KeyMap is invalid.");
+            }
+
             int len = keyMap.size();
             if (len == 0) {
                 throw new TCPClientWriteException("KeyMap length invalid.");
@@ -232,13 +237,15 @@ public class DynamicDataWriter {
     private void writePair(TcpGeneral value) throws TCPClientException {
         if (value.getType() != TcpGeneralType.PAIR) {
             throw new IllegalArgumentException("Expected PAIR TcpGeneral.");
+        } else if (value.getPair() == null || value.getPair().getLeft() == null || value.getPair().getRight() == null) {
+            throw new TCPClientWriteException("Pair is invalid.");
         }
 
         try {
             Pair<TcpGeneral, TcpGeneral> pair = value.getPair();
             TcpGeneral left = pair.getLeft();
 
-            if (left.isComplex()) writeGeneral(pair.getLeft());
+            if (value.isComplex()) writeGeneral(left);
             else writeSimpleType(left.getSimpleType(), left.getValue());
 
             writeGeneral(pair.getRight());
@@ -261,8 +268,13 @@ public class DynamicDataWriter {
 
         try {
             List<TcpGeneral> array = value.getArray();
+
+            if (array == null) {
+                throw new TCPClientWriteException("Array is invalid.");
+            }
+
             int len = array.size();
-            if (len == 0 || len > serverInfo.getArraySize()) {
+            if (len > serverInfo.getArraySize()) {
                 throw new TCPClientWriteException("Array length invalid.");
             }
 

@@ -46,8 +46,10 @@ public class AuthController {
             );
 
             return ResponseEntity.ok(WebReturn.success(id));
-        } catch (IOException | TCPClientException e) {
-            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        } catch (TCPClientException e) {
+            return ResponseEntity.ok(WebReturn.error(e.getMessage()));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(WebReturn.error("Failed to connect to the database"));
         }
     }
 

@@ -69,9 +69,18 @@ export async function list(key, connectionId) {
     }
 }
 
+function replacer(key, value) {
+    if (key === "complex" || key === "elementType") {
+        return undefined;
+    }
+    return value;
+}
+
 export async function set(key, value, force, connectionId) {
     try {
         console.log(`set key: ${key} with value: ${JSON.stringify(value)}`);
+
+        const jsonString = JSON.parse(JSON.stringify(value, replacer));
 
         const response = await fetch(`${API_BASE_URL}/db/set`, {
             method: "POST",
@@ -81,7 +90,7 @@ export async function set(key, value, force, connectionId) {
             },
             body: JSON.stringify({
                 "key": key,
-                "value": value,
+                "value": jsonString,
                 "force": force
             }),
         });
