@@ -121,11 +121,11 @@ int main(int argc, char* argv[]) {
     bool doBoolean = true;
     bool doDouble = true;
     bool doArray = true;
-    bool doPair = true;
-    bool doMap = true;
-    bool doReference = true;
-    bool doDelete = true;
-    bool doSum = true;
+    bool doPair = false;
+    bool doMap = false;
+    bool doReference = false;
+    bool doDelete = false;
+    bool doSum = false;
 
     for (int i: std::views::iota(0, 1024 * 1024)) {
         if (doInteger) {
@@ -154,7 +154,7 @@ int main(int argc, char* argv[]) {
             CopiedValue newval3{};
             newval3.type = ValueType::BOOLEAN;
             newval3.data.emplace<bool>(true);
-            db.set("test4", std::move(newval3), true);
+            db.set("nested.test4", std::move(newval3), true);
         }
 
         if (doDouble) {
@@ -172,8 +172,8 @@ int main(int argc, char* argv[]) {
             auto &vector = newval5.data.emplace<CopiedValue::copied_array_t>();
 
             CopiedValue arrval1{};
-            arrval1.type = ValueType::INT;
-            arrval1.data.emplace<int>(13);
+            arrval1.type = ValueType::STRING;
+            arrval1.data.emplace<std::string>("test");
             CopiedValue arrval2{};
             arrval2.type = ValueType::INT;
             arrval2.data.emplace<int>(12);
@@ -182,6 +182,13 @@ int main(int argc, char* argv[]) {
             vector.emplace_back(std::move(arrval2));
 
             db.set("test6", std::move(newval5), true);
+
+
+            CopiedValue newval6{};
+            newval6.type = ValueType::ARRAY;
+            newval6.data.emplace<CopiedValue::copied_array_t>();
+
+            db.set("testEmptyArray", std::move(newval6), true);
         }
 
         if (doPair) {
@@ -309,6 +316,13 @@ int main(int argc, char* argv[]) {
             else
                 std::cout << "Could not aggregate value" << std::endl;
         }
+
+
+        CopiedValue newvalAcl{};
+        newvalAcl.type = ValueType::INT;
+        newvalAcl.data.emplace<int>(42);
+        db.set("aclTest", std::move(newvalAcl), true);
+        return 0;
 
 
         get_and_print(db, "test");
