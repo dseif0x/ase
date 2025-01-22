@@ -44,7 +44,7 @@ async function cleanupConnections() {
 
 let toggle = true;
 
-const buildHierarchy = (obj, prefix = "", addArrayKeyPath = null) => {
+const buildHierarchy = (obj, prefix = "") => {
     const result = [];
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
@@ -52,25 +52,16 @@ const buildHierarchy = (obj, prefix = "", addArrayKeyPath = null) => {
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
-            if (type === "ARRAY") {
-                if (!addArrayKeyPath) {
-                    addArrayKeyPath = [children.length-1];
-                } else {
-                    addArrayKeyPath = addArrayKeyPath.concat(children.length-1);
-                }
-            }
-
             const elem = {
                 displayKey: key,
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
-                children: buildHierarchy(children || {}, currentKey, type === "ARRAY" ? addArrayKeyPath : null),
+                children: buildHierarchy(children || {}, currentKey),
                 collapsed: true,
                 noEdit: noEdit,
                 parentKey: parentKey,
                 path: path,
-                addArrayKeyPath: addArrayKeyPath,
             };
 
             result.push(elem);
@@ -88,7 +79,6 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        toggle = false;
         cleanupConnections().then(() => {
 
             let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
@@ -411,7 +401,6 @@ function App() {
     }, [selectedConnection]);
 
     async function refresh() {
-        toggle = false;
         if (await checkLogin()) {
           queue(async() => {
             const data = await buildKeyDataStructure();
@@ -421,10 +410,6 @@ function App() {
     }
 
     async function handleAdd(node, connectionId) {
-        let isArray = node.type === "ARRAY";
-        if (isArray) {
-            node.addArrayKeyPath[node.addArrayKeyPath.length-1] += 1;
-        }
         navigate(`/edit/key`, {
             state: {
                 keyData: node.key,
@@ -432,8 +417,7 @@ function App() {
                 addKey: true,
                 parentKey: node.parentKey || node.key,
                 arrayPath: node.path,
-                isArray: isArray,
-                addArrayKeyPath: node.addArrayKeyPath
+                isArray: node.type === "ARRAY",
             }
         })
     }
