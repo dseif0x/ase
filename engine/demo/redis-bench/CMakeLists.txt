@@ -21,6 +21,14 @@ add_executable(bench_redis_parallel main_redis_parallel.cpp)
 target_link_libraries(bench_redis_parallel hiredis db_static)
 target_include_directories(bench_redis_parallel PRIVATE include)
 
+add_executable(bench_redis_pipelining main_redis_pipelining.cpp)
+target_link_libraries(bench_redis_pipelining hiredis db_static)
+target_include_directories(bench_redis_pipelining PRIVATE include)
+
+add_executable(bench_redis_parallel_pipelining main_redis_parallel_pipelining.cpp)
+target_link_libraries(bench_redis_parallel_pipelining hiredis db_static)
+target_include_directories(bench_redis_parallel_pipelining PRIVATE include)
+
 add_executable(bench_tcp2 main_tcp2.cpp)
 target_link_libraries(bench_tcp2 client_static)
 target_include_directories(bench_tcp2 PRIVATE include)

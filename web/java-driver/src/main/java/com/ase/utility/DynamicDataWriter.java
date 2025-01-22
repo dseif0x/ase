@@ -388,7 +388,11 @@ public class DynamicDataWriter {
                 writeString((String) value);
                 break;
             case DOUBLE:
-                writeDouble((double) value);
+                if (value instanceof Integer) {
+                    writeDouble(((Integer) value).doubleValue());
+                } else {
+                    writeDouble((double) value);
+                }
                 break;
             default:
                 throw new TCPClientWriteException("Unsupported SimpleType: " + simpleType);
