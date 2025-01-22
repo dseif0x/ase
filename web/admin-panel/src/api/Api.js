@@ -180,3 +180,44 @@ export async function disconnect(connectionId: string) {
         return {ok: false, message: error};
     }
 }
+
+export async function deleteKey(key, connectionId) {
+    if (!connectionId) {
+        console.log("failed to call list, because of undefined connectionId");
+        return;
+    }
+    try {
+        console.log("deleting key: ", key);
+        const response = await fetch(`${API_BASE_URL}/db/delete/` + key, {
+            method: "DELETE",
+            headers: {
+                "X-Connection-Id": connectionId,
+            },
+        });
+
+        if (!response.ok) {
+            let errorDetails = '';
+            try {
+                errorDetails = await response.json();
+            } catch {
+                errorDetails = await response.text();
+            }
+            throw new Error(`Error: ${response.status} - ${errorDetails}`);
+        }
+
+        const contentType = response.headers.get("Content-Type");
+        let data;
+
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
+
+        console.log(data);
+        return data;
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        throw error;
+    }
+}
