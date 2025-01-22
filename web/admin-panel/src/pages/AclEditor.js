@@ -49,7 +49,7 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray } = location.state || {};
     const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
@@ -210,11 +210,14 @@ const AclEditor = () => {
     const addElementToArray = (rootArray, newElement, path) => {
         const clone = structuredClone(rootArray)
         let current = clone;
-        for (let i = 0; i < path.length-1; i++) {
+        for (let i = 0; i < path.length; i++) {
             const index = path[i];
             current = current.array[index];
         }
-        current.array[path[path.length-1]] = (newElement);
+        if (!current.array) {
+            current.array = [];
+        }
+        current.array[current.array.length] = newElement;
         return clone;
     }
 
@@ -313,7 +316,10 @@ const AclEditor = () => {
                 keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
             } else {
                 const res = await get(parentKey, connectionId);
-                const newElem = addElementToArray(res.data, toUpdate, addArrayKeyPath);
+                if (!arrayPath) {
+                    arrayPath = [];
+                }
+                const newElem = addElementToArray(res.data, toUpdate, arrayPath);
                 set(parentKey, newElem, true, connectionId).then((response) => {
                     if (!response.ok) {
                         toast.error(response.message);
