@@ -342,13 +342,14 @@ const AclEditor = () => {
 
             const newRootArray = setElementByPath(parentArrayData, arrayPath, updatedElement);
 
-            set(parentKey, newRootArray, true, connectionId).then((response) => {
+
+            queue(async () => set(parentKey, newRootArray, true, connectionId).then((response) => {
                 if (!response.ok) {
                     toast.error(response.message);
                 } else {
                     toast.success("Array element updated successfully.");
                 }
-            });
+            }));
             return;
         }
 
@@ -395,14 +396,14 @@ const AclEditor = () => {
                     arrayPath = [];
                 }
                 const newElem = addElementToArray(res.data, toUpdate, arrayPath);
-                set(parentKey, newElem, true, connectionId).then((response) => {
+                queue(async() => set(parentKey, newElem, true, connectionId).then((response) => {
                     if (!response.ok) {
                         toast.error(response.message);
                     } else {
                         toast.success("Array element updated successfully.");
                     }
                     navigate(-1);
-                });
+                }));
                 return;
             }
         }
@@ -411,6 +412,9 @@ const AclEditor = () => {
         if (!response.ok) {
           toast.error(response.message);
         } else toast.success("Value updated successfully.");
+        if (addKey) {
+            navigate(-1);
+        }
       }));
     };
 

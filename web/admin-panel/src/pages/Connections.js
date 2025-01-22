@@ -7,7 +7,6 @@ import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
 import {toast, ToastContainer} from "react-toastify";
-import {toast} from "react-toastify";
 
 
 const asyncSub = new Subject();
@@ -454,14 +453,14 @@ function App() {
         if (node.path) {
             const res = await get(node.parentKey, connectionId);
             const elem = removeElementFromArray(res.data, node.path);
-            set(node.parentKey, elem, true, connectionId).then((response) => {
+            queue(async () => set(node.parentKey, elem, true, connectionId).then((response) => {
                 if (!response.ok) {
                     toast.error(response.message);
                 } else {
                     toast.success("Array element updated successfully.");
                 }
                 refresh();
-            });
+            }));
         } else {
             await deleteKey(node.key, connectionId);
             await refresh();
