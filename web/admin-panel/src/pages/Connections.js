@@ -44,7 +44,7 @@ async function cleanupConnections() {
 
 let toggle = true;
 
-const buildHierarchy = (obj, prefix = "") => {
+const buildHierarchy = (obj, prefix = "", addArrayKeyPath = null) => {
     const result = [];
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
@@ -52,16 +52,25 @@ const buildHierarchy = (obj, prefix = "") => {
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
+            if (type === "ARRAY") {
+                if (!addArrayKeyPath) {
+                    addArrayKeyPath = [children.length-1];
+                } else {
+                    addArrayKeyPath = addArrayKeyPath.concat(children.length-1);
+                }
+            }
+
             const elem = {
                 displayKey: key,
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
-                children: buildHierarchy(children || {}, currentKey),
+                children: buildHierarchy(children || {}, currentKey, type === "ARRAY" ? addArrayKeyPath : null),
                 collapsed: true,
                 noEdit: noEdit,
                 parentKey: parentKey,
                 path: path,
+                addArrayKeyPath: addArrayKeyPath,
             };
 
             result.push(elem);
