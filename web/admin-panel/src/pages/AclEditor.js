@@ -326,6 +326,7 @@ const AclEditor = () => {
                     } else {
                         toast.success("Array element updated successfully.");
                     }
+                    navigate(-1);
                 });
                 return;
             }
@@ -582,7 +583,7 @@ const AclEditor = () => {
                     Cancel
                 </button>
                 <button className="update-btn" onClick={handleUpdate}>
-                    Update
+                    {addKey ? 'Add' : 'Update'}
                 </button>
             </div>
             <ToastContainer
