@@ -18,6 +18,30 @@ function queue(fn) {
   asyncSub.next(fn);
 }
 
+function evaluatePermissionDiff(initial, current) {
+  const res = [];
+  for (const perm of current) {
+    const otherPerm = initial.find(x => x.user === perm.user);
+    if (otherPerm) {
+      if (otherPerm.update !== perm.update || otherPerm.delete !== perm.delete || otherPerm.read !== perm.read)
+        res.push(Object.assign({}, perm));
+    } else {
+      res.push(Object.assign({}, perm));
+    }
+  }
+  return res;
+}
+
+function permToNumber(perm) {
+  let res = 0;
+  if (perm.read)
+    res |= 0b1;
+  if (perm.update)
+    res |= 0b10;
+  if (perm.delete)
+    res |= 0b100;
+  return res;
+}
 
 function evaluatePermissions(permission, key) {
   const splitKey = key.split(".");
@@ -132,6 +156,7 @@ const AclEditor = () => {
             }
           })
           queue(async () => {
+            console.log("getting acl");
             const val = await get_acl(connectionId);
             if (val.ok) {
               const data = val.data.keyMap;
@@ -140,7 +165,9 @@ const AclEditor = () => {
                 const perm = evaluatePermissions(data[key].pair.right.keyMap, keyData);
                 perms.push({user: key, read: (perm & 0b1) !== 0, update: (perm & 0b10) !== 0, delete: (perm & 0b100) !== 0});
               }
-              initialPermissions.current = perms;
+              const permsCopy = [];
+              perms.forEach(x => permsCopy.push(Object.assign({}, x)));
+              initialPermissions.current = permsCopy;
               setPermissions(perms);
             }
           })
@@ -365,13 +392,15 @@ const AclEditor = () => {
 
         }
 
-      console.log("permissions", initialPermissions.current, permissions);
-      queue(async() => update_acl(connectionId, "admin", keyData, 3))
-        queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
-            if (!response.ok) {
-                toast.error(response.message);
-            } else toast.success("Value updated successfully.");
-        }));
+      const permDiff = evaluatePermissionDiff(initialPermissions.current, permissions);
+      for (const permUpdate of permDiff) {
+        queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)));
+      }
+      queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
+        if (!response.ok) {
+          toast.error(response.message);
+        } else toast.success("Value updated successfully.");
+      }));
     };
 
     const handleCancel = () => {

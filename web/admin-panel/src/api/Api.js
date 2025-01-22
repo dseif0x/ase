@@ -17,7 +17,7 @@ export async function update_acl(connectionId, username, key, permission) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Connection-Id": "example-connection-id", // Replace with your connection ID
+        "X-Connection-Id": connectionId, // Replace with your connection ID
       },
     });
 
