@@ -49,13 +49,14 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const { keyData, connectionId, parentKey, arrayPath } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
     const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
         { user: "@ALL", read: false, update: false, delete: false },
     ];
 
+    const [newKey, setNewKey] = useState("");
     const [value, setValue] = useState("");
     const [simpleType, setSimpleType] = useState("STRING");
     const [type, setType] = useState("SIMPLE");
@@ -68,10 +69,10 @@ const AclEditor = () => {
     const [parentArrayData, setParentArrayData] = useState(null);
 
     useEffect(() => {
-        if (arrayPath && parentKey) {
+        if (arrayPath && parentKey && !addKey) {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
-        } else if (keyData) {
+        } else if (keyData && !addKey) {
             get(keyData, connectionId).then(val => {
                 if (val.ok) {
                     const data = val.data || {};
@@ -105,7 +106,7 @@ const AclEditor = () => {
 
             })
         }
-    }, [keyData, connectionId, parentKey, arrayPath]);
+    }, [keyData, connectionId, parentKey, arrayPath, addKey]);
 
     async function loadArrayElement(key, path) {
         const res = await get(key, connectionId);
@@ -206,10 +207,20 @@ const AclEditor = () => {
         };
     }
 
-    const handleUpdate = () => {
+    const addElementToArray = (rootArray, newElement, path) => {
+        const clone = structuredClone(rootArray)
+        let current = clone;
+        for (let i = 0; i < path.length-1; i++) {
+            const index = path[i];
+            current = current.array[index];
+        }
+        current.array[path[path.length-1]] = (newElement);
+        return clone;
+    }
+
+    const handleUpdate = async () => {
         if (isEditingArrayElement) {
             if (!parentArrayData) return;
-
             const element = getElementByPath(parentArrayData, arrayPath);
             if (!element) {
                 toast.error("Failed to locate element to update");
@@ -227,19 +238,19 @@ const AclEditor = () => {
                     leftObj = buildSimpleTcpGeneral(pair.left.simpleType, pair.left.value);
                     if (!leftObj) return;
                 } else {
-                    leftObj = { type: pair.left.type };
+                    leftObj = {type: pair.left.type};
                 }
 
                 if (pair.right.type === "SIMPLE") {
                     rightObj = buildSimpleTcpGeneral(pair.right.simpleType, pair.right.value);
                     if (!rightObj) return;
                 } else {
-                    rightObj = { type: pair.right.type };
+                    rightObj = {type: pair.right.type};
                 }
 
                 updatedElement = {
                     type: "PAIR",
-                    pair: { left: leftObj, right: rightObj },
+                    pair: {left: leftObj, right: rightObj},
                 };
             } else {
                 if (type === "SIMPLE") {
@@ -247,7 +258,7 @@ const AclEditor = () => {
                     if (!newVal) return;
                     updatedElement = newVal;
                 } else if (type === "ARRAY" || type === "KEY_MAP") {
-                    updatedElement = { type };
+                    updatedElement = {type};
                 }
             }
 
@@ -269,30 +280,49 @@ const AclEditor = () => {
             const newVal = buildSimpleTcpGeneral(simpleType, value);
             if (!newVal) return;
             toUpdate = newVal;
-        }
-        else if (type === "ARRAY" || type === "KEY_MAP") {
-            toUpdate = { type };
-        }
-        else if (type === "PAIR") {
+        } else if (type === "ARRAY" || type === "KEY_MAP") {
+            toUpdate = {type};
+        } else if (type === "PAIR") {
             let leftObj, rightObj;
             if (pair.left.type === "SIMPLE") {
                 leftObj = buildSimpleTcpGeneral(pair.left.simpleType, pair.left.value);
                 if (!leftObj) return;
             } else {
-                leftObj = { type: pair.left.type };
+                leftObj = {type: pair.left.type};
             }
 
             if (pair.right.type === "SIMPLE") {
                 rightObj = buildSimpleTcpGeneral(pair.right.simpleType, pair.right.value);
                 if (!rightObj) return;
             } else {
-                rightObj = { type: pair.right.type };
+                rightObj = {type: pair.right.type};
             }
 
             toUpdate = {
                 type: "PAIR",
-                pair: { left: leftObj, right: rightObj },
+                pair: {left: leftObj, right: rightObj},
             };
+        }
+
+        if (addKey) {
+            if (!isArray) {
+                if (!newKey.length > 0 || newKey.indexOf(".") > -1) {
+                    toast.error("New key is invalid.");
+                    return;
+                }
+                keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
+            } else {
+                const res = await get(parentKey, connectionId);
+                const newElem = addElementToArray(res.data, toUpdate, addArrayKeyPath);
+                set(parentKey, newElem, true, connectionId).then((response) => {
+                    if (!response.ok) {
+                        toast.error(response.message);
+                    } else {
+                        toast.success("Array element updated successfully.");
+                    }
+                });
+                return;
+            }
         }
 
         // 4) Send to the server
@@ -311,8 +341,22 @@ const AclEditor = () => {
 
     return (
         <div className="acl-editor">
-            <h2 className="editor-title">Key: {keyData}</h2>
+            <h2 className="editor-title">{addKey ? 'Parent ' : ''} Key: {keyData}</h2>
 
+            {(addKey && !isArray) && (
+                <div className="editor-section">
+                    <h3>Add Key</h3>
+                    <div className="add-key-row">
+                        <label>Key:</label>
+                        <input
+                            type="text"
+                            value={newKey}
+                            onChange={(e) => setNewKey(e.target.value)}
+                            placeholder="Enter key"
+                        />
+                    </div>
+                </div>
+            )}
             <div className="editor-section">
                 <label>Type:</label>
                 <select value={type} onChange={handleTypeChange}>

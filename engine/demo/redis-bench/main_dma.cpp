@@ -7,9 +7,11 @@
 
 #include "test_data.h"
 #include <db.h>
+#include <fstream>
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
+    if (out && out->is_open()) *out << "DMA;" << name << ";";
     std::cout << "Running DMA Test: " << name << std::endl;
     DB::destroy();
     auto test_data = generate_test_data();
@@ -21,13 +23,14 @@ int run_test(const char* name, T&& generate_test_data) {
         newval.data.emplace<std::string>(value);
         db.set(key.c_str(), std::move(newval));
     }
-    print_stopwatch(s, "\tSet Time: ");
+    print_stopwatch(s, "\tSet Time: ", out);
     std::cout << "\tUsed Memory: " << db.get_used_memory() / 1024. / 1024. << " Mib" << std::endl;
     s.reset();
     for (const auto& [key, _] : test_data) {
         auto val = db.get(key.c_str());
     }
-    print_stopwatch(s, "\tGet Time: ");
+    print_stopwatch(s, "\tGet Time: ", out);
+    if (out && out->is_open()) *out << std::endl;
     return 0;
 }
 

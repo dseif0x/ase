@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
                 print_usage();
                 return 0;
             case 'a':
-                if (acl_input.empty()) return print_error("ACL path is already set.", 1);
+                if (!acl_input.empty()) return print_error("ACL path is already set.", 1);
                 acl_input = optarg;
                 break;
             case 'p':
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
                 }
                 break;
             case 'd':
-                if (db_input.empty()) return print_error("DB path is already set.", 1);
+                if (!db_input.empty()) return print_error("DB path is already set.", 1);
                 db_input = optarg;
                 break;
             case 0: // Handle long options without a short option

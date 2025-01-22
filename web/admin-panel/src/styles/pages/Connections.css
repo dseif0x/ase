@@ -75,6 +75,21 @@ th {
     background-color: #0b7dda;
 }
 
+.add-key-button {
+    background-color: #214bf3;
+    color: white;
+    border: none;
+    width: 65px;
+    height: 25px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+.add-key-button:hover {
+    background-color: #0b7dda;
+}
+
 .list-button {
     width: 50px;
     height: 25px;
@@ -163,4 +178,8 @@ th {
 
 .blue-button:hover {
     background-color: #003399;
+}
+
+.left {
+    float: left;
 }

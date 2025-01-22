@@ -116,7 +116,8 @@ public class TcpGeneral {
     public boolean isComplex() {
         switch (type) {
             case ARRAY:
-                return array != null && array.stream().anyMatch(TcpGeneral::_isComplex);
+                return array != null && (array.stream().anyMatch(TcpGeneral::_isComplex) ||
+                    array.stream().map(TcpGeneral::getSimpleType).distinct().count() > 1);
             case PAIR:
                 return pair != null && pair.getLeft() != null && pair.getLeft()._isComplex();
             case KEY_MAP:
