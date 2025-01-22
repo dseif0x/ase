@@ -6,6 +6,7 @@ import {connect, deleteKey, disconnect, isLoggedIn, list, set} from "../api/Api"
 import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
+import {toast, ToastContainer} from "react-toastify";
 import {toast} from "react-toastify";
 
 
@@ -159,7 +160,7 @@ function App() {
         config.password = "rootpwd";
 
         if (connectionExists(config.host, config.port, config.username)) {
-            alert("this connection already exists!");
+            toast.error("this connection already exists!");
             return;
         }
 
@@ -181,7 +182,10 @@ function App() {
 
                 setSelectedConnectionId(newConnection.id);
                 setSelectedConnection(newConnection);
-            } else console.error("Failed to add connection:", response);
+            } else {
+                if (response.data) toast.error(response.data + " - " + response.message);
+                else toast.error(response.message);
+            }
         }).catch((error) => {
             console.error("Failed to add connection:", error);
         });
@@ -327,6 +331,9 @@ function App() {
         try {
             const response = await list(key, selectedConnection.connectionId);
             if (!response.ok || !response.data || response.data.type !== "KEY_MAP") {
+                if (!response.ok) {
+                    toast.error(response.data + "- " + response.message);
+                }
                 return {};
             }
 
@@ -348,6 +355,7 @@ function App() {
                     if (fetchedData.ok && fetchedData.data) {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
+                        console.error("Error fetching array data:", fetchedData);
                         result[subKey] = {
                             type: "ARRAY",
                             value: `Array (${subKeyData.array?.length || 0} items)`,
@@ -359,6 +367,7 @@ function App() {
                     if (fetchedData.ok && fetchedData.data) {
                         result[subKey] = processPair(fetchedData.data, newKey);
                     } else {
+                        console.error("Error fetching pair data:", fetchedData);
                         result[subKey] = {
                             type: "PAIR",
                             value: null,
@@ -587,6 +596,18 @@ function App() {
                     </tbody>
                 </table>
             </div>
+            <ToastContainer
+                position="bottom-center"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="colored"
+            />
         </div>
     );
 }

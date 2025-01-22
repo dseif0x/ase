@@ -1,9 +1,63 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useState, useRef} from "react";
+import {Subject, zip} from "rxjs";
 import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/AclEditor.css";
-import {get, set} from "../api/Api";
+import {get, set, get_acl, update_acl} from "../api/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+const asyncSub = new Subject();
+const nextAsyncSub = new Subject();
+zip(asyncSub, nextAsyncSub).subscribe({
+  next: ([fn]) => {
+    fn().finally(() => nextAsyncSub.next())
+  }
+});
+nextAsyncSub.next();
+function queue(fn) {
+  asyncSub.next(fn);
+}
+
+function evaluatePermissionDiff(initial, current) {
+  const res = [];
+  for (const perm of current) {
+    const otherPerm = initial.find(x => x.user === perm.user);
+    if (otherPerm) {
+      if (otherPerm.update !== perm.update || otherPerm.delete !== perm.delete || otherPerm.read !== perm.read)
+        res.push(Object.assign({}, perm));
+    } else {
+      res.push(Object.assign({}, perm));
+    }
+  }
+  return res;
+}
+
+function permToNumber(perm) {
+  let res = 0;
+  if (perm.read)
+    res |= 0b1;
+  if (perm.update)
+    res |= 0b10;
+  if (perm.delete)
+    res |= 0b100;
+  return res;
+}
+
+function evaluatePermissions(permission, key) {
+  const splitKey = key.split(".");
+  let perm = 0;
+  let itObj = permission;
+  for (let i = 0; i < splitKey.length; i++) {
+    if (!itObj[splitKey[i]]) return perm;
+    itObj = itObj[splitKey[i]].keyMap;
+  }
+  if (itObj["$"]) {
+    itObj = itObj["$"];
+    if (itObj["simpleType"] === "INT" && typeof(itObj["value"]) === "number")
+      perm |= itObj["value"];
+  }
+  return perm;
+}
 
 const SIMPLE_TYPE_MAP = {
     BOOLEAN: "Boolean",
@@ -49,18 +103,15 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray } = location.state || {};
-    const initialPermissions = [
-        { user: "JH", read: false, update: false, delete: false },
-        { user: "Group1", read: false, update: false, delete: false },
-        { user: "@ALL", read: false, update: false, delete: false },
-    ];
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
+    const initialPermissions = useRef([]);
+    const initialData = useRef({});
 
     const [newKey, setNewKey] = useState("");
     const [value, setValue] = useState("");
     const [simpleType, setSimpleType] = useState("STRING");
     const [type, setType] = useState("SIMPLE");
-    const [permissions, setPermissions] = useState(initialPermissions);
+    const [permissions, setPermissions] = useState([]);
     const [pair, setPair] = useState({
         left: { type: "SIMPLE", simpleType: "STRING", value: "" },
         right: { type: "SIMPLE", simpleType: "STRING", value: "" },
@@ -73,38 +124,55 @@ const AclEditor = () => {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
         } else if (keyData && !addKey) {
-            get(keyData, connectionId).then(val => {
-                if (val.ok) {
-                    const data = val.data || {};
-                    setType(data.type || "SIMPLE");
+          queue(async() => {
+            const val = await get(keyData, connectionId);
+            if (val.ok) {
+              const data = val.data || {};
+              initialData.current = Object({}, data);
+              setType(data.type || "SIMPLE");
 
-                    if (data.type === "PAIR") {
-                        setPair({
-                            left: {
-                                type: data.pair?.left?.type || "SIMPLE",
-                                simpleType: data.pair?.left?.simpleType || "STRING",
-                                value: data.pair?.left?.value || "",
-                            },
-                            right: {
-                                type: data.pair?.right?.type || "SIMPLE",
-                                simpleType: data.pair?.right?.simpleType || "STRING",
-                                value: data.pair?.right?.value || "",
-                            },
-                        });
-                    } else if (data.type === "SIMPLE" && data.simpleType === "BOOLEAN") {
-                        setValue(data.value ? "True" : "False");
-                    } else {
-                        setValue(data.value || "");
-                    }
+              if (data.type === "PAIR") {
+                setPair({
+                  left: {
+                    type: data.pair?.left?.type || "SIMPLE",
+                    simpleType: data.pair?.left?.simpleType || "STRING",
+                    value: data.pair?.left?.value || "",
+                  },
+                  right: {
+                    type: data.pair?.right?.type || "SIMPLE",
+                    simpleType: data.pair?.right?.simpleType || "STRING",
+                    value: data.pair?.right?.value || "",
+                  },
+                });
+              } else if (data.type === "SIMPLE" && data.simpleType === "BOOLEAN") {
+                setValue(data.value ? "True" : "False");
+              } else {
+                setValue(data.value || "");
+              }
 
-                    setSimpleType(val.data?.simpleType || "STRING");
-                    setType(val.data?.type || "SIMPLE");
-                } else {
-                    toast.error(val.message);
-                    console.error()
-                }
-
-            })
+              setSimpleType(val.data?.simpleType || "STRING");
+              setType(val.data?.type || "SIMPLE");
+            } else {
+              toast.error(val.message);
+              console.error()
+            }
+          })
+          queue(async () => {
+            console.log("getting acl");
+            const val = await get_acl(connectionId);
+            if (val.ok) {
+              const data = val.data.keyMap;
+              const perms = []
+              for(const key in data) {
+                const perm = evaluatePermissions(data[key].pair.right.keyMap, keyData);
+                perms.push({user: key, read: (perm & 0b1) !== 0, update: (perm & 0b10) !== 0, delete: (perm & 0b100) !== 0});
+              }
+              const permsCopy = [];
+              perms.forEach(x => permsCopy.push(Object.assign({}, x)));
+              initialPermissions.current = permsCopy;
+              setPermissions(perms);
+            }
+          })
         }
     }, [keyData, connectionId, parentKey, arrayPath, addKey]);
 
@@ -221,6 +289,13 @@ const AclEditor = () => {
         return clone;
     }
 
+    const handleAclUpdate = async () => {
+      const permDiff = evaluatePermissionDiff(initialPermissions.current, permissions);
+      for (const permUpdate of permDiff) {
+        queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)));
+      }
+    }
+
     const handleUpdate = async () => {
         if (isEditingArrayElement) {
             if (!parentArrayData) return;
@@ -332,14 +407,11 @@ const AclEditor = () => {
             }
         }
 
-        // 4) Send to the server
-        set(keyData, toUpdate, true, connectionId).then((response) => {
-            if (!response.ok) {
-                toast.error(response.message);
-            } else {
-                toast.success("Value updated successfully.");
-            }
-        });
+      queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
+        if (!response.ok) {
+          toast.error(response.message);
+        } else toast.success("Value updated successfully.");
+      }));
     };
 
     const handleCancel = () => {
@@ -564,19 +636,8 @@ const AclEditor = () => {
 
             <button
                 className="add-btn"
-                onClick={() =>
-                    setPermissions([
-                        ...permissions,
-                        {
-                            user: `NewUser/Group${permissions.length + 1}`,
-                            read: false,
-                            update: false,
-                            delete: false,
-                        },
-                    ])
-                }
-            >
-                Add
+                onClick={handleAclUpdate}>
+                Save ACL
             </button>
             <div className="action-buttons">
                 <button className="cancel-btn" onClick={handleCancel}>
