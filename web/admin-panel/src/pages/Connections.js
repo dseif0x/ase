@@ -2,10 +2,11 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, disconnect, isLoggedIn, list} from "../api/Api";
+import {connect, deleteKey, disconnect, isLoggedIn, list, set} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
+import {toast} from "react-toastify";
 
 
 const asyncSub = new Subject();
@@ -429,6 +430,35 @@ function App() {
         return node.path ? '[' + node.path + ']' : node.displayKey;
     }
 
+    const removeElementFromArray = (rootArray, deletePath) => {
+        const clone = structuredClone(rootArray)
+        let current = clone;
+        for (let i = 0; i < deletePath.length-1; i++) {
+            const index = deletePath[i];
+            current = current.array[index];
+        }
+        current.array.splice(deletePath[deletePath.length-1], 1);
+        return clone;
+    }
+
+    async function handleDelete(node, connectionId) {
+        if (node.path) {
+            const res = await get(node.parentKey, connectionId);
+            const elem = removeElementFromArray(res.data, node.path);
+            set(node.parentKey, elem, true, connectionId).then((response) => {
+                if (!response.ok) {
+                    toast.error(response.message);
+                } else {
+                    toast.success("Array element updated successfully.");
+                }
+                refresh();
+            });
+        } else {
+            await deleteKey(node.key, connectionId);
+            await refresh();
+        }
+    }
+
     const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
@@ -449,12 +479,21 @@ function App() {
                                             connectionId: connectionId,
                                             addKey: false
                                         }
-                                    });}
-                                }
+                                    });
+                                }}
                             >
                                 Edit
                             </button>
+
                         )}
+                        <button
+                            className="edit-button red"
+                            onClick={() => {
+                                handleDelete(node, connectionId);
+                            }}
+                        >
+                            Delete
+                        </button>
                         {node.children.length > 0 && (
                             <button
                                 className="list-button"
