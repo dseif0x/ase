@@ -69,7 +69,7 @@ const AclEditor = () => {
     const [parentArrayData, setParentArrayData] = useState(null);
 
     useEffect(() => {
-        if (arrayPath && parentKey) {
+        if (arrayPath && parentKey && !addKey) {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
         } else if (keyData && !addKey) {
@@ -207,7 +207,18 @@ const AclEditor = () => {
         };
     }
 
-    const handleUpdate = () => {
+    const addElementToArray = (rootArray, newElement, path) => {
+        const clone = structuredClone(rootArray)
+        let current = clone;
+        for (let i = 0; i < path.length-1; i++) {
+            const index = path[i];
+            current = current.array[index];
+        }
+        current.array[path[path.length-1]] = (newElement);
+        return clone;
+    }
+
+    const handleUpdate = async () => {
         if (isEditingArrayElement) {
             if (!parentArrayData) return;
 
