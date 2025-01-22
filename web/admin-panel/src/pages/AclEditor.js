@@ -49,7 +49,7 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    let { keyData, connectionId, addKey, parentKey, arrayPath } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
     const initialPermissions = [
         { user: "JH", read: false, update: false, delete: false },
         { user: "Group1", read: false, update: false, delete: false },
@@ -69,7 +69,7 @@ const AclEditor = () => {
     const [parentArrayData, setParentArrayData] = useState(null);
 
     useEffect(() => {
-        if (arrayPath && parentKey) {
+        if (arrayPath && parentKey && !addKey) {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
         } else if (keyData && !addKey) {
@@ -207,10 +207,20 @@ const AclEditor = () => {
         };
     }
 
-    const handleUpdate = () => {
+    const addElementToArray = (rootArray, newElement, path) => {
+        const clone = structuredClone(rootArray)
+        let current = clone;
+        for (let i = 0; i < path.length-1; i++) {
+            const index = path[i];
+            current = current.array[index];
+        }
+        current.array[path[path.length-1]] = (newElement);
+        return clone;
+    }
+
+    const handleUpdate = async () => {
         if (isEditingArrayElement) {
             if (!parentArrayData) return;
-
             const element = getElementByPath(parentArrayData, arrayPath);
             if (!element) {
                 toast.error("Failed to locate element to update");
@@ -228,19 +238,19 @@ const AclEditor = () => {
                     leftObj = buildSimpleTcpGeneral(pair.left.simpleType, pair.left.value);
                     if (!leftObj) return;
                 } else {
-                    leftObj = { type: pair.left.type };
+                    leftObj = {type: pair.left.type};
                 }
 
                 if (pair.right.type === "SIMPLE") {
                     rightObj = buildSimpleTcpGeneral(pair.right.simpleType, pair.right.value);
                     if (!rightObj) return;
                 } else {
-                    rightObj = { type: pair.right.type };
+                    rightObj = {type: pair.right.type};
                 }
 
                 updatedElement = {
                     type: "PAIR",
-                    pair: { left: leftObj, right: rightObj },
+                    pair: {left: leftObj, right: rightObj},
                 };
             } else {
                 if (type === "SIMPLE") {
@@ -248,7 +258,7 @@ const AclEditor = () => {
                     if (!newVal) return;
                     updatedElement = newVal;
                 } else if (type === "ARRAY" || type === "KEY_MAP") {
-                    updatedElement = { type };
+                    updatedElement = {type};
                 }
             }
 
@@ -270,34 +280,49 @@ const AclEditor = () => {
             const newVal = buildSimpleTcpGeneral(simpleType, value);
             if (!newVal) return;
             toUpdate = newVal;
-        }
-        else if (type === "ARRAY" || type === "KEY_MAP") {
-            toUpdate = { type };
-        }
-        else if (type === "PAIR") {
+        } else if (type === "ARRAY" || type === "KEY_MAP") {
+            toUpdate = {type};
+        } else if (type === "PAIR") {
             let leftObj, rightObj;
             if (pair.left.type === "SIMPLE") {
                 leftObj = buildSimpleTcpGeneral(pair.left.simpleType, pair.left.value);
                 if (!leftObj) return;
             } else {
-                leftObj = { type: pair.left.type };
+                leftObj = {type: pair.left.type};
             }
 
             if (pair.right.type === "SIMPLE") {
                 rightObj = buildSimpleTcpGeneral(pair.right.simpleType, pair.right.value);
                 if (!rightObj) return;
             } else {
-                rightObj = { type: pair.right.type };
+                rightObj = {type: pair.right.type};
             }
 
             toUpdate = {
                 type: "PAIR",
-                pair: { left: leftObj, right: rightObj },
+                pair: {left: leftObj, right: rightObj},
             };
         }
 
         if (addKey) {
-            keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
+            if (!isArray) {
+                if (!newKey.length > 0 || newKey.indexOf(".") > -1) {
+                    toast.error("New key is invalid.");
+                    return;
+                }
+                keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
+            } else {
+                const res = await get(parentKey, connectionId);
+                const newElem = addElementToArray(res.data, toUpdate, addArrayKeyPath);
+                set(parentKey, newElem, true, connectionId).then((response) => {
+                    if (!response.ok) {
+                        toast.error(response.message);
+                    } else {
+                        toast.success("Array element updated successfully.");
+                    }
+                });
+                return;
+            }
         }
 
         // 4) Send to the server
@@ -318,7 +343,7 @@ const AclEditor = () => {
         <div className="acl-editor">
             <h2 className="editor-title">{addKey ? 'Parent ' : ''} Key: {keyData}</h2>
 
-            {addKey && (
+            {(addKey && !isArray) && (
                 <div className="editor-section">
                     <h3>Add Key</h3>
                     <div className="add-key-row">

@@ -44,7 +44,7 @@ async function cleanupConnections() {
 
 let toggle = true;
 
-const buildHierarchy = (obj, prefix = "") => {
+const buildHierarchy = (obj, prefix = "", addArrayKeyPath = null) => {
     const result = [];
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
@@ -52,16 +52,25 @@ const buildHierarchy = (obj, prefix = "") => {
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
+            if (type === "ARRAY") {
+                if (!addArrayKeyPath) {
+                    addArrayKeyPath = [children.length-1];
+                } else {
+                    addArrayKeyPath = addArrayKeyPath.concat(children.length-1);
+                }
+            }
+
             const elem = {
                 displayKey: key,
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
-                children: buildHierarchy(children || {}, currentKey),
+                children: buildHierarchy(children || {}, currentKey, type === "ARRAY" ? addArrayKeyPath : null),
                 collapsed: true,
                 noEdit: noEdit,
                 parentKey: parentKey,
                 path: path,
+                addArrayKeyPath: addArrayKeyPath,
             };
 
             result.push(elem);
@@ -298,7 +307,7 @@ function App() {
             value: `Array (${data.array.length} items)`,
             children,
             parentKey: null,
-            path: null
+            path: null,
         };
     }
 
@@ -411,12 +420,20 @@ function App() {
         }
     }
 
-    function handleAdd(key, connectionId) {
+    async function handleAdd(node, connectionId) {
+        let isArray = node.type === "ARRAY";
+        if (isArray) {
+            node.addArrayKeyPath[node.addArrayKeyPath.length-1] += 1;
+        }
         navigate(`/edit/key`, {
             state: {
-                keyData: key,
+                keyData: node.key,
                 connectionId: connectionId,
-                addKey: true
+                addKey: true,
+                parentKey: node.parentKey || node.key,
+                arrayPath: node.path,
+                isArray: isArray,
+                addArrayKeyPath: node.addArrayKeyPath
             }
         })
     }
@@ -448,10 +465,7 @@ function App() {
                                             connectionId: connectionId,
                                             addKey: false
                                         }
-                                    });
-                                    console.log("displaykey: ", node.displayKey);
-                                    console.log("path: ", node.path);
-                                }
+                                    });}
                                 }
                             >
                                 Edit
@@ -465,8 +479,8 @@ function App() {
                                 {node.collapsed ? "List" : "Close"}
                             </button>
                         )}
-                        {node.type === "KEY_MAP" && (
-                            <button onClick={() => handleAdd(node.key, connectionId)} className="add-key-button">
+                        {(node.type === "KEY_MAP" || node.type === "ARRAY") && (
+                            <button onClick={async () => handleAdd(node, connectionId)} className="add-key-button">
                                 Add Key
                             </button>
                         )}
