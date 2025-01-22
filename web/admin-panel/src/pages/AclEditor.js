@@ -105,6 +105,7 @@ const AclEditor = () => {
 
     let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
     const initialPermissions = useRef([]);
+    const initialData = useRef({});
 
     const [newKey, setNewKey] = useState("");
     const [value, setValue] = useState("");
@@ -127,6 +128,7 @@ const AclEditor = () => {
             const val = await get(keyData, connectionId);
             if (val.ok) {
               const data = val.data || {};
+              initialData.current = Object({}, data);
               setType(data.type || "SIMPLE");
 
               if (data.type === "PAIR") {
@@ -151,11 +153,12 @@ const AclEditor = () => {
               setSimpleType(val.data?.simpleType || "STRING");
               setType(val.data?.type || "SIMPLE");
             } else {
-              if (val.data) toast.error(val.data + " - " + val.message);
-              else toast.error(val.message)
+              toast.error(val.message);
+              console.error()
             }
           })
           queue(async () => {
+            console.log("getting acl");
             const val = await get_acl(connectionId);
             if (val.ok) {
               const data = val.data.keyMap;
@@ -176,11 +179,7 @@ const AclEditor = () => {
     async function loadArrayElement(key, path) {
         const res = await get(key, connectionId);
         if (!res.ok || !res.data || res.data.type !== "ARRAY") {
-            if (!res.ok) {
-                if (res.data) toast.error(res.data + " - " + res.message);
-                else toast.error(res.message);
-            }
-            else toast.error("Parent key is not an ARRAY or not found");
+            toast.error("Parent key is not an ARRAY or not found");
             return;
         }
         const rootArray = res.data;
@@ -287,6 +286,13 @@ const AclEditor = () => {
         return clone;
     }
 
+    const handleAclUpdate = async () => {
+      const permDiff = evaluatePermissionDiff(initialPermissions.current, permissions);
+      for (const permUpdate of permDiff) {
+        queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)));
+      }
+    }
+
     const handleUpdate = async () => {
         if (isEditingArrayElement) {
             if (!parentArrayData) return;
@@ -335,8 +341,7 @@ const AclEditor = () => {
 
             set(parentKey, newRootArray, true, connectionId).then((response) => {
                 if (!response.ok) {
-                    if (response.data) toast.error(response.data + " - " + response.message);
-                    else toast.error(response.message);
+                    toast.error(response.message);
                 } else {
                     toast.success("Array element updated successfully.");
                 }
@@ -383,16 +388,10 @@ const AclEditor = () => {
                 keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
             } else {
                 const res = await get(parentKey, connectionId);
-                if (!res.ok) {
-                    if (res.data) toast.error(res.data + " - " + res.message);
-                    else toast.error(res.message);
-                    return;
-                }
                 const newElem = addElementToArray(res.data, toUpdate, addArrayKeyPath);
                 set(parentKey, newElem, true, connectionId).then((response) => {
                     if (!response.ok) {
-                        if (response.data) toast.error(response.data + " - " + response.message);
-                        else toast.error(response.message);
+                        toast.error(response.message);
                     } else {
                         toast.success("Array element updated successfully.");
                     }
@@ -402,17 +401,12 @@ const AclEditor = () => {
 
         }
 
-      const permDiff = evaluatePermissionDiff(initialPermissions.current, permissions);
-      for (const permUpdate of permDiff) {
-        queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)));
-      }
       queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
         if (!response.ok) {
-          if (response.data) toast.error(response.data + " - " + response.message);
-          else toast.error(response.message);
+          toast.error(response.message);
         } else toast.success("Value updated successfully.");
       }));
-    };
+    }; 
 
     const handleCancel = () => {
         navigate(-1);
@@ -636,19 +630,8 @@ const AclEditor = () => {
 
             <button
                 className="add-btn"
-                onClick={() =>
-                    setPermissions([
-                        ...permissions,
-                        {
-                            user: `NewUser/Group${permissions.length + 1}`,
-                            read: false,
-                            update: false,
-                            delete: false,
-                        },
-                    ])
-                }
-            >
-                Add
+                onClick={handleAclUpdate}>
+                Save ACL
             </button>
             <div className="action-buttons">
                 <button className="cancel-btn" onClick={handleCancel}>
