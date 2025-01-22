@@ -107,7 +107,7 @@ public class TcpGeneral {
     public SimpleType getElementType() {
         if (type == TcpGeneralType.ARRAY && array != null && !array.isEmpty()) {
             return array.get(0).getSimpleType();
-        } else if (type == TcpGeneralType.PAIR && pair != null) {
+        } else if (type == TcpGeneralType.PAIR && pair != null && pair.getLeft() != null) {
             return pair.getLeft().getSimpleType();
         }
         return SimpleType.UNKNOWN;
@@ -116,9 +116,10 @@ public class TcpGeneral {
     public boolean isComplex() {
         switch (type) {
             case ARRAY:
-                return array != null && array.stream().anyMatch(TcpGeneral::_isComplex);
+                return array != null && (array.stream().anyMatch(TcpGeneral::_isComplex) ||
+                    array.stream().map(TcpGeneral::getSimpleType).distinct().count() > 1);
             case PAIR:
-                return pair != null && pair.getLeft()._isComplex();
+                return pair != null && pair.getLeft() != null && pair.getLeft()._isComplex();
             case KEY_MAP:
                 return keyMap != null;
             case SIMPLE:

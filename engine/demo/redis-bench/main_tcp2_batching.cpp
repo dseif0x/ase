@@ -10,7 +10,8 @@
 #include "read_write_client.h"
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
+    if (out && out->is_open()) *out << "TCP2 bat;" << name << ";";
     std::cout << "Running TCP2 Locally-Buffered - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
     ReadWriteClient client{"127.0.0.1", 42069, "admin", "rootpwd"};
@@ -37,7 +38,7 @@ int run_test(const char* name, T&& generate_test_data) {
     if (!std::all_of(res.begin(), res.end(), [](bool b) { return b; })) std::cout << "ERROR" << std::endl;
 
 
-    print_stopwatch(s, "\tSet Time: ");
+    print_stopwatch(s, "\tSet Time: ", out);
     s.reset();
 
     // create a list of keys
@@ -68,7 +69,8 @@ int run_test(const char* name, T&& generate_test_data) {
     }
     if (error) std::cout << "ERROR" << std::endl;
 
-    print_stopwatch(s, "\tGet Time: ");
+    print_stopwatch(s, "\tGet Time: ", out);
+    if (out && out->is_open()) *out << std::endl;
 
     client.set_mode_normal();
     client.disconnect();

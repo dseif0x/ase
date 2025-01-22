@@ -45,18 +45,44 @@ const SIMPLE_TYPE_MAP = {
     UNKNOWN: "Unknown",
 };
 
-const TcpGeneralType = ["SIMPLE", "ARRAY", "PAIR", "KEY_MAP"];
+const TcpGeneralType = ["SIMPLE"];
 const SimpleTypes = ["BOOLEAN", "INT", "STRING", "DOUBLE"];
 
+function setElementByPath(rootArray, arrayPath, newElement) {
+    const clone = structuredClone(rootArray);
+    let current = clone;
+
+    for (let i = 0; i < arrayPath.length - 1; i++) {
+        const idx = arrayPath[i];
+        current = current.array[idx];
+    }
+    const finalIndex = arrayPath[arrayPath.length - 1];
+    current.array[finalIndex] = newElement;
+    return clone;
+}
+
+function getElementByPath(tcpArray, arrayPath = []) {
+    let current = tcpArray;
+    for (let idx of arrayPath) {
+        if (!current || current.type !== "ARRAY" || !Array.isArray(current.array)) {
+            return null;
+        }
+        if (idx < 0 || idx >= current.array.length) {
+            return null;
+        }
+        current = current.array[idx];
+    }
+    return current;
+}
+
 const AclEditor = () => {
-
-
     const location = useLocation();
     const navigate = useNavigate();
 
-    const { keyData, connectionId } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
     const initialPermissions = useRef([]);
 
+    const [newKey, setNewKey] = useState("");
     const [value, setValue] = useState("");
     const [simpleType, setSimpleType] = useState("STRING");
     const [type, setType] = useState("SIMPLE");
@@ -65,10 +91,15 @@ const AclEditor = () => {
         left: { type: "SIMPLE", simpleType: "STRING", value: "" },
         right: { type: "SIMPLE", simpleType: "STRING", value: "" },
     });
+    const [isEditingArrayElement, setIsEditingArrayElement] = useState(false);
+    const [parentArrayData, setParentArrayData] = useState(null);
 
     useEffect(() => {
-        if (keyData) {
-          queue(async () => {
+        if (arrayPath && parentKey && !addKey) {
+            setIsEditingArrayElement(true);
+            loadArrayElement(parentKey, arrayPath);
+        } else if (keyData && !addKey) {
+          queue(async() => {
             const val = await get(keyData, connectionId);
             if (val.ok) {
               const data = val.data || {};
@@ -87,6 +118,8 @@ const AclEditor = () => {
                     value: data.pair?.right?.value || "",
                   },
                 });
+              } else if (data.type === "SIMPLE" && data.simpleType === "BOOLEAN") {
+                setValue(data.value ? "True" : "False");
               } else {
                 setValue(data.value || "");
               }
@@ -112,7 +145,48 @@ const AclEditor = () => {
             }
           })
         }
-    }, [keyData]);
+    }, [keyData, connectionId, parentKey, arrayPath, addKey]);
+
+    async function loadArrayElement(key, path) {
+        const res = await get(key, connectionId);
+        if (!res.ok || !res.data || res.data.type !== "ARRAY") {
+            toast.error("Parent key is not an ARRAY or not found");
+            return;
+        }
+        const rootArray = res.data;
+        setParentArrayData(rootArray);
+
+        const element = getElementByPath(rootArray, path);
+        if (!element) {
+            toast.error("Array element not found at path " + JSON.stringify(path));
+            return;
+        }
+
+        setType(element.type);
+        if (element.type === "SIMPLE") {
+            setSimpleType(element.simpleType);
+            if (element.simpleType === "BOOLEAN") {
+                setValue(element.value ? "True" : "False");
+            } else {
+                setValue(element.value?.toString() ?? "");
+            }
+        } else if (element.type === "PAIR") {
+            setPair({
+                left: {
+                    type: element.pair?.left?.type || "SIMPLE",
+                    simpleType: element.pair?.left?.simpleType || "STRING",
+                    value: element.pair?.left?.value || "",
+                },
+                right: {
+                    type: element.pair?.right?.type || "SIMPLE",
+                    simpleType: element.pair?.right?.simpleType || "STRING",
+                    value: element.pair?.right?.value || "",
+                },
+            });
+        } else {
+            console.log("Editing array element of type:", element.type);
+        }
+    }
 
     const handleTypeChange = (e) => {
         const selectedType = e.target.value;
@@ -136,90 +210,156 @@ const AclEditor = () => {
         setPermissions(updatedPermissions);
     };
 
-    const parseSimpleType = (simpleType, value) => {
-        let toUpdate;
+    function parseSimpleType(simpleType, inputValue) {
         switch (simpleType) {
-            case "INT":
-                let parsedInt = parseInt(value, 10);
-
+            case "INT": {
+                const parsedInt = parseInt(inputValue, 10);
                 if (isNaN(parsedInt)) {
-                    toast.error("Invalid Integer value.");
-                    return;
+                    toast.error("Invalid integer value");
+                    return null;
                 }
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: parsedInt,
-                    simpleType: "INT",
-                }
-                break;
-            case "BOOLEAN":
-                let parsedBoolean = value.toLowerCase() === "true";
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: parsedBoolean,
-                    simpleType: "BOOLEAN",
-                }
-                break;
-            case "DOUBLE":
-                let parsedDouble = parseFloat(value);
+                return parsedInt;
+            }
+            case "DOUBLE": {
+                const parsedDouble = parseFloat(inputValue);
                 if (isNaN(parsedDouble)) {
-                    toast.error("Invalid Double value.");
-                    return;
+                    toast.error("Invalid double value");
+                    return null;
                 }
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: parsedDouble,
-                    simpleType: "DOUBLE",
-                }
-                break;
+                return parsedDouble;
+            }
+            case "BOOLEAN":
+                return inputValue === "True";
             case "STRING":
-                toUpdate = {
-                    type: "SIMPLE",
-                    value: value,
-                    simpleType: "STRING",
-                }
-                break;
             default:
-                toast.error("Unsupported value type.");
-                return null;
+                return inputValue;
+        }
+    }
+
+    function buildSimpleTcpGeneral(simpleType, rawValue) {
+        const parsed = parseSimpleType(simpleType, rawValue);
+        if (parsed === null) return null;
+        return {
+            type: "SIMPLE",
+            value: parsed,
+            simpleType: simpleType,
+        };
+    }
+
+    const addElementToArray = (rootArray, newElement, path) => {
+        const clone = structuredClone(rootArray)
+        let current = clone;
+        for (let i = 0; i < path.length-1; i++) {
+            const index = path[i];
+            current = current.array[index];
+        }
+        current.array[path[path.length-1]] = (newElement);
+        return clone;
+    }
+
+    const handleUpdate = async () => {
+        if (isEditingArrayElement) {
+            if (!parentArrayData) return;
+            const element = getElementByPath(parentArrayData, arrayPath);
+            if (!element) {
+                toast.error("Failed to locate element to update");
+                return;
+            }
+
+            let updatedElement = structuredClone(element);
+            if (type === "SIMPLE") {
+                const newVal = buildSimpleTcpGeneral(simpleType, value);
+                if (!newVal) return;
+                updatedElement = newVal;
+            } else if (type === "PAIR") {
+                let leftObj, rightObj;
+                if (pair.left.type === "SIMPLE") {
+                    leftObj = buildSimpleTcpGeneral(pair.left.simpleType, pair.left.value);
+                    if (!leftObj) return;
+                } else {
+                    leftObj = {type: pair.left.type};
+                }
+
+                if (pair.right.type === "SIMPLE") {
+                    rightObj = buildSimpleTcpGeneral(pair.right.simpleType, pair.right.value);
+                    if (!rightObj) return;
+                } else {
+                    rightObj = {type: pair.right.type};
+                }
+
+                updatedElement = {
+                    type: "PAIR",
+                    pair: {left: leftObj, right: rightObj},
+                };
+            } else {
+                if (type === "SIMPLE") {
+                    const newVal = buildSimpleTcpGeneral(simpleType, value);
+                    if (!newVal) return;
+                    updatedElement = newVal;
+                } else if (type === "ARRAY" || type === "KEY_MAP") {
+                    updatedElement = {type};
+                }
+            }
+
+            const newRootArray = setElementByPath(parentArrayData, arrayPath, updatedElement);
+
+            set(parentKey, newRootArray, true, connectionId).then((response) => {
+                if (!response.ok) {
+                    toast.error(response.message);
+                } else {
+                    toast.success("Array element updated successfully.");
+                }
+            });
+            return;
         }
 
-        return toUpdate;
-    }
-    const handleUpdate = () => {
         let toUpdate;
 
         if (type === "SIMPLE") {
-            toUpdate = parseSimpleType(simpleType, value);
-            if (!toUpdate) return;
+            const newVal = buildSimpleTcpGeneral(simpleType, value);
+            if (!newVal) return;
+            toUpdate = newVal;
         } else if (type === "ARRAY" || type === "KEY_MAP") {
-            toUpdate = {
-                type: type
-            };
+            toUpdate = {type};
         } else if (type === "PAIR") {
-            const { left, right } = pair;
+            let leftObj, rightObj;
+            if (pair.left.type === "SIMPLE") {
+                leftObj = buildSimpleTcpGeneral(pair.left.simpleType, pair.left.value);
+                if (!leftObj) return;
+            } else {
+                leftObj = {type: pair.left.type};
+            }
+
+            if (pair.right.type === "SIMPLE") {
+                rightObj = buildSimpleTcpGeneral(pair.right.simpleType, pair.right.value);
+                if (!rightObj) return;
+            } else {
+                rightObj = {type: pair.right.type};
+            }
+
             toUpdate = {
                 type: "PAIR",
-                pair: {},
-            }
-            if (left.type === "SIMPLE") {
-                const leftUpdate = parseSimpleType(left.simpleType, left.value);
-                if (!leftUpdate) return;
-                toUpdate.pair.left = leftUpdate;
-            } else if (left.type === "ARRAY" || left.type === "KEY_MAP") {
-                toUpdate.pair.left = { type: left.type };
-            }
+                pair: {left: leftObj, right: rightObj},
+            };
+        }
 
-            if (right.type === "SIMPLE") {
-                const rightUpdate = parseSimpleType(right.simpleType, right.value);
-                if (!rightUpdate) return;
-                toUpdate.pair.right = rightUpdate;
-            } else if (right.type === "ARRAY" || right.type === "KEY_MAP") {
-                toUpdate.pair.right = { type: right.type };
-            }
-
-            if (!toUpdate.pair.left || !toUpdate.pair.right) {
-                toast.error("Invalid pair values.");
+        if (addKey) {
+            if (!isArray) {
+                if (!newKey.length > 0 || newKey.indexOf(".") > -1) {
+                    toast.error("New key is invalid.");
+                    return;
+                }
+                keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
+            } else {
+                const res = await get(parentKey, connectionId);
+                const newElem = addElementToArray(res.data, toUpdate, addArrayKeyPath);
+                set(parentKey, newElem, true, connectionId).then((response) => {
+                    if (!response.ok) {
+                        toast.error(response.message);
+                    } else {
+                        toast.success("Array element updated successfully.");
+                    }
+                });
                 return;
             }
 
@@ -232,8 +372,6 @@ const AclEditor = () => {
                 toast.error(response.message);
             } else toast.success("Value updated successfully.");
         }));
-
-
     };
 
     const handleCancel = () => {
@@ -242,15 +380,29 @@ const AclEditor = () => {
 
     return (
         <div className="acl-editor">
-            <h2 className="editor-title">Key: {keyData}</h2>
+            <h2 className="editor-title">{addKey ? 'Parent ' : ''} Key: {keyData}</h2>
 
+            {(addKey && !isArray) && (
+                <div className="editor-section">
+                    <h3>Add Key</h3>
+                    <div className="add-key-row">
+                        <label>Key:</label>
+                        <input
+                            type="text"
+                            value={newKey}
+                            onChange={(e) => setNewKey(e.target.value)}
+                            placeholder="Enter key"
+                        />
+                    </div>
+                </div>
+            )}
             <div className="editor-section">
                 <label>Type:</label>
                 <select value={type} onChange={handleTypeChange}>
                     <option value="SIMPLE">Simple</option>
                     <option value="ARRAY">Array</option>
                     <option value="PAIR">Pair</option>
-                    <option value="KEY_MAP">Key Map</option>
+                    {type === "KEY_MAP" && <option value="KEY_MAP">Key Map</option>}
                 </select>
             </div>
 
@@ -278,8 +430,8 @@ const AclEditor = () => {
                                 value={value.toString()}
                                 onChange={(e) => setValue(e.target.value)}
                             >
-                                <option value="true">True</option>
-                                <option value="false">False</option>
+                                <option value="True">True</option>
+                                <option value="False">False</option>
                             </select>
                         ) : (
                             <input

@@ -5,6 +5,7 @@ import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 import {connect, disconnect, isLoggedIn, list} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
+import {get} from "../api/Api";
 
 
 const asyncSub = new Subject();
@@ -43,87 +44,39 @@ async function cleanupConnections() {
 
 let toggle = true;
 
-const buildHierarchy = (obj, prefix = "") => {
+const buildHierarchy = (obj, prefix = "", addArrayKeyPath = null) => {
     const result = [];
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = prefix ? `${prefix}.${key}` : key;
-            const { type, value } = obj[key];
+            const { type, value, children, processedKey, noEdit } = obj[key];
+            const { parentKey, path } = obj[key] || {};
 
-            if (type === "KEY_MAP") {
-                result.push({
-                    key: currentKey,
-                    value: null,
-                    type: type,
-                    children: buildHierarchy(value, currentKey),
-                    collapsed: true,
-                });
-            } else if (type === "ARRAY") {
-                result.push({
-                    key: currentKey,
-                    value: JSON.stringify(value),
-                    type: type,
-                    children: [],
-                    collapsed: false,
-                });
-            } else if (type?.startsWith("SIMPLE")) {
-                if (type === "SIMPLE (BOOLEAN)") {
-                    result.push({
-                        key: currentKey,
-                        value: value ? "True" : "False",
-                        type: type,
-                        children: [],
-                        collapsed: false,
-                    })
+            if (type === "ARRAY") {
+                if (!addArrayKeyPath) {
+                    addArrayKeyPath = [children.length-1];
                 } else {
-                    result.push({
-                        key: currentKey,
-                        value: value,
-                        type: type,
-                        children: [],
-                        collapsed: false,
-                    });
+                    addArrayKeyPath = addArrayKeyPath.concat(children.length-1);
                 }
             }
+
+            const elem = {
+                displayKey: key,
+                key: processedKey || currentKey,
+                value: value || "",
+                type: type,
+                children: buildHierarchy(children || {}, currentKey, type === "ARRAY" ? addArrayKeyPath : null),
+                collapsed: true,
+                noEdit: noEdit,
+                parentKey: parentKey,
+                path: path,
+                addArrayKeyPath: addArrayKeyPath,
+            };
+
+            result.push(elem);
         }
     }
     return result;
-};
-
-const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5) => {
-    return nodes.map((node, index) => (
-        <React.Fragment key={node.key + index}>
-            <tr>
-                <td style={{paddingLeft: `${level * 20}px`}}>{node.key}</td>
-                <td>{node.value !== null ? node.value : ""}</td>
-                <td>{node.type}</td>
-                <td>
-                    <button
-                        className="edit-button"
-                        onClick={() => navigate(`/edit/${node.key}`, {
-                            state: {
-                                keyData: node.key,
-                                connectionId: connectionId
-                            }
-                        })}
-                    >
-                        Edit
-                    </button>
-
-                    {node.children.length > 0 && (
-                        <button
-                            className="list-button"
-                            onClick={() => toggleCollapse(node)}
-                        >
-                            {node.collapsed ? "List" : "Close"}
-                        </button>
-                    )}
-                </td>
-            </tr>
-            {!node.collapsed &&
-                renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1)}
-        </React.Fragment>
-    ));
 };
 
 function App() {
@@ -135,7 +88,8 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        cleanupConnections().then(r => {
+        toggle = false;
+        cleanupConnections().then(() => {
 
             let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
             let selectedConnectionId = JSON.parse(localStorage.getItem("selectedConnectionId")) || 1;
@@ -195,7 +149,7 @@ function App() {
         toggle = !toggle;
         const openAll = (nodes) => {
             nodes.forEach((node) => {
-                node.collapsed = toggle;
+                node.collapsed = !toggle;
                 if (node.children.length > 0) {
                     openAll(node.children);
                 }
@@ -293,6 +247,91 @@ function App() {
         }
     };
 
+    function processTcpGeneral(data, key) {
+        if (data.type === "KEY_MAP") {
+            const processedKeyMap = {};
+            for (const subKey in data.keyMap) {
+                const currentKey = key === "." ? subKey : `${key}.${subKey}`;
+                processedKeyMap[subKey] = processTcpGeneral(data.keyMap[subKey], currentKey);
+            }
+            return {
+                type: "KEY_MAP",
+                value: null,
+                children: processedKeyMap,
+            };
+        } else if (data.type === "ARRAY") {
+            return processArray(data, key, []);
+        } else if (data.type === "PAIR") {
+            return processPair(data, key);
+        } else if (data.type === "SIMPLE") {
+            let valueToShow = data.value?.toString() || "";
+            if (data.simpleType === "BOOLEAN") valueToShow = (data.value ? "True" : "False");
+
+            return {
+                processedKey: key,
+                type: `SIMPLE (${data.simpleType || "Unknown"})`,
+                value: valueToShow,
+                children: [],
+            };
+        }
+        return { type: data.type, value: null, children: [] };
+    }
+
+
+    function processArray(data, key, parentPath = [], rootParentKey = key) {
+        const children = data.array.map((item, index) => {
+            const childPath = [...parentPath, index];
+
+            const childKey = `${key}[${index}]`;
+
+            let childNode;
+
+            if (item.type === "ARRAY") {
+                childNode = processArray(item, childKey, childPath, rootParentKey);
+                childNode.parentKey = rootParentKey;
+                childNode.path = childPath;
+            } else {
+                childNode = processTcpGeneral(item, childKey);
+
+                // Attach metadata for non-array elements.
+                childNode.parentKey = rootParentKey;
+                childNode.path = childPath;
+            }
+
+            return childNode;
+        });
+
+        return {
+            processedKey: key,
+            type: "ARRAY",
+            value: `Array (${data.array.length} items)`,
+            children,
+            parentKey: null,
+            path: null,
+        };
+    }
+
+    function processPair(data, key) {
+        return {
+            type: "PAIR",
+            value: null,
+            processedKey: key,
+            children: [
+                {
+                    processedKey: `${key}.left`,
+                    ...processTcpGeneral(data.pair.left, `${key}.left`),
+                    noEdit: true
+                },
+                {
+                    processedKey: `${key}.right`,
+                    ...processTcpGeneral(data.pair.right, `${key}.right`),
+                    noEdit: true
+                },
+            ],
+        };
+    }
+
+
     async function buildKeyDataStructure(key = ".") {
         try {
             const response = await list(key, selectedConnection.connectionId);
@@ -305,33 +344,57 @@ function App() {
 
             for (const subKey in keyMap) {
                 const subKeyData = keyMap[subKey];
+                const newKey = key === "." ? subKey : `${key}.${subKey}`;
+
                 if (subKeyData.type === "KEY_MAP") {
-                    const newKey = key === "." ? subKey : `${key}.${subKey}`;
                     result[subKey] = {
                         type: "KEY_MAP",
-                        value: await buildKeyDataStructure(newKey),
+                        value: null,
+                        children: await buildKeyDataStructure(newKey),
                     };
                 } else if (subKeyData.type === "ARRAY") {
-                    result[subKey] = {
-                        type: "ARRAY",
-                        value: subKeyData.array || [],
-                    };
+                    const fetchedData = await get(newKey, selectedConnection.connectionId);
+                    if (fetchedData.ok && fetchedData.data) {
+                        result[subKey] = processArray(fetchedData.data, newKey);
+                    } else {
+                        result[subKey] = {
+                            type: "ARRAY",
+                            value: `Array (${subKeyData.array?.length || 0} items)`,
+                            children: [],
+                        };
+                    }
+                } else if (subKeyData.type === "PAIR") {
+                    const fetchedData = await get(newKey, selectedConnection.connectionId);
+                    if (fetchedData.ok && fetchedData.data) {
+                        result[subKey] = processPair(fetchedData.data, newKey);
+                    } else {
+                        result[subKey] = {
+                            type: "PAIR",
+                            value: null,
+                            children: [],
+                        };
+                    }
                 } else if (subKeyData.type === "SIMPLE") {
+                    let valueToShow = subKeyData.value?.toString() || "";
+                    if (subKeyData.simpleType === "BOOLEAN") valueToShow = (subKeyData.value ? "True" : "False");
+
                     result[subKey] = {
                         type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
-                        value: subKeyData.value,
+                        value: valueToShow,
+                        children: [],
                     };
                 } else {
-                    console.log("no such type:", subKey);
+                    console.warn("Unknown type:", subKeyData.type);
                 }
             }
 
             return result;
         } catch (error) {
-            console.error("error:", error);
+            console.error("Error in buildKeyDataStructure:", error);
             return {};
         }
     }
+
 
     useEffect(() => {
         (async () => {
@@ -348,6 +411,7 @@ function App() {
     }, [selectedConnection]);
 
     async function refresh() {
+        toggle = false;
         if (await checkLogin()) {
           queue(async() => {
             const data = await buildKeyDataStructure();
@@ -355,6 +419,79 @@ function App() {
           })
         }
     }
+
+    async function handleAdd(node, connectionId) {
+        let isArray = node.type === "ARRAY";
+        if (isArray) {
+            node.addArrayKeyPath[node.addArrayKeyPath.length-1] += 1;
+        }
+        navigate(`/edit/key`, {
+            state: {
+                keyData: node.key,
+                connectionId: connectionId,
+                addKey: true,
+                parentKey: node.parentKey || node.key,
+                arrayPath: node.path,
+                isArray: isArray,
+                addArrayKeyPath: node.addArrayKeyPath
+            }
+        })
+    }
+
+    function printDisplayKey(node, parentNode) {
+        if (parentNode && parentNode.type === "PAIR") {
+            return node.displayKey === '0' ? "left" : "right";
+        }
+        return node.path ? '[' + node.path + ']' : node.displayKey;
+    }
+
+    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
+        return nodes.map((node, index) => (
+            <React.Fragment key={node.key + index}>
+                <tr>
+                    <td style={{paddingLeft: `${level * 20}px`}}>{printDisplayKey(node, parentNode)}</td>
+                    <td>{node.value !== null ? node.value : ""}</td>
+                    <td>{node.type}</td>
+                    <td>
+                        {!node.noEdit && (
+                            <button
+                                className="edit-button"
+                                onClick={() => {
+                                    navigate(`/edit/${node.key}`, {
+                                        state: {
+                                            parentKey: node.parentKey,
+                                            arrayPath: node.path,
+                                            keyData: node.key,
+                                            connectionId: connectionId,
+                                            addKey: false
+                                        }
+                                    });}
+                                }
+                            >
+                                Edit
+                            </button>
+                        )}
+                        {node.children.length > 0 && (
+                            <button
+                                className="list-button"
+                                onClick={() => toggleCollapse(node)}
+                            >
+                                {node.collapsed ? "List" : "Close"}
+                            </button>
+                        )}
+                        {(node.type === "KEY_MAP" || node.type === "ARRAY") && (
+                            <button onClick={async () => handleAdd(node, connectionId)} className="add-key-button">
+                                Add Key
+                            </button>
+                        )}
+                    </td>
+                </tr>
+                {!node.collapsed &&
+                    renderHierarchy(node.children, toggleCollapse, navigate, connectionId, level + 1, node)}
+
+            </React.Fragment>
+        ));
+    };
 
     return (
         <div className="app-container">
@@ -423,7 +560,7 @@ function App() {
                     </tr>
                     </thead>
                     <tbody>
-                        {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
+                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
                     </tbody>
                 </table>
             </div>

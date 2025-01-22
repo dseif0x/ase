@@ -9,7 +9,8 @@
 #include <hiredis.h>
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
+    if (out && out->is_open()) *out << "Redis;" << name << ";";
     std::cout << "Running Redis Test: " << name << std::endl;
     auto test_data = generate_test_data();
     redisContext* c = redisConnect("127.0.0.1", 6379);
@@ -29,7 +30,7 @@ int run_test(const char* name, T&& generate_test_data) {
         }
         freeReplyObject(reply);
     }
-    print_stopwatch(s, "\tSet Time: ");
+    print_stopwatch(s, "\tSet Time: ", out);
     s.reset();
     for (const auto& [key, _] : test_data) {
         redisReply* reply = (redisReply*)redisCommand(c, "GET %s", key.c_str());
@@ -41,7 +42,8 @@ int run_test(const char* name, T&& generate_test_data) {
         }
         freeReplyObject(reply);
     }
-    print_stopwatch(s, "\tGet Time: ");
+    print_stopwatch(s, "\tGet Time: ", out);
+    if (out && out->is_open()) *out << std::endl;
     return 0;
 }
 
