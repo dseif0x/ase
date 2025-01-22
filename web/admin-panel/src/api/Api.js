@@ -11,7 +11,7 @@ export async function get(key, connectionId) {
         });
 
         if (!response.ok) {
-            throw new Error(`Msg: ${response.status}`);
+            return await handleError(response)
         }
 
         const contentType = response.headers.get("Content-Type");
@@ -44,13 +44,7 @@ export async function list(key, connectionId) {
         });
 
         if (!response.ok) {
-            let errorDetails = '';
-            try {
-                errorDetails = await response.json();
-            } catch {
-                errorDetails = await response.text();
-            }
-            throw new Error(`Error: ${response.status} - ${errorDetails}`);
+            return await handleError(response)
         }
 
         const contentType = response.headers.get("Content-Type");
@@ -96,7 +90,7 @@ export async function set(key, value, force, connectionId) {
         });
 
         if (!response.ok) {
-            throw new Error(`error: ${response.status} ${response.statusText}`);
+            return await handleError(response)
         }
 
         const data = await response.json();
@@ -120,8 +114,7 @@ export async function connect(config:ConnectionConfigDTO) {
         });
 
         if (!response.ok) {
-            console.log(response);
-            throw new Error(`HTTP error ${response.status}`);
+            return await handleError(response)
         }
 
         const data = await response.json();
@@ -133,6 +126,24 @@ export async function connect(config:ConnectionConfigDTO) {
     }
 }
 
+export async function handleError(response) {
+    let errorDetails;
+    try {
+        errorDetails = await response.json();
+        if (errorDetails.data?.simpleType === "INT") {
+            try {
+                errorDetails.data = parseInt(errorDetails.data.value);
+            } catch {
+                errorDetails.data = 9999;
+            }
+        }
+    } catch {
+        const text = await response.text();
+        errorDetails = {ok: false, message: text, data: 9999};
+    }
+
+    return errorDetails;
+}
 export async function isLoggedIn(connectionId) {
     try {
         console.log("check login with conn id: " + connectionId);
@@ -145,8 +156,7 @@ export async function isLoggedIn(connectionId) {
         });
 
         if (!response.ok) {
-            console.log(response);
-            throw new Error(`HTTP error ${response.status}`);
+            return await handleError(response)
         }
         const data = await response.json();
         return data;
@@ -168,12 +178,10 @@ export async function disconnect(connectionId: string) {
         });
 
         if (!response.ok) {
-            console.log(response);
-            throw new Error(`HTTP error ${response.status}`);
+            return await handleError(response)
         }
 
-        const data = await response.text();
-        return JSON.stringify(data);
+        return await response.json();
     } catch (error) {
         console.log("error: " + error);
         console.error("Error logging in to server ", error);
