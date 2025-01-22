@@ -151,12 +151,11 @@ const AclEditor = () => {
               setSimpleType(val.data?.simpleType || "STRING");
               setType(val.data?.type || "SIMPLE");
             } else {
-              toast.error(val.message);
-              console.error()
+              if (val.data) toast.error(val.data + " - " + val.message);
+              else toast.error(val.message)
             }
           })
           queue(async () => {
-            console.log("getting acl");
             const val = await get_acl(connectionId);
             if (val.ok) {
               const data = val.data.keyMap;
@@ -177,7 +176,11 @@ const AclEditor = () => {
     async function loadArrayElement(key, path) {
         const res = await get(key, connectionId);
         if (!res.ok || !res.data || res.data.type !== "ARRAY") {
-            toast.error("Parent key is not an ARRAY or not found");
+            if (!res.ok) {
+                if (res.data) toast.error(res.data + " - " + res.message);
+                else toast.error(res.message);
+            }
+            else toast.error("Parent key is not an ARRAY or not found");
             return;
         }
         const rootArray = res.data;
@@ -332,7 +335,8 @@ const AclEditor = () => {
 
             set(parentKey, newRootArray, true, connectionId).then((response) => {
                 if (!response.ok) {
-                    toast.error(response.message);
+                    if (response.data) toast.error(response.data + " - " + response.message);
+                    else toast.error(response.message);
                 } else {
                     toast.success("Array element updated successfully.");
                 }
@@ -379,10 +383,16 @@ const AclEditor = () => {
                 keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
             } else {
                 const res = await get(parentKey, connectionId);
+                if (!res.ok) {
+                    if (res.data) toast.error(res.data + " - " + res.message);
+                    else toast.error(res.message);
+                    return;
+                }
                 const newElem = addElementToArray(res.data, toUpdate, addArrayKeyPath);
                 set(parentKey, newElem, true, connectionId).then((response) => {
                     if (!response.ok) {
-                        toast.error(response.message);
+                        if (response.data) toast.error(response.data + " - " + response.message);
+                        else toast.error(response.message);
                     } else {
                         toast.success("Array element updated successfully.");
                     }
@@ -398,7 +408,8 @@ const AclEditor = () => {
       }
       queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
         if (!response.ok) {
-          toast.error(response.message);
+          if (response.data) toast.error(response.data + " - " + response.message);
+          else toast.error(response.message);
         } else toast.success("Value updated successfully.");
       }));
     };

@@ -154,7 +154,7 @@ int main(int argc, char* argv[]) {
             CopiedValue newval3{};
             newval3.type = ValueType::BOOLEAN;
             newval3.data.emplace<bool>(true);
-            db.set("test4", std::move(newval3), true);
+            db.set("nested.test4", std::move(newval3), true);
         }
 
         if (doDouble) {
