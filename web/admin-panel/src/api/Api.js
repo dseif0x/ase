@@ -21,8 +21,7 @@ export async function update_acl(connectionId, username, key, permission) {
       },
     });
 
-    if (!response.ok)
-      throw new Error(`Msg: ${response.status}`);
+    if (!response.ok) return await handleError(response);
 
     const contentType = response.headers.get("Content-Type");
     let data;
@@ -65,7 +64,7 @@ export async function get_acl(connectionId, user = []) {
         });
 
         if (!response.ok) {
-            throw new Error(`Msg: ${response.status}`);
+            return await handleError(response)
         }
 
         const contentType = response.headers.get("Content-Type");

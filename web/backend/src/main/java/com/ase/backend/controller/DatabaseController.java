@@ -1,6 +1,7 @@
 package com.ase.backend.controller;
 
 import com.ase.backend.controller.dto.SetValueRequest;
+import com.ase.backend.service.ConnectionService;
 import com.ase.backend.service.DatabaseService;
 import com.ase.utility.WebReturn;
 import com.ase.utility.tcp.TcpGeneral;
@@ -18,14 +19,16 @@ import java.util.concurrent.Future;
 public class DatabaseController {
 
     private final DatabaseService service;
+    private final ConnectionService connectionService;
 
     /**
      * Constructs a {@code DatabaseController} with the given service.
      *
      * @param service The {@link DatabaseService} that handles business logic.
      */
-    public DatabaseController(DatabaseService service) {
+    public DatabaseController(DatabaseService service, ConnectionService connectionService) {
         this.service = service;
+        this.connectionService = connectionService;
     }
 
     /**
@@ -41,6 +44,7 @@ public class DatabaseController {
             Future<WebReturn<TcpGeneral>> future = service.list(decodedKey, connectionId);
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -58,6 +62,7 @@ public class DatabaseController {
             Future<WebReturn<TcpGeneral>> future = service.getValue(decodedKey, connectionId);
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -74,6 +79,7 @@ public class DatabaseController {
             Future<WebReturn<Integer>> future = service.setValue(request.getKey(), request.getValue(), request.isForce(), connectionId);
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.internalServerError().body(WebReturn.error(e.getMessage()));
         }
     }
@@ -88,6 +94,7 @@ public class DatabaseController {
         try {
             return ResponseEntity.ok(service.stop(connectionId));
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -103,6 +110,7 @@ public class DatabaseController {
         try {
             return ResponseEntity.ok(service.deleteKey(key, connectionId));
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -118,6 +126,7 @@ public class DatabaseController {
         try {
             return ResponseEntity.ok(service.ping(packageToSend, connectionId));
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -134,6 +143,7 @@ public class DatabaseController {
         try {
             return ResponseEntity.ok(service.updateScope(username, key, options, connectionId));
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -151,6 +161,7 @@ public class DatabaseController {
         try {
             return ResponseEntity.ok(service.createUser(username, password, options, connectionId));
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -168,6 +179,7 @@ public class DatabaseController {
         try {
             return ResponseEntity.ok(service.follow(key, maxJump, isSafe, connectionId));
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -185,6 +197,7 @@ public class DatabaseController {
         try {
             return ResponseEntity.ok(future);
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
