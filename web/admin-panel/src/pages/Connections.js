@@ -7,6 +7,7 @@ import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
 import {toast, ToastContainer} from "react-toastify";
+import "../styles/modals/ConfigModal.css";
 import { IoPersonAdd } from "react-icons/io5";
 import {TbPlugConnected, TbPlugConnectedX} from "react-icons/tb";
 import {FiRefreshCw} from "react-icons/fi";
@@ -48,8 +49,6 @@ async function cleanupConnections() {
     localStorage.setItem("connections", JSON.stringify(updatedConnections));
 }
 
-let toggle = true;
-
 const buildHierarchy = (obj, prefix = "") => {
     const result = [];
     for (const key in obj) {
@@ -83,6 +82,13 @@ function App() {
     const [hierarchicalDataRoots, setHierarchicalDataRoots] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [toggle, setToggle] = useState(false);
+
+    const [host, setHost] = useState("");
+    const [port, setPort] = useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
 
     const navigate = useNavigate();
 
@@ -140,22 +146,57 @@ function App() {
         });
     };
 
-    const toggleCollapse = (node) => {
+    const toggleCollapse = (node, toggleTo = null) => {
         node.collapsed = !node.collapsed;
+        if (toggleTo) {
+            node.collapsed = toggleTo;
+        }
+        let toggleKeyList = JSON.parse(localStorage.getItem("toggleKeyList")) ?? [];
+        if (node.collapsed) {
+            toggleKeyList = toggleKeyList.filter((item) => (!item.startsWith(node.key + '.') && item !== node.key));
+        }
+        if (!node.collapsed) {
+            toggleKeyList.push(node.key);
+        }
+        localStorage.setItem("toggleKeyList", JSON.stringify(toggleKeyList));
         setHierarchicalData([...hierarchicalData]);
     };
 
+    const toggleFromStorage = (data = null) => {
+        const toggleKeyList = localStorage.getItem("toggleKeyList") ?? [];
+
+        const openFromStorage = (nodes) => {
+            nodes.forEach((node) => {
+                if (toggleKeyList.includes(node.key)) {
+                    node.collapsed = false;
+                    if (node.children.length > 0) {
+                        openFromStorage(node.children);
+                    }
+                }
+            });
+        };
+
+        const elem = data ? data : hierarchicalData;
+        openFromStorage(elem);
+        setHierarchicalData([...elem]);
+    }
+
+
+    const toggleBtn = () => {
+        toggleAll();
+    }
+
     const toggleAll = () => {
-        toggle = !toggle;
+        setToggle((prev) => !prev);
         const openAll = (nodes) => {
             nodes.forEach((node) => {
-                node.collapsed = !toggle;
+                toggleCollapse(node, toggle);
                 if (node.children.length > 0) {
                     openAll(node.children);
                 }
             });
         };
-        openAll(hierarchicalData);
+        openAll(hierarchicalData, toggle);
         setHierarchicalData([...hierarchicalData]);
     };
 
@@ -213,49 +254,17 @@ function App() {
         return savedConnections.some(
             (conn) =>
                 conn.ip === host &&
-                conn.port === port &&
+                conn.port === parseInt(port) &&
                 conn.username === username
         );
     }
 
     const addConnection = () => {
-        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
-        config.host = prompt("Enter Host:");
-        config.port = parseInt(prompt("Enter Port:"));
-        config.username = prompt("Enter Username:");
-        config.password = prompt("Enter Password:");
-
-        if (connectionExists(config.host, config.port, config.username)) {
-            alert("this connection already exists!");
-            return;
-        }
-
-        if (config.host && config.port && config.username && config.password) {
-            connect(config).then(async (response: WebReturnDto) => {
-                if (response.ok) {
-                    const newConnection = {
-                        id: connections.length + 1,
-                        connectionId: response.data,
-                        ip: config.host,
-                        port: config.port,
-                        username: config.username,
-                    };
-
-                    const updatedConnections = [...connections, newConnection];
-                    setConnections(updatedConnections);
-
-                    localStorage.setItem("connections", JSON.stringify(updatedConnections));
-                    localStorage.setItem("selectedConnectionId", newConnection.id);
-
-                    setSelectedConnectionId(newConnection.id);
-                    setSelectedConnection(newConnection);
-                } else console.error("Failed to add connection:", response);
-            }).catch((error) => {
-                console.error("Failed to add connection:", error);
-            });
-        } else {
-            console.error("Invalid connection details.");
-        }
+        setIsModalOpen(true);
+        setHost('');
+        setPort('');
+        setUsername('');
+        setPassword('');
     };
 
     function processTcpGeneral(data, key) {
@@ -446,23 +455,23 @@ function App() {
     return res;
   }
 
-  useEffect(() => {
-    (async () => {
-      if (selectedConnection && selectedConnection.connectionId) {
-        const loggedIn = await checkLogin();
-        if (loggedIn) {
-          queue(async() => {
-            const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
-            if (acl.ok) {
-              const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
-              setHierarchicalDataRoots(dataRoots);
-              setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
-            } else setHierarchicalDataRoots([]);
-          })
-        }
-      }})();
-  }, [selectedConnection])
-
+    useEffect(() => {
+        (async () => {
+            if (selectedConnection && selectedConnection.connectionId) {
+                const loggedIn = await checkLogin();
+                if (loggedIn) {
+                    queue(async() => {
+                        const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
+                        if (acl.ok) {
+                            const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
+                            setHierarchicalDataRoots(dataRoots);
+                            setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
+                        } else setHierarchicalDataRoots([]);
+                    })
+                }
+            }
+        })();
+    }, [selectedConnection]);
 
     useEffect(() => {
       queue(async() => {
@@ -473,7 +482,7 @@ function App() {
             const hierarchy = await buildHierarchy(data);
             newHierarchicalData = newHierarchicalData.concat(hierarchy);
           }
-          setHierarchicalData(newHierarchicalData);
+          toggleFromStorage(newHierarchicalData);
         }
       });
     }, [hierarchicalDataRoots]);
@@ -529,6 +538,7 @@ function App() {
         if (node.path) {
             const res = await get(node.parentKey, connectionId);
             const elem = removeElementFromArray(res.data, node.path);
+
             queue(async () => set(node.parentKey, elem, true, connectionId).then((response) => {
                 if (!response.ok) {
                     toast.error(response.message);
@@ -541,6 +551,10 @@ function App() {
             await deleteKey(node.key, connectionId);
             await refresh();
         }
+
+        let toggleKeyList = JSON.parse(localStorage.getItem("toggleKeyList"));
+        toggleKeyList = toggleKeyList.filter((item) => (!item.startsWith(node.key + '.') && item !== node.key));
+        localStorage.setItem("toggleKeyList", JSON.stringify(toggleKeyList));
     }
 
     const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
@@ -600,31 +614,60 @@ function App() {
         ));
     };
 
-    const dataView = () => {
-      return (
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Value</th>
-                        <th>Type</th>
-                        <th>
-                            <span>
-                                <button
-                                    className="list-button list-all"
-                                    onClick={toggleAll}>
-                                    Toggle All
-                                </button>
-                            </span>
-                        </th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
-                    </tbody>
-                </table>
-      );
+    const onClose = () => {
+        setIsModalOpen(false);
+        setHost('');
+        setPort('');
+        setUsername('');
+        setPassword('');
     }
+
+    const handleSave = () => {
+        if (!host || !port || !username || !password) {
+            toast.error("Please fill out all fields.");
+            return;
+        }
+
+        if (connectionExists(host, port, username)) {
+            toast.error("this connection already exists!");
+            return;
+        }
+
+        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
+        config.host = host;
+        config.port = parseInt(port);
+        config.username = username;
+        config.password = password;
+
+
+        if (host && port && username && password) {
+            connect(config).then(async (response: WebReturnDto) => {
+                if (response.ok) {
+                    const newConnection = {
+                        id: connections.length + 1,
+                        connectionId: response.data,
+                        ip: host,
+                        port: port,
+                        username: username,
+                    };
+
+                    const updatedConnections = [...connections, newConnection];
+                    setConnections(updatedConnections);
+
+                    localStorage.setItem("connections", JSON.stringify(updatedConnections));
+                    localStorage.setItem("selectedConnectionId", newConnection.id);
+
+                    setSelectedConnectionId(newConnection.id);
+                    setSelectedConnection(newConnection);
+                } else console.error("Failed to add connection:", response);
+            }).catch((error) => {
+                console.error("Failed to add connection:", error);
+            });
+        } else {
+            console.error("Invalid connection details.");
+        }
+        onClose();
+    };
 
     return (
         <div className="app-container">
@@ -684,7 +727,98 @@ function App() {
                         </button>
                     </span>
                 </div>
-                {dataView()}
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                        <th>Type</th>
+                        <th>
+                            <span>
+                                <button
+                                    className="list-button list-all"
+                                    onClick={toggleBtn}>
+                                    {!toggle ? 'Open All' : 'Close All'}
+                                </button>
+                            </span>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                {isModalOpen &&
+                    <div className="modal-backdrop">
+                        <div className="modal">
+                            <h2>Enter Configuration</h2>
+                            <div className="modal-content">
+                                <label>
+                                    Host:
+                                    <input
+                                        type="text"
+                                        placeholder="Enter Host"
+                                        value={host}
+                                        onChange={(e) => setHost(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                handleSave();
+                                            }
+                                        }}
+                                    />
+                                </label>
+                                <label>
+                                    Port:
+                                    <input
+                                        type="number"
+                                        placeholder="Enter Port"
+                                        value={port}
+                                        onChange={(e) => setPort(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                handleSave();
+                                            }
+                                        }}
+                                    />
+                                </label>
+                                <label>
+                                    Username:
+                                    <input
+                                        type="text"
+                                        placeholder="Enter Username"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                handleSave();
+                                            }
+                                        }}
+                                    />
+                                </label>
+                                <label>
+                                    Password:
+                                    <input
+                                        type="password"
+                                        placeholder="Enter Password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                handleSave();
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            </div>
+                            <div className="modal-actions">
+                                <button onClick={onClose} className="cancel-button">Cancel</button>
+                                <button onClick={handleSave} className="save-button">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
             <ToastContainer
                 position="bottom-center"
