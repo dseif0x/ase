@@ -346,6 +346,9 @@ const AclEditor = () => {
             queue(async () => set(parentKey, newRootArray, true, connectionId).then((response) => {
                 if (!response.ok) {
                     toast.error(response.message);
+                    setTimeout(() => {
+                        navigate("/Connections");
+                    }, 1000);
                 } else {
                     toast.success("Array element updated successfully.");
                 }
@@ -399,6 +402,9 @@ const AclEditor = () => {
                 queue(async() => set(parentKey, newElem, true, connectionId).then((response) => {
                     if (!response.ok) {
                         toast.error(response.message);
+                        setTimeout(() => {
+                            navigate("/Connections");
+                        }, 1000);
                     } else {
                         toast.success("Array element updated successfully.");
                     }
@@ -410,7 +416,9 @@ const AclEditor = () => {
 
       queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
         if (!response.ok) {
-          toast.error(response.message);
+            setTimeout(() => {
+                navigate("/Connections");
+            }, 1000);
         } else toast.success("Value updated successfully.");
         if (addKey) {
             navigate(-1);
