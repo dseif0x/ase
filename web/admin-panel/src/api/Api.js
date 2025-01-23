@@ -86,7 +86,8 @@ export async function get_acl(connectionId, user = []) {
 
 export async function get(key, connectionId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/db/get/` + key, {
+        const key64 = btoa(key);
+        const response = await fetch(`${API_BASE_URL}/db/get/` + key64, {
             headers: {
                 "X-Connection-Id": connectionId,
             },

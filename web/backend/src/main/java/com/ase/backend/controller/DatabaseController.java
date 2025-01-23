@@ -53,8 +53,9 @@ public class DatabaseController {
      */
     @GetMapping("/get/{key}")
     public ResponseEntity<WebReturn<TcpGeneral>> getValue(@PathVariable String key, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        String decodedKey = new String(Base64.getDecoder().decode(key.getBytes()));
         try {
-            Future<WebReturn<TcpGeneral>> future = service.getValue(key, connectionId);
+            Future<WebReturn<TcpGeneral>> future = service.getValue(decodedKey, connectionId);
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));

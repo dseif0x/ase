@@ -77,6 +77,7 @@ function App() {
     const [selectedConnectionId, setSelectedConnectionId] = useState(0);
     const [hierarchicalDataRoots, setHierarchicalDataRoots] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const navigate = useNavigate();
 
@@ -135,7 +136,7 @@ function App() {
 
     const toggleCollapse = (node) => {
         node.collapsed = !node.collapsed;
-        //setHierarchicalData([...hierarchicalData]);
+        setHierarchicalData([...hierarchicalData]);
     };
 
     const toggleAll = () => {
@@ -148,8 +149,8 @@ function App() {
                 }
             });
         };
-        //openAll(hierarchicalData);
-        //setHierarchicalData([...hierarchicalData]);
+        openAll(hierarchicalData);
+        setHierarchicalData([...hierarchicalData]);
     };
 
     // just for development purposes
@@ -330,7 +331,27 @@ function App() {
 
     async function buildKeyDataStructure(key = ".") {
         try {
-          console.log("build key data structure", key);
+            if (key !== ".") {
+              const tempData = await get(key, selectedConnection.connectionId);
+              if (tempData?.ok && tempData.data?.type && tempData.data.type !== "KEY_MAP") {
+                if (tempData.data.type === "ARRAY") {
+                  return processArray(tempData.data, key);
+                } else if (tempData.data.type === "PAIR") {
+                  return processPair(tempData.data, key);
+                } else if (tempData.data.type === "SIMPLE") {
+                    let valueToShow = tempData.data.value?.toString() || "";
+                    if (tempData.data.simpleType === "BOOLEAN") valueToShow = (tempData.data.value ? "True" : "False");
+                    return {[key]: {
+                        type: `SIMPLE (${tempData.data.simpleType || "Unknown"})`,
+                        value: valueToShow,
+                        children: [],
+                    }};
+                }
+              } else {
+                toast.error(response.data + "- " + response.message);
+                return {}
+              }
+            }
             const response = await list(key, selectedConnection.connectionId);
             if (!response.ok || !response.data || response.data.type !== "KEY_MAP") {
                 if (!response.ok) {
@@ -390,7 +411,7 @@ function App() {
                 }
             }
 
-            return result;
+            return {[key]: {type: "KEY_MAP", children: result}};
         } catch (error) {
             console.error("Error in buildKeyDataStructure:", error);
             return {};
@@ -421,11 +442,11 @@ function App() {
         const loggedIn = await checkLogin();
         if (loggedIn) {
           queue(async() => {
-            const acl = await get_acl(selectedConnection.connectionId, [/*selectedConnection.username*/]);
+            const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
             if (acl.ok) {
-              const dataRoots = getRoots(acl.data?.keyMap[selectedConnection.username]?.pair?.right);
-              console.log("dataRoots", dataRoots);
+              const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
               setHierarchicalDataRoots(dataRoots);
+              setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
             } else setHierarchicalDataRoots([]);
           })
         }
@@ -436,11 +457,13 @@ function App() {
     useEffect(() => {
       queue(async() => {
         if (hierarchicalDataRoots.length > 0) {
-          const newHierarchicalData = []
+          let newHierarchicalData = []
           for (const key of hierarchicalDataRoots) {
             const data = await buildKeyDataStructure(key);
-            console.log("data", key, data);
-            newHierarchicalData.push(buildHierarchy(data));
+            console.log("data", data);
+            const hierarchy = await buildHierarchy(data);
+            newHierarchicalData = newHierarchicalData.concat(hierarchy);
+            console.log("hierarchy", hierarchy);
           }
           setHierarchicalData(newHierarchicalData);
         }
@@ -563,8 +586,7 @@ function App() {
     };
 
     const dataView = () => {
-      console.log("hierarchicalData", hierarchicalData);
-      return hierarchicalData.map(hd => (
+      return (
                 <table>
                     <thead>
                     <tr>
@@ -583,10 +605,10 @@ function App() {
                     </tr>
                     </thead>
                     <tbody>
-                    {renderHierarchy(hd, toggleCollapse, navigate, selectedConnection.connectionId)}
+                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
                     </tbody>
                 </table>
-      ));
+      );
     }
 
     return (
