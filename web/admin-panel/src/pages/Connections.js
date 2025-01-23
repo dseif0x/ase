@@ -54,7 +54,7 @@ const buildHierarchy = (obj, prefix = "") => {
     const result = [];
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
-            const currentKey = prefix ? `${prefix}.${key}` : key;
+            const currentKey = (prefix && prefix !== ".") ? `${prefix}.${key}` : key;
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
@@ -344,17 +344,15 @@ function App() {
 
 
     async function buildKeyDataStructure(key = ".") {
-      console.log("buildKeyDataStructure", key);
         try {
             if (key !== ".") {
               const tempData = await get(key, selectedConnection.connectionId);
               if (tempData?.ok && tempData.data?.type) {
                 if (tempData.data.type !== "KEY_MAP") {
-                  console.log("buildKeyDataStructure using get", key);
                   if (tempData.data.type === "ARRAY") {
-                    return processArray(tempData.data, key);
+                    return {[key]: processArray(tempData.data, key)};
                   } else if (tempData.data.type === "PAIR") {
-                    return processPair(tempData.data, key);
+                    return {[key]: processPair(tempData.data, key)};
                   } else if (tempData.data.type === "SIMPLE") {
                     let valueToShow = tempData.data.value?.toString() || "";
                     if (tempData.data.simpleType === "BOOLEAN") valueToShow = (tempData.data.value ? "True" : "False");
@@ -366,8 +364,9 @@ function App() {
                   }
                 }
               } else {
-                console.log("error in buildKeyDataStructure", key, tempData);
-                toast.error(tempData.data + "- " + tempData.message);
+                console.error("error in buildKeyDataStructure", key, tempData);
+                if (tempData.message !== "Key not found.")
+                  toast.error(tempData.data + "- " + tempData.message);
                 return {}
               }
             }
@@ -378,13 +377,11 @@ function App() {
                 }
                 return {};
             }
-            console.log("buildKeyDataStructure using list", key);
 
             const keyMap = response.data.keyMap;
             const result = {};
 
             for (const subKey in keyMap) {
-              console.log("handling subkey", subKey);
                 const subKeyData = keyMap[subKey];
                 const newKey = key === "." ? subKey : `${key}.${subKey}`;
 
@@ -395,7 +392,6 @@ function App() {
                     if (fetchedData.ok && fetchedData.data) {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
-                        console.error("Error fetching array data:", fetchedData);
                         result[subKey] = {
                             type: "ARRAY",
                             value: `Array (${subKeyData.array?.length || 0} items)`,
@@ -407,7 +403,6 @@ function App() {
                     if (fetchedData.ok && fetchedData.data) {
                         result[subKey] = processPair(fetchedData.data, newKey);
                     } else {
-                        console.error("Error fetching pair data:", fetchedData);
                         result[subKey] = {
                             type: "PAIR",
                             value: null,
@@ -424,7 +419,6 @@ function App() {
                         children: [],
                     };
                 } else {
-                    console.warn("Unknown type:", subKeyData.type);
                 }
             }
             return {[key]: {type: "KEY_MAP", children: result}};

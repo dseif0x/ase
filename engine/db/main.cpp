@@ -120,8 +120,8 @@ int main(int argc, char* argv[]) {
     bool doString = false;
     bool doBoolean = false;
     bool doDouble = false;
-    bool doArray = false;
-    bool doPair = false;
+    bool doArray = true;
+    bool doPair = true;
     bool doMap = false;
     bool doReference = false;
     bool doDelete = false;
@@ -326,9 +326,9 @@ int main(int argc, char* argv[]) {
         CopiedValue newvalAcl{};
         newvalAcl.type = ValueType::INT;
         newvalAcl.data.emplace<int>(42);
-        db.set(".nested.inner", std::move(newvalAcl), true);
+        db.set("nested.inner", std::move(newvalAcl), true);
 
-        list_and_print(db, ".nested");
+        list_and_print(db, "nested");
         list_and_print(db, ".");
         return 0;
 
