@@ -8,7 +8,6 @@ function Navbar() {
             <ul>
                 <li><Link to="/">Home</Link></li>
                 <li><Link to="/Connections">Connections</Link></li>
-                <li><Link to="/create-user">Create User</Link></li>
             </ul>
         </nav>
     );
