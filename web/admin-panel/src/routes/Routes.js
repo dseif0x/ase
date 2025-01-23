@@ -11,7 +11,7 @@ function AppRoutes() {
             <Route path="/" element={<Home />} />
             <Route path="/Connections" element={<Connections />} />
             <Route path="/edit/:key" element={<AclEditor />} />
-            <Route path="/create-user" element={<CreateUser connectionId={''} />}
+            <Route path="/create-user" element={<CreateUser />}
             />
 
         </Routes>

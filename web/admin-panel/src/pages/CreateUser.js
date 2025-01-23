@@ -1,11 +1,15 @@
 import {createUser} from "../api/Api";
 import {toast, ToastContainer} from "react-toastify";
 import {useState} from "react";
-import {useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/CreateUser.css";
+import {IoMdArrowBack} from "react-icons/io";
 
-const CreateUser = ({ connectionId }) => {
+const CreateUser = () => {
     const navigate = useNavigate();
+
+    const location = useLocation();
+    let { connectionId } = location.state || {};
 
     // Form state
     const [username, setUsername] = useState("");
@@ -32,6 +36,7 @@ const CreateUser = ({ connectionId }) => {
 
         if (response.ok) {
             toast.success("User created successfully!");
+            handleBack();
         } else {
             if (response.data) toast.error(response.data + " - " + response.message);
             else toast.error(response.message);
@@ -39,8 +44,24 @@ const CreateUser = ({ connectionId }) => {
         setIsSubmitting(false);
     }
 
+    const handleBack = () => {
+        if (window.history.length > 1) {
+            navigate(-1);
+        } else {
+            navigate("/Connections");
+        }
+    };
+
     return (
         <div className="create-user-container">
+            <button
+                onClick={handleBack}
+                aria-label="Go Back"
+                title="Go Back"
+            >
+                <IoMdArrowBack/>
+            </button>
+
             <h2>Create New User</h2>
             <form onSubmit={handleSubmit} className="create-user-form">
                 <div className="form-group">

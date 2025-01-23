@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
-import {Link, useNavigate} from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 import {connect, deleteKey, disconnect, isLoggedIn, list, set} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
@@ -107,6 +107,7 @@ function App() {
                     setSelectedConnection(savedConnections[0]);
                     setSelectedConnectionId(savedConnections[0].id);
                 } else {
+                    setSelectedConnection([]);
                     setSelectedConnectionId(0);
                 }
             }
@@ -156,7 +157,11 @@ function App() {
     };
 
     const handleCreateUser = () => {
-        navigate("/create-user");
+        navigate("/create-user", {
+            state: {
+                connectionId: selectedConnection.connectionId,
+            }
+        });
     };
 
     // just for development purposes
@@ -551,8 +556,10 @@ function App() {
                             name="connection"
                             value={connection.id}
                             checked={selectedConnectionId === connection.id}
-                            onChange={() => setSelectedConnection(connection)}
-                        />
+                            onChange={() => {
+                                setSelectedConnection(connection);
+                                setSelectedConnectionId(connection.id);
+                            }}                        />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
                         {connection.id !== 0 && (
                             <button
@@ -568,9 +575,13 @@ function App() {
                     <button className="add-connection-button" onClick={addConnection}>
                         <TbPlugConnected /> Add Connection
                     </button>
-                    <button onClick={handleCreateUser} className="add-connection-button">
-                        <IoPersonAdd /> Create User
-                    </button>
+
+                    {selectedConnectionId !== 0 && (
+                        <button disabled={!selectedConnection} onClick={handleCreateUser} className="add-connection-button">
+                            <IoPersonAdd /> Create User
+                        </button>
+                    )}
+
                     <button className="add-connection-button blue-button" onClick={addDevConnetion}>
                         Dev Login
                     </button>
