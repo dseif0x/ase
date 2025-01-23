@@ -116,11 +116,11 @@ int main(int argc, char* argv[]) {
     get_and_print(db, "test1");
     get_and_print(db, "test2");
 
-    bool doInteger = true;
-    bool doString = true;
-    bool doBoolean = true;
-    bool doDouble = true;
-    bool doArray = true;
+    bool doInteger = false;
+    bool doString = false;
+    bool doBoolean = false;
+    bool doDouble = false;
+    bool doArray = false;
     bool doPair = false;
     bool doMap = false;
     bool doReference = false;
@@ -318,10 +318,18 @@ int main(int argc, char* argv[]) {
         }
 
 
+        //CopiedValue newvalAcl{};
+        //newvalAcl.type = ValueType::INT;
+        //newvalAcl.data.emplace<int>(42);
+        //db.set("aclTest", std::move(newvalAcl), true);
+
         CopiedValue newvalAcl{};
         newvalAcl.type = ValueType::INT;
         newvalAcl.data.emplace<int>(42);
-        db.set("aclTest", std::move(newvalAcl), true);
+        db.set(".nested.inner", std::move(newvalAcl), true);
+
+        list_and_print(db, ".nested");
+        list_and_print(db, ".");
         return 0;
 
 

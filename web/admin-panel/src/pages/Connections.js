@@ -344,25 +344,30 @@ function App() {
 
 
     async function buildKeyDataStructure(key = ".") {
+      console.log("buildKeyDataStructure", key);
         try {
             if (key !== ".") {
               const tempData = await get(key, selectedConnection.connectionId);
-              if (tempData?.ok && tempData.data?.type && tempData.data.type !== "KEY_MAP") {
-                if (tempData.data.type === "ARRAY") {
-                  return processArray(tempData.data, key);
-                } else if (tempData.data.type === "PAIR") {
-                  return processPair(tempData.data, key);
-                } else if (tempData.data.type === "SIMPLE") {
+              if (tempData?.ok && tempData.data?.type) {
+                if (tempData.data.type !== "KEY_MAP") {
+                  console.log("buildKeyDataStructure using get", key);
+                  if (tempData.data.type === "ARRAY") {
+                    return processArray(tempData.data, key);
+                  } else if (tempData.data.type === "PAIR") {
+                    return processPair(tempData.data, key);
+                  } else if (tempData.data.type === "SIMPLE") {
                     let valueToShow = tempData.data.value?.toString() || "";
                     if (tempData.data.simpleType === "BOOLEAN") valueToShow = (tempData.data.value ? "True" : "False");
                     return {[key]: {
-                        type: `SIMPLE (${tempData.data.simpleType || "Unknown"})`,
-                        value: valueToShow,
-                        children: [],
+                      type: `SIMPLE (${tempData.data.simpleType || "Unknown"})`,
+                      value: valueToShow,
+                      children: [],
                     }};
+                  }
                 }
               } else {
-                toast.error(response.data + "- " + response.message);
+                console.log("error in buildKeyDataStructure", key, tempData);
+                toast.error(tempData.data + "- " + tempData.message);
                 return {}
               }
             }
@@ -373,20 +378,18 @@ function App() {
                 }
                 return {};
             }
+            console.log("buildKeyDataStructure using list", key);
 
             const keyMap = response.data.keyMap;
             const result = {};
 
             for (const subKey in keyMap) {
+              console.log("handling subkey", subKey);
                 const subKeyData = keyMap[subKey];
                 const newKey = key === "." ? subKey : `${key}.${subKey}`;
 
                 if (subKeyData.type === "KEY_MAP") {
-                    result[subKey] = {
-                        type: "KEY_MAP",
-                        value: null,
-                        children: await buildKeyDataStructure(newKey),
-                    };
+                    Object.assign(result, await buildKeyDataStructure(newKey));
                 } else if (subKeyData.type === "ARRAY") {
                     const fetchedData = await get(newKey, selectedConnection.connectionId);
                     if (fetchedData.ok && fetchedData.data) {
@@ -424,7 +427,6 @@ function App() {
                     console.warn("Unknown type:", subKeyData.type);
                 }
             }
-
             return {[key]: {type: "KEY_MAP", children: result}};
         } catch (error) {
             console.error("Error in buildKeyDataStructure:", error);
@@ -474,10 +476,8 @@ function App() {
           let newHierarchicalData = []
           for (const key of hierarchicalDataRoots) {
             const data = await buildKeyDataStructure(key);
-            console.log("data", data);
             const hierarchy = await buildHierarchy(data);
             newHierarchicalData = newHierarchicalData.concat(hierarchy);
-            console.log("hierarchy", hierarchy);
           }
           setHierarchicalData(newHierarchicalData);
         }
@@ -485,12 +485,19 @@ function App() {
     }, [hierarchicalDataRoots]);
 
     async function refresh() {
-        if (false && await checkLogin()) {
+      if (selectedConnection && selectedConnection.connectionId) {
+        const loggedIn = await checkLogin();
+        if (loggedIn) {
           queue(async() => {
-            const data = await buildKeyDataStructure();
-            setHierarchicalData(buildHierarchy(data) || {});
+            const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
+            if (acl.ok) {
+              const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
+              setHierarchicalDataRoots(dataRoots);
+              setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
+            } else setHierarchicalDataRoots([]);
           })
         }
+      }
     }
 
     async function handleAdd(node, connectionId) {
