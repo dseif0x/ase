@@ -40,7 +40,7 @@ export async function update_acl(connectionId, username, key, permission) {
   }
 }
 
-export async function get_acl(connectionId) {
+export async function get_acl(connectionId, user = []) {
     try {
         const response = await fetch(`${API_BASE_URL}/db/getUserPermissions`, {
           method: "POST",
@@ -52,7 +52,13 @@ export async function get_acl(connectionId) {
             "type": "ARRAY",
             "simpleType": null,
             "value": null,
-            "array": [],
+            "array": user.map(x => {
+              return {
+                "type": "SIMPLE",
+                "value": x,
+                "simpleType": "STRING"
+              }
+            }),
             "pair": null,
             "keyMap": null,
           })

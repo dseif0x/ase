@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, deleteKey, disconnect, isLoggedIn, list, set} from "../api/Api";
+import {connect, deleteKey, disconnect, isLoggedIn, list, set, get_acl} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
@@ -75,6 +75,7 @@ function App() {
     const [connections, setConnections] = useState([]);
     const [selectedConnection, setSelectedConnection] = useState([]);
     const [selectedConnectionId, setSelectedConnectionId] = useState(0);
+    const [hierarchicalDataRoots, setHierarchicalDataRoots] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
 
     const navigate = useNavigate();
@@ -125,6 +126,7 @@ function App() {
                 } else {
                     setSelectedConnectionId(0);
                     setSelectedConnection([]);
+                    setHierarchicalDataRoots([]);
                     setHierarchicalData([]);
                 }
             }
@@ -133,7 +135,7 @@ function App() {
 
     const toggleCollapse = (node) => {
         node.collapsed = !node.collapsed;
-        setHierarchicalData([...hierarchicalData]);
+        //setHierarchicalData([...hierarchicalData]);
     };
 
     const toggleAll = () => {
@@ -146,8 +148,8 @@ function App() {
                 }
             });
         };
-        openAll(hierarchicalData);
-        setHierarchicalData([...hierarchicalData]);
+        //openAll(hierarchicalData);
+        //setHierarchicalData([...hierarchicalData]);
     };
 
     // just for development purposes
@@ -328,6 +330,7 @@ function App() {
 
     async function buildKeyDataStructure(key = ".") {
         try {
+          console.log("build key data structure", key);
             const response = await list(key, selectedConnection.connectionId);
             if (!response.ok || !response.data || response.data.type !== "KEY_MAP") {
                 if (!response.ok) {
@@ -394,23 +397,58 @@ function App() {
         }
     }
 
+  function getRoots(aclKeyData) {
+    if (!aclKeyData) return [];
+    const res = [];
+    const candidates = [{"key": ".", "value": aclKeyData}]; // acts like a queue
+    while (candidates.length > 0) {
+      const curr = candidates.splice(0, 1)[0]; // pop the first one
+      if ((curr.value.keyMap["$"].value & 0b1) !== 0)
+        res.push(curr.key);
+      else {
+        for (const nextKey in curr.value.keyMap) {
+          if (nextKey === "$") continue;
+          candidates.push({"key": nextKey, "value": curr.value.keyMap[nextKey]});
+        }
+      }
+    }
+    return res;
+  }
+
+  useEffect(() => {
+    (async () => {
+      if (selectedConnection && selectedConnection.connectionId) {
+        const loggedIn = await checkLogin();
+        if (loggedIn) {
+          queue(async() => {
+            const acl = await get_acl(selectedConnection.connectionId, [/*selectedConnection.username*/]);
+            if (acl.ok) {
+              const dataRoots = getRoots(acl.data?.keyMap[selectedConnection.username]?.pair?.right);
+              console.log("dataRoots", dataRoots);
+              setHierarchicalDataRoots(dataRoots);
+            } else setHierarchicalDataRoots([]);
+          })
+        }
+      }})();
+  }, [selectedConnection])
+
 
     useEffect(() => {
-        (async () => {
-            if (selectedConnection && selectedConnection.connectionId) {
-                const loggedIn = await checkLogin();
-                if (loggedIn) {
-                  queue(async() => {
-                    const data = await buildKeyDataStructure();
-                    setHierarchicalData(buildHierarchy(data));
-                  })
-                }
-            }
-        })();
-    }, [selectedConnection]);
+      queue(async() => {
+        if (hierarchicalDataRoots.length > 0) {
+          const newHierarchicalData = []
+          for (const key of hierarchicalDataRoots) {
+            const data = await buildKeyDataStructure(key);
+            console.log("data", key, data);
+            newHierarchicalData.push(buildHierarchy(data));
+          }
+          setHierarchicalData(newHierarchicalData);
+        }
+      });
+    }, [hierarchicalDataRoots]);
 
     async function refresh() {
-        if (await checkLogin()) {
+        if (false && await checkLogin()) {
           queue(async() => {
             const data = await buildKeyDataStructure();
             setHierarchicalData(buildHierarchy(data) || {});
@@ -524,6 +562,33 @@ function App() {
         ));
     };
 
+    const dataView = () => {
+      console.log("hierarchicalData", hierarchicalData);
+      return hierarchicalData.map(hd => (
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                        <th>Type</th>
+                        <th>
+                            <span>
+                                <button
+                                    className="list-button list-all"
+                                    onClick={toggleAll}>
+                                    Toggle All
+                                </button>
+                            </span>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {renderHierarchy(hd, toggleCollapse, navigate, selectedConnection.connectionId)}
+                    </tbody>
+                </table>
+      ));
+    }
+
     return (
         <div className="app-container">
             <div className="connections-panel">
@@ -573,27 +638,7 @@ function App() {
                         </button>
                     </span>
                 </div>
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Value</th>
-                        <th>Type</th>
-                        <th>
-                            <span>
-                                <button
-                                    className="list-button list-all"
-                                    onClick={toggleAll}>
-                                    Toggle All
-                                </button>
-                            </span>
-                        </th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {renderHierarchy(hierarchicalData, toggleCollapse, navigate, selectedConnection.connectionId)}
-                    </tbody>
-                </table>
+                {dataView()}
             </div>
             <ToastContainer
                 position="bottom-center"
