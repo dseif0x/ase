@@ -43,8 +43,6 @@ async function cleanupConnections() {
     localStorage.setItem("connections", JSON.stringify(updatedConnections));
 }
 
-let toggle = true;
-
 const buildHierarchy = (obj, prefix = "") => {
     const result = [];
     for (const key in obj) {
@@ -136,18 +134,29 @@ function App() {
         setHierarchicalData([...hierarchicalData]);
     };
 
-    const toggleAll = () => {
-        toggle = !toggle;
+    const toggleBtn = () => {
+        toggleAll();
+    }
+
+    const toggleAll = (loadFromStorage = false, data = null) => {
+        let toggle = localStorage.getItem("toggle") ?? true;
+        if (toggle) {
+            const stringToBool = (str) => str.toLowerCase() === "true";
+            toggle = stringToBool(toggle);
+        }
+        toggle = loadFromStorage ? toggle : !toggle;
+        localStorage.setItem("toggle", toggle);
+        const elem = data ? data : hierarchicalData;
         const openAll = (nodes) => {
             nodes.forEach((node) => {
-                node.collapsed = !toggle;
+                node.collapsed = toggle;
                 if (node.children.length > 0) {
                     openAll(node.children);
                 }
             });
         };
-        openAll(hierarchicalData);
-        setHierarchicalData([...hierarchicalData]);
+        openAll(elem, toggle);
+        setHierarchicalData([...elem]);
     };
 
     // just for development purposes
@@ -400,10 +409,11 @@ function App() {
             if (selectedConnection && selectedConnection.connectionId) {
                 const loggedIn = await checkLogin();
                 if (loggedIn) {
-                  queue(async() => {
-                    const data = await buildKeyDataStructure();
-                    setHierarchicalData(buildHierarchy(data));
-                  })
+                    queue(async() => {
+                        const data = await buildKeyDataStructure();
+                        const elem = buildHierarchy(data);
+                        toggleAll(true, elem);
+                    })
                 }
             }
         })();
@@ -413,7 +423,8 @@ function App() {
         if (await checkLogin()) {
           queue(async() => {
             const data = await buildKeyDataStructure();
-            setHierarchicalData(buildHierarchy(data) || {});
+            const elem = buildHierarchy(data) || {};
+            toggleAll(true, elem);
           })
         }
     }
@@ -583,7 +594,7 @@ function App() {
                             <span>
                                 <button
                                     className="list-button list-all"
-                                    onClick={toggleAll}>
+                                    onClick={toggleBtn}>
                                     Toggle All
                                 </button>
                             </span>
