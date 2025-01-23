@@ -157,6 +157,7 @@ th {
     border-radius: 3px;
     cursor: pointer;
     padding: 2px 6px;
+    float: right;
 }
 
 .delete-button:hover {
