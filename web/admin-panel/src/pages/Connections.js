@@ -8,7 +8,6 @@ import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
 import {toast, ToastContainer} from "react-toastify";
 
-
 const asyncSub = new Subject();
 const nextAsyncSub = new Subject();
 zip(asyncSub, nextAsyncSub).subscribe({
@@ -69,13 +68,13 @@ const buildHierarchy = (obj, prefix = "") => {
     return result;
 };
 
-let toggle = false;
-
 function App() {
     const [connections, setConnections] = useState([]);
     const [selectedConnection, setSelectedConnection] = useState([]);
     const [selectedConnectionId, setSelectedConnectionId] = useState(0);
     const [hierarchicalData, setHierarchicalData] = useState([]);
+
+    const [toggle, setToggle] = useState(false);
 
     const navigate = useNavigate();
 
@@ -137,7 +136,6 @@ function App() {
             node.collapsed = toggleTo;
         }
         let toggleKeyList = JSON.parse(localStorage.getItem("toggleKeyList")) ?? [];
-
         if (node.collapsed) {
             toggleKeyList = toggleKeyList.filter((item) => (!item.startsWith(node.key + '.') && item !== node.key));
         }
@@ -173,7 +171,7 @@ function App() {
     }
 
     const toggleAll = () => {
-        toggle = !toggle;
+        setToggle((prev) => !prev);
         const openAll = (nodes) => {
             nodes.forEach((node) => {
                 toggleCollapse(node, toggle);
@@ -491,6 +489,7 @@ function App() {
         if (node.path) {
             const res = await get(node.parentKey, connectionId);
             const elem = removeElementFromArray(res.data, node.path);
+
             queue(async () => set(node.parentKey, elem, true, connectionId).then((response) => {
                 if (!response.ok) {
                     toast.error(response.message);
@@ -503,6 +502,10 @@ function App() {
             await deleteKey(node.key, connectionId);
             await refresh();
         }
+
+        let toggleKeyList = JSON.parse(localStorage.getItem("toggleKeyList"));
+        toggleKeyList = toggleKeyList.filter((item) => (!item.startsWith(node.key + '.') && item !== node.key));
+        localStorage.setItem("toggleKeyList", JSON.stringify(toggleKeyList));
     }
 
     const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
@@ -622,7 +625,7 @@ function App() {
                                 <button
                                     className="list-button list-all"
                                     onClick={toggleBtn}>
-                                    {toggle ? 'Open All' : 'Close All'}
+                                    {!toggle ? 'Open All' : 'Close All'}
                                 </button>
                             </span>
                         </th>
