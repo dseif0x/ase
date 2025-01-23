@@ -21,8 +21,7 @@ export async function update_acl(connectionId, username, key, permission) {
       },
     });
 
-    if (!response.ok)
-      throw new Error(`Msg: ${response.status}`);
+    if (!response.ok) return await handleError(response);
 
     const contentType = response.headers.get("Content-Type");
     let data;
@@ -59,7 +58,7 @@ export async function get_acl(connectionId) {
         });
 
         if (!response.ok) {
-            throw new Error(`Msg: ${response.status}`);
+            return await handleError(response)
         }
 
         const contentType = response.headers.get("Content-Type");
@@ -303,5 +302,36 @@ export async function deleteKey(key, connectionId) {
     } catch (error) {
         console.error("Error fetching data:", error);
         throw error;
+    }
+}
+export async function createUser(username: string, password: string, options: number, connectionId: string) {
+    try {
+        const url = new URL(`${API_BASE_URL}/db/createUser`);
+
+        const params = {
+            username: username,
+            password: password,
+            options: options
+        };
+        Object.keys(params).forEach((key) =>
+            url.searchParams.append(key, params[key])
+        );
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "X-Connection-Id": connectionId,
+            },
+        });
+
+        if (!response.ok) {
+            return await handleError(response)
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.log("error: " + error);
+        console.error("Error logging in to server ", error);
+        return {ok: false, message: error};
     }
 }

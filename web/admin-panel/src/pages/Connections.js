@@ -8,6 +8,12 @@ import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
 import {toast, ToastContainer} from "react-toastify";
 import "../styles/modals/ConfigModal.css";
+import { IoPersonAdd } from "react-icons/io5";
+import {TbPlugConnected, TbPlugConnectedX} from "react-icons/tb";
+import {FiRefreshCw} from "react-icons/fi";
+import {IoMdAddCircleOutline} from "react-icons/io";
+import {MdDelete, MdEdit} from "react-icons/md";
+
 
 const asyncSub = new Subject();
 const nextAsyncSub = new Subject();
@@ -107,6 +113,7 @@ function App() {
                     setSelectedConnection(savedConnections[0]);
                     setSelectedConnectionId(savedConnections[0].id);
                 } else {
+                    setSelectedConnection([]);
                     setSelectedConnectionId(0);
                 }
             }
@@ -188,6 +195,14 @@ function App() {
         };
         openAll(hierarchicalData, toggle);
         setHierarchicalData([...hierarchicalData]);
+    };
+
+    const handleCreateUser = () => {
+        navigate("/create-user", {
+            state: {
+                connectionId: selectedConnection.connectionId,
+            }
+        });
     };
 
     // just for development purposes
@@ -505,7 +520,7 @@ function App() {
                                     });
                                 }}
                             >
-                                Edit
+                                <MdEdit title="Edit Item"/>
                             </button>
 
                         )}
@@ -515,7 +530,7 @@ function App() {
                                 handleDelete(node, connectionId);
                             }}
                         >
-                            Delete
+                            <MdDelete title="Delete Item"/>
                         </button>
                         {node.children.length > 0 && (
                             <button
@@ -527,7 +542,7 @@ function App() {
                         )}
                         {(node.type === "KEY_MAP" || node.type === "ARRAY") && (
                             <button onClick={async () => handleAdd(node, connectionId)} className="add-key-button">
-                                Add Key
+                                <IoMdAddCircleOutline title="Add Item"/>
                             </button>
                         )}
                     </td>
@@ -612,23 +627,32 @@ function App() {
                             name="connection"
                             value={connection.id}
                             checked={selectedConnectionId === connection.id}
-                            onChange={() => setSelectedConnection(connection)}
-                        />
+                            onChange={() => {
+                                setSelectedConnection(connection);
+                                setSelectedConnectionId(connection.id);
+                            }}                        />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
                         {connection.id !== 0 && (
                             <button
                                 className="delete-button"
                                 onClick={() => deleteConnection(connection.id, connection.connectionId)}
                             >
-                                X
+                                <TbPlugConnectedX />
                             </button>
                         )}
                     </div>
                 ))}
                 <div className="footer-container">
                     <button className="add-connection-button" onClick={addConnection}>
-                        + Add Connection
+                        <TbPlugConnected /> Add Connection
                     </button>
+
+                    {selectedConnectionId !== 0 && (
+                        <button disabled={!selectedConnection} onClick={handleCreateUser} className="add-connection-button">
+                            <IoPersonAdd /> Create User
+                        </button>
+                    )}
+
                     <button className="add-connection-button blue-button" onClick={addDevConnetion}>
                         Dev Login
                     </button>
@@ -639,7 +663,7 @@ function App() {
                     <h3>Keys</h3>
                     <span>
                         <button className="refresh-button" onClick={refresh}>
-                            Refresh
+                            <FiRefreshCw /> Refresh
                         </button>
                     </span>
                 </div>
