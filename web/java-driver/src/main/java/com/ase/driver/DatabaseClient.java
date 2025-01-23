@@ -685,7 +685,7 @@ public class DatabaseClient {
             if (usernames.getArray() == null || usernames.getArray().isEmpty()) {
                 writer.writeByte(0);
             } else {
-                dataWriter.writeGeneral(usernames);
+                dataWriter.writeArray(usernames);
             }
 
             byte response = reader.readByte();
