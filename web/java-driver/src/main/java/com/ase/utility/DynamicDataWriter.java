@@ -261,7 +261,7 @@ public class DynamicDataWriter {
      * @throws TCPClientException If an I/O error occurs or the array length is invalid.
      * @throws IllegalArgumentException If the provided {@link TcpGeneral} is not of type {@link com.ase.utility.tcp.TcpGeneralType#ARRAY}.
      */
-    private void writeArray(TcpGeneral value) throws TCPClientException {
+    public void writeArray(TcpGeneral value) throws TCPClientException {
         if (value.getType() != TcpGeneralType.ARRAY) {
             throw new IllegalArgumentException("Expected ARRAY TcpGeneral.");
         }
