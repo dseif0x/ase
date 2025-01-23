@@ -69,6 +69,8 @@ const buildHierarchy = (obj, prefix = "") => {
     return result;
 };
 
+let toggle = false;
+
 function App() {
     const [connections, setConnections] = useState([]);
     const [selectedConnection, setSelectedConnection] = useState([]);
@@ -129,34 +131,59 @@ function App() {
         });
     };
 
-    const toggleCollapse = (node) => {
+    const toggleCollapse = (node, toggleTo = null) => {
         node.collapsed = !node.collapsed;
+        if (toggleTo) {
+            node.collapsed = toggleTo;
+        }
+        let toggleKeyList = JSON.parse(localStorage.getItem("toggleKeyList")) ?? [];
+
+        if (node.collapsed) {
+            toggleKeyList = toggleKeyList.filter((item) => (!item.startsWith(node.key + '.') && item !== node.key));
+        }
+        if (!node.collapsed) {
+            toggleKeyList.push(node.key);
+        }
+        localStorage.setItem("toggleKeyList", JSON.stringify(toggleKeyList));
         setHierarchicalData([...hierarchicalData]);
     };
+
+    const toggleFromStorage = (data = null) => {
+        const toggleKeyList = localStorage.getItem("toggleKeyList") ?? [];
+
+        const openFromStorage = (nodes) => {
+            nodes.forEach((node) => {
+                if (toggleKeyList.includes(node.key)) {
+                    node.collapsed = false;
+                    if (node.children.length > 0) {
+                        openFromStorage(node.children);
+                    }
+                }
+            });
+        };
+
+        const elem = data ? data : hierarchicalData;
+        openFromStorage(elem);
+        setHierarchicalData([...elem]);
+    }
+
 
     const toggleBtn = () => {
         toggleAll();
     }
 
-    const toggleAll = (loadFromStorage = false, data = null) => {
-        let toggle = localStorage.getItem("toggle") ?? true;
-        if (toggle) {
-            const stringToBool = (str) => str.toLowerCase() === "true";
-            toggle = stringToBool(toggle);
-        }
-        toggle = loadFromStorage ? toggle : !toggle;
-        localStorage.setItem("toggle", toggle);
-        const elem = data ? data : hierarchicalData;
+    const toggleAll = () => {
+        toggle = !toggle;
         const openAll = (nodes) => {
             nodes.forEach((node) => {
-                node.collapsed = toggle;
+                toggleCollapse(node, toggle);
                 if (node.children.length > 0) {
                     openAll(node.children);
                 }
             });
         };
-        openAll(elem, toggle);
-        setHierarchicalData([...elem]);
+        openAll(hierarchicalData, toggle);
+        setHierarchicalData([...hierarchicalData]);
     };
 
     // just for development purposes
@@ -412,7 +439,7 @@ function App() {
                     queue(async() => {
                         const data = await buildKeyDataStructure();
                         const elem = buildHierarchy(data);
-                        toggleAll(true, elem);
+                        toggleFromStorage(elem);
                     })
                 }
             }
@@ -424,7 +451,7 @@ function App() {
           queue(async() => {
             const data = await buildKeyDataStructure();
             const elem = buildHierarchy(data) || {};
-            toggleAll(true, elem);
+            toggleFromStorage(elem);
           })
         }
     }
@@ -595,7 +622,7 @@ function App() {
                                 <button
                                     className="list-button list-all"
                                     onClick={toggleBtn}>
-                                    Toggle All
+                                    {toggle ? 'Open All' : 'Close All'}
                                 </button>
                             </span>
                         </th>
