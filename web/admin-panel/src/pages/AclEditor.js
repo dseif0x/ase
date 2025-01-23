@@ -55,7 +55,7 @@ function evaluatePermissions(permission, key) {
     itObj = itObj["$"];
     if (itObj["simpleType"] === "INT" && typeof(itObj["value"]) === "number")
       perm |= itObj["value"];
-  } 
+  }
   return perm;
 }
 
@@ -278,11 +278,14 @@ const AclEditor = () => {
     const addElementToArray = (rootArray, newElement, path) => {
         const clone = structuredClone(rootArray)
         let current = clone;
-        for (let i = 0; i < path.length-1; i++) {
+        for (let i = 0; i < path.length; i++) {
             const index = path[i];
             current = current.array[index];
         }
-        current.array[path[path.length-1]] = (newElement);
+        if (!current.array) {
+            current.array = [];
+        }
+        current.array[current.array.length] = newElement;
         return clone;
     }
 
@@ -339,13 +342,14 @@ const AclEditor = () => {
 
             const newRootArray = setElementByPath(parentArrayData, arrayPath, updatedElement);
 
-            set(parentKey, newRootArray, true, connectionId).then((response) => {
+
+            queue(async () => set(parentKey, newRootArray, true, connectionId).then((response) => {
                 if (!response.ok) {
                     toast.error(response.message);
                 } else {
                     toast.success("Array element updated successfully.");
                 }
-            });
+            }));
             return;
         }
 
@@ -388,25 +392,31 @@ const AclEditor = () => {
                 keyData = keyData + (keyData === '.' ? '' : '.') + newKey;
             } else {
                 const res = await get(parentKey, connectionId);
-                const newElem = addElementToArray(res.data, toUpdate, addArrayKeyPath);
-                set(parentKey, newElem, true, connectionId).then((response) => {
+                if (!arrayPath) {
+                    arrayPath = [];
+                }
+                const newElem = addElementToArray(res.data, toUpdate, arrayPath);
+                queue(async() => set(parentKey, newElem, true, connectionId).then((response) => {
                     if (!response.ok) {
                         toast.error(response.message);
                     } else {
                         toast.success("Array element updated successfully.");
                     }
-                });
+                    navigate(-1);
+                }));
                 return;
             }
-
         }
 
       queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
         if (!response.ok) {
           toast.error(response.message);
         } else toast.success("Value updated successfully.");
+        if (addKey) {
+            navigate(-1);
+        }
       }));
-    }; 
+    };
 
     const handleCancel = () => {
         navigate(-1);
@@ -638,7 +648,7 @@ const AclEditor = () => {
                     Cancel
                 </button>
                 <button className="update-btn" onClick={handleUpdate}>
-                    Update
+                    {addKey ? 'Add' : 'Update'}
                 </button>
             </div>
             <ToastContainer

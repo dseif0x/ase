@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
 import { useNavigate } from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, disconnect, isLoggedIn, list} from "../api/Api";
+import {connect, deleteKey, disconnect, isLoggedIn, list, set} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
@@ -45,7 +45,7 @@ async function cleanupConnections() {
 
 let toggle = true;
 
-const buildHierarchy = (obj, prefix = "", addArrayKeyPath = null) => {
+const buildHierarchy = (obj, prefix = "") => {
     const result = [];
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
@@ -53,25 +53,16 @@ const buildHierarchy = (obj, prefix = "", addArrayKeyPath = null) => {
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
-            if (type === "ARRAY") {
-                if (!addArrayKeyPath) {
-                    addArrayKeyPath = [children.length-1];
-                } else {
-                    addArrayKeyPath = addArrayKeyPath.concat(children.length-1);
-                }
-            }
-
             const elem = {
                 displayKey: key,
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
-                children: buildHierarchy(children || {}, currentKey, type === "ARRAY" ? addArrayKeyPath : null),
+                children: buildHierarchy(children || {}, currentKey),
                 collapsed: true,
                 noEdit: noEdit,
                 parentKey: parentKey,
                 path: path,
-                addArrayKeyPath: addArrayKeyPath,
             };
 
             result.push(elem);
@@ -89,7 +80,6 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        toggle = false;
         cleanupConnections().then(() => {
 
             let savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
@@ -420,7 +410,6 @@ function App() {
     }, [selectedConnection]);
 
     async function refresh() {
-        toggle = false;
         if (await checkLogin()) {
           queue(async() => {
             const data = await buildKeyDataStructure();
@@ -430,10 +419,6 @@ function App() {
     }
 
     async function handleAdd(node, connectionId) {
-        let isArray = node.type === "ARRAY";
-        if (isArray) {
-            node.addArrayKeyPath[node.addArrayKeyPath.length-1] += 1;
-        }
         navigate(`/edit/key`, {
             state: {
                 keyData: node.key,
@@ -441,8 +426,7 @@ function App() {
                 addKey: true,
                 parentKey: node.parentKey || node.key,
                 arrayPath: node.path,
-                isArray: isArray,
-                addArrayKeyPath: node.addArrayKeyPath
+                isArray: node.type === "ARRAY",
             }
         })
     }
@@ -452,6 +436,35 @@ function App() {
             return node.displayKey === '0' ? "left" : "right";
         }
         return node.path ? '[' + node.path + ']' : node.displayKey;
+    }
+
+    const removeElementFromArray = (rootArray, deletePath) => {
+        const clone = structuredClone(rootArray)
+        let current = clone;
+        for (let i = 0; i < deletePath.length-1; i++) {
+            const index = deletePath[i];
+            current = current.array[index];
+        }
+        current.array.splice(deletePath[deletePath.length-1], 1);
+        return clone;
+    }
+
+    async function handleDelete(node, connectionId) {
+        if (node.path) {
+            const res = await get(node.parentKey, connectionId);
+            const elem = removeElementFromArray(res.data, node.path);
+            queue(async () => set(node.parentKey, elem, true, connectionId).then((response) => {
+                if (!response.ok) {
+                    toast.error(response.message);
+                } else {
+                    toast.success("Array element updated successfully.");
+                }
+                refresh();
+            }));
+        } else {
+            await deleteKey(node.key, connectionId);
+            await refresh();
+        }
     }
 
     const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
@@ -474,12 +487,21 @@ function App() {
                                             connectionId: connectionId,
                                             addKey: false
                                         }
-                                    });}
-                                }
+                                    });
+                                }}
                             >
                                 Edit
                             </button>
+
                         )}
+                        <button
+                            className="edit-button red"
+                            onClick={() => {
+                                handleDelete(node, connectionId);
+                            }}
+                        >
+                            Delete
+                        </button>
                         {node.children.length > 0 && (
                             <button
                                 className="list-button"
