@@ -75,6 +75,14 @@ th {
     background-color: #0b7dda;
 }
 
+.red {
+    background-color: red;
+}
+
+.red:hover {
+    background-color: rosybrown;
+}
+
 .add-key-button {
     background-color: #214bf3;
     color: white;
