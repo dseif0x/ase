@@ -39,7 +39,7 @@ export async function update_acl(connectionId, username, key, permission) {
   }
 }
 
-export async function get_acl(connectionId) {
+export async function get_acl(connectionId, user = []) {
     try {
         const response = await fetch(`${API_BASE_URL}/db/getUserPermissions`, {
           method: "POST",
@@ -51,7 +51,13 @@ export async function get_acl(connectionId) {
             "type": "ARRAY",
             "simpleType": null,
             "value": null,
-            "array": [],
+            "array": user.map(x => {
+              return {
+                "type": "SIMPLE",
+                "value": x,
+                "simpleType": "STRING"
+              }
+            }),
             "pair": null,
             "keyMap": null,
           })
@@ -79,7 +85,8 @@ export async function get_acl(connectionId) {
 
 export async function get(key, connectionId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/db/get/` + key, {
+        const key64 = btoa(key);
+        const response = await fetch(`${API_BASE_URL}/db/get/` + key64, {
             headers: {
                 "X-Connection-Id": connectionId,
             },
@@ -304,6 +311,7 @@ export async function deleteKey(key, connectionId) {
         throw error;
     }
 }
+
 export async function createUser(username: string, password: string, options: number, connectionId: string) {
     try {
         const url = new URL(`${API_BASE_URL}/db/createUser`);

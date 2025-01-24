@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "../styles/pages/Connections.css";
-import { useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
-import {connect, deleteKey, disconnect, isLoggedIn, list, set} from "../api/Api";
+import {connect, deleteKey, disconnect, isLoggedIn, list, set, get_acl} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
 import {Subject, zip} from "rxjs";
 import {get} from "../api/Api";
@@ -53,7 +53,7 @@ const buildHierarchy = (obj, prefix = "") => {
     const result = [];
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
-            const currentKey = prefix ? `${prefix}.${key}` : key;
+            const currentKey = (prefix && prefix !== ".") ? `${prefix}.${key}` : key;
             const { type, value, children, processedKey, noEdit } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
@@ -79,7 +79,9 @@ function App() {
     const [connections, setConnections] = useState([]);
     const [selectedConnection, setSelectedConnection] = useState([]);
     const [selectedConnectionId, setSelectedConnectionId] = useState(0);
+    const [hierarchicalDataRoots, setHierarchicalDataRoots] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [toggle, setToggle] = useState(false);
 
@@ -137,6 +139,7 @@ function App() {
                 } else {
                     setSelectedConnectionId(0);
                     setSelectedConnection([]);
+                    setHierarchicalDataRoots([]);
                     setHierarchicalData([]);
                 }
             }
@@ -351,6 +354,31 @@ function App() {
 
     async function buildKeyDataStructure(key = ".") {
         try {
+            if (key !== ".") {
+              const tempData = await get(key, selectedConnection.connectionId);
+              if (tempData?.ok && tempData.data?.type) {
+                if (tempData.data.type !== "KEY_MAP") {
+                  if (tempData.data.type === "ARRAY") {
+                    return {[key]: processArray(tempData.data, key)};
+                  } else if (tempData.data.type === "PAIR") {
+                    return {[key]: processPair(tempData.data, key)};
+                  } else if (tempData.data.type === "SIMPLE") {
+                    let valueToShow = tempData.data.value?.toString() || "";
+                    if (tempData.data.simpleType === "BOOLEAN") valueToShow = (tempData.data.value ? "True" : "False");
+                    return {[key]: {
+                      type: `SIMPLE (${tempData.data.simpleType || "Unknown"})`,
+                      value: valueToShow,
+                      children: [],
+                    }};
+                  }
+                }
+              } else {
+                console.error("error in buildKeyDataStructure", key, tempData);
+                if (tempData.message !== "Key not found.")
+                  toast.error(tempData.data + "- " + tempData.message);
+                return {}
+              }
+            }
             const response = await list(key, selectedConnection.connectionId);
             if (!response.ok || !response.data || response.data.type !== "KEY_MAP") {
                 if (!response.ok) {
@@ -367,17 +395,12 @@ function App() {
                 const newKey = key === "." ? subKey : `${key}.${subKey}`;
 
                 if (subKeyData.type === "KEY_MAP") {
-                    result[subKey] = {
-                        type: "KEY_MAP",
-                        value: null,
-                        children: await buildKeyDataStructure(newKey),
-                    };
+                    Object.assign(result, await buildKeyDataStructure(newKey));
                 } else if (subKeyData.type === "ARRAY") {
                     const fetchedData = await get(newKey, selectedConnection.connectionId);
                     if (fetchedData.ok && fetchedData.data) {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
-                        console.error("Error fetching array data:", fetchedData);
                         result[subKey] = {
                             type: "ARRAY",
                             value: `Array (${subKeyData.array?.length || 0} items)`,
@@ -389,7 +412,6 @@ function App() {
                     if (fetchedData.ok && fetchedData.data) {
                         result[subKey] = processPair(fetchedData.data, newKey);
                     } else {
-                        console.error("Error fetching pair data:", fetchedData);
                         result[subKey] = {
                             type: "PAIR",
                             value: null,
@@ -406,17 +428,32 @@ function App() {
                         children: [],
                     };
                 } else {
-                    console.warn("Unknown type:", subKeyData.type);
                 }
             }
-
-            return result;
+            return {[key]: {type: "KEY_MAP", children: result}};
         } catch (error) {
             console.error("Error in buildKeyDataStructure:", error);
             return {};
         }
     }
 
+  function getRoots(aclKeyData) {
+    if (!aclKeyData) return [];
+    const res = [];
+    const candidates = [{"key": ".", "value": aclKeyData}]; // acts like a queue
+    while (candidates.length > 0) {
+      const curr = candidates.splice(0, 1)[0]; // pop the first one
+      if ((curr.value.keyMap["$"].value & 0b1) !== 0)
+        res.push(curr.key);
+      else {
+        for (const nextKey in curr.value.keyMap) {
+          if (nextKey === "$") continue;
+          candidates.push({"key": nextKey, "value": curr.value.keyMap[nextKey]});
+        }
+      }
+    }
+    return res;
+  }
 
     useEffect(() => {
         (async () => {
@@ -424,23 +461,46 @@ function App() {
                 const loggedIn = await checkLogin();
                 if (loggedIn) {
                     queue(async() => {
-                        const data = await buildKeyDataStructure();
-                        const elem = buildHierarchy(data);
-                        toggleFromStorage(elem);
+                        const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
+                        if (acl.ok) {
+                            const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
+                            setHierarchicalDataRoots(dataRoots);
+                            setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
+                        } else setHierarchicalDataRoots([]);
                     })
                 }
             }
         })();
     }, [selectedConnection]);
 
+    useEffect(() => {
+      queue(async() => {
+        if (hierarchicalDataRoots.length > 0) {
+          let newHierarchicalData = []
+          for (const key of hierarchicalDataRoots) {
+            const data = await buildKeyDataStructure(key);
+            const hierarchy = await buildHierarchy(data);
+            newHierarchicalData = newHierarchicalData.concat(hierarchy);
+          }
+          toggleFromStorage(newHierarchicalData);
+        }
+      });
+    }, [hierarchicalDataRoots]);
+
     async function refresh() {
-        if (await checkLogin()) {
+      if (selectedConnection && selectedConnection.connectionId) {
+        const loggedIn = await checkLogin();
+        if (loggedIn) {
           queue(async() => {
-            const data = await buildKeyDataStructure();
-            const elem = buildHierarchy(data) || {};
-            toggleFromStorage(elem);
+            const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
+            if (acl.ok) {
+              const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
+              setHierarchicalDataRoots(dataRoots);
+              setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
+            } else setHierarchicalDataRoots([]);
           })
         }
+      }
     }
 
     async function handleAdd(node, connectionId) {

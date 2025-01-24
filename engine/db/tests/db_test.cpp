@@ -101,6 +101,19 @@ void insert_test_data(DB& db) {
         newval6.data.emplace<CopiedValue::copied_map_t>(std::move(map));
         db.set("test8", std::move(newval6));
     }
+
+    { // Implicit Map
+        auto map_val = CopiedValue();
+        map_val.type = ValueType::INT;
+        map_val.data.emplace<int>(1222);
+
+        auto map_val2 = CopiedValue();
+        map_val2.type = ValueType::DOUBLE;
+        map_val2.data.emplace<double>(1.2);
+
+        db.set("imp_map.val1", std::move(map_val));
+        db.set("imp_map.val2", std::move(map_val2));
+    }
     { // Reference
         CopiedValue newval1{};
         newval1.type = ValueType::REFERENCE;
@@ -422,6 +435,17 @@ TEST_F(DatabaseWithData, List) {
     ASSERT_EQ(map["key1"].first, ValueType::INT);
     ASSERT_EQ(std::get<double>(map["key2"].second), 1.2);
     ASSERT_EQ(std::get<int>(map["key1"].second), 1222);
+}
+
+TEST_F(DatabaseWithData, ListImplicitMap) {
+    auto test = db->list("imp_map");
+    ASSERT_TRUE(test.has_value());
+    auto& map = test.value();
+    ASSERT_TRUE(map.contains("val1") && map.contains("val2"));
+    ASSERT_EQ(map["val2"].first, ValueType::DOUBLE);
+    ASSERT_EQ(map["val1"].first, ValueType::INT);
+    ASSERT_EQ(std::get<double>(map["val2"].second), 1.2);
+    ASSERT_EQ(std::get<int>(map["val1"].second), 1222);
 }
 
 TEST_F(DatabaseWithData, ListNonExistentKey) {
