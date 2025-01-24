@@ -363,6 +363,7 @@ function App() {
         try {
             if (key !== ".") {
               const tempData = await get(key, selectedConnection.connectionId);
+              console.log("get: ", key, tempData);
               if (tempData?.ok && tempData.data?.type) {
                 if (tempData.data.type !== "KEY_MAP") {
                   if (tempData.data.type === "ARRAY") {
@@ -455,7 +456,7 @@ function App() {
       else {
         for (const nextKey in curr.value.keyMap) {
           if (nextKey === "$") continue;
-          candidates.push({"key": nextKey, "value": curr.value.keyMap[nextKey]});
+          candidates.push({"key": (curr["key"] !== "." ? curr["key"]+".": "")+nextKey, "value": curr.value.keyMap[nextKey]});
         }
       }
     }
