@@ -559,7 +559,12 @@ function App() {
                 refresh();
             }));
         } else {
-            await deleteKey(node.key, connectionId);
+            const response = await deleteKey(node.key, connectionId);
+            if (!response.ok) {
+                toast.error(response.message);
+            } else {
+                toast.success("Key deleted successfully.");
+            }
             await refresh();
         }
 
@@ -665,8 +670,12 @@ function App() {
 
                     setSelectedConnectionId(newConnection.id);
                     setSelectedConnection(newConnection);
-                } else console.error("Failed to add connection:", response);
+                } else {
+                    if (response.data) toast.error(response.data + " - " + response.message);
+                    else toast.error(response.message);
+                }
             }).catch((error) => {
+                toast.error("Failed to add connection.");
                 console.error("Failed to add connection:", error);
             });
         } else {

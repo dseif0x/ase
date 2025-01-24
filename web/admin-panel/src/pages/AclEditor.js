@@ -292,7 +292,14 @@ const AclEditor = () => {
     const handleAclUpdate = async () => {
       const permDiff = evaluatePermissionDiff(initialPermissions.current, permissions);
       for (const permUpdate of permDiff) {
-        queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)));
+        queue(async() => {
+            const response = await update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate))
+            if (!response.ok) {
+                toast.error(response.message);
+            } else {
+                toast.success("Permissions updated successfully.");
+            }
+        });
       }
     }
 
@@ -346,9 +353,6 @@ const AclEditor = () => {
             queue(async () => set(parentKey, newRootArray, true, connectionId).then((response) => {
                 if (!response.ok) {
                     toast.error(response.message);
-                    setTimeout(() => {
-                        navigate("/Connections");
-                    }, 1000);
                 } else {
                     toast.success("Array element updated successfully.");
                 }
@@ -402,9 +406,6 @@ const AclEditor = () => {
                 queue(async() => set(parentKey, newElem, true, connectionId).then((response) => {
                     if (!response.ok) {
                         toast.error(response.message);
-                        setTimeout(() => {
-                            navigate("/Connections");
-                        }, 1000);
                     } else {
                         toast.success("Array element updated successfully.");
                     }
@@ -416,9 +417,7 @@ const AclEditor = () => {
 
       queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
         if (!response.ok) {
-            setTimeout(() => {
-                navigate("/Connections");
-            }, 1000);
+            toast.error(response.message);
         } else toast.success("Value updated successfully.");
         if (addKey) {
             navigate(-1);
