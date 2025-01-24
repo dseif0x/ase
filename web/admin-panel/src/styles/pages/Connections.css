@@ -64,7 +64,7 @@ td div.inner {
   display: flex;
   align-items: center;
   border: 1px solid #ccc;
-  border-top: none;
+  border-top: 1px solid #ccc;
   border-right: none;
   height: 100%;
   box-sizing: border-box;

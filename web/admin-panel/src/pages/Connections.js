@@ -13,6 +13,7 @@ import {TbPlugConnected, TbPlugConnectedX} from "react-icons/tb";
 import {FiRefreshCw} from "react-icons/fi";
 import {IoMdAddCircleOutline} from "react-icons/io";
 import {MdDelete, MdEdit} from "react-icons/md";
+import { GoTriangleRight, GoTriangleDown } from "react-icons/go";
 
 
 const asyncSub = new Subject();
@@ -68,6 +69,8 @@ const buildHierarchy = (obj, prefix = "") => {
                 parentKey: parentKey,
                 path: path,
             };
+
+            if (elem.displayKey === ".") elem.displayKey = ". (DOT)";
 
             result.push(elem);
         }
@@ -557,11 +560,14 @@ function App() {
         localStorage.setItem("toggleKeyList", JSON.stringify(toggleKeyList));
     }
 
-    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
+    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0, parentNode = null) => {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
                 <tr>
-                    <td colspan="4" style={{paddingLeft: `${level * 20}px`}}><div class="inner">{printDisplayKey(node, parentNode)}</div></td>
+                    <td colspan="4" onClick={() => {
+                      if (node.children.length > 0)
+                        toggleCollapse(node)
+                    }} style={{paddingLeft: `${level * 20}px`}}><div class="inner">{node.children.length > 0 ? (node.collapsed ? (<GoTriangleRight />) : (<GoTriangleDown />)) : ""}{printDisplayKey(node, parentNode)}</div></td>
                     <td colspan="2">{node.value !== null ? node.value : ""}</td>
                     <td colspan="2">{node.type}</td>
                     <td colspan="3">
@@ -592,14 +598,6 @@ function App() {
                         >
                             <MdDelete title="Delete Item"/>
                         </button>
-                        {node.children.length > 0 && (
-                            <button
-                                className="list-button"
-                                onClick={() => toggleCollapse(node)}
-                            >
-                                {node.collapsed ? "List" : "Close"}
-                            </button>
-                        )}
                         {(node.type === "KEY_MAP" || node.type === "ARRAY") && (
                             <button onClick={async () => handleAdd(node, connectionId)} className="add-key-button">
                                 <IoMdAddCircleOutline title="Add Item"/>
