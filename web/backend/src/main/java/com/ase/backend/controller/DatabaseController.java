@@ -1,6 +1,7 @@
 package com.ase.backend.controller;
 
 import com.ase.backend.controller.dto.SetValueRequest;
+import com.ase.backend.service.ConnectionService;
 import com.ase.backend.service.DatabaseService;
 import com.ase.utility.WebReturn;
 import com.ase.utility.tcp.TcpGeneral;
@@ -18,14 +19,16 @@ import java.util.concurrent.Future;
 public class DatabaseController {
 
     private final DatabaseService service;
+    private final ConnectionService connectionService;
 
     /**
      * Constructs a {@code DatabaseController} with the given service.
      *
      * @param service The {@link DatabaseService} that handles business logic.
      */
-    public DatabaseController(DatabaseService service) {
+    public DatabaseController(DatabaseService service, ConnectionService connectionService) {
         this.service = service;
+        this.connectionService = connectionService;
     }
 
     /**
@@ -37,10 +40,11 @@ public class DatabaseController {
     @GetMapping("/list/{key}")
     public ResponseEntity<WebReturn<TcpGeneral>> list(@PathVariable String key, @RequestHeader(value="X-Connection-Id") String connectionId) {
         String decodedKey = new String(Base64.getDecoder().decode(key.getBytes()));
-        Future<WebReturn<TcpGeneral>> future = service.list(decodedKey, connectionId);
         try {
+            Future<WebReturn<TcpGeneral>> future = service.list(decodedKey, connectionId);
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -53,10 +57,12 @@ public class DatabaseController {
      */
     @GetMapping("/get/{key}")
     public ResponseEntity<WebReturn<TcpGeneral>> getValue(@PathVariable String key, @RequestHeader(value="X-Connection-Id") String connectionId) {
-        Future<WebReturn<TcpGeneral>> future = service.getValue(key, connectionId);
+        String decodedKey = new String(Base64.getDecoder().decode(key.getBytes()));
         try {
+            Future<WebReturn<TcpGeneral>> future = service.getValue(decodedKey, connectionId);
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -69,10 +75,11 @@ public class DatabaseController {
      */
     @PostMapping("/set")
     public ResponseEntity<?> setValue(@RequestBody SetValueRequest request, @RequestHeader(value="X-Connection-Id") String connectionId) {
-        Future<WebReturn<Integer>> future = service.setValue(request.getKey(), request.getValue(), request.isForce(), connectionId);
         try {
+            Future<WebReturn<Integer>> future = service.setValue(request.getKey(), request.getValue(), request.isForce(), connectionId);
             return ResponseEntity.ok(future.get());
         } catch (Exception e) {
+            connectionService.logout(connectionId);
             return ResponseEntity.internalServerError().body(WebReturn.error(e.getMessage()));
         }
     }
@@ -84,7 +91,12 @@ public class DatabaseController {
      */
     @PostMapping("/stop")
     public ResponseEntity<WebReturn<Integer>> stop(@RequestHeader(value="X-Connection-Id") String connectionId) {
-        return ResponseEntity.ok(service.stop(connectionId));
+        try {
+            return ResponseEntity.ok(service.stop(connectionId));
+        } catch (Exception e) {
+            connectionService.logout(connectionId);
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 
     /**
@@ -95,7 +107,12 @@ public class DatabaseController {
      */
     @DeleteMapping("/delete/{key}")
     public ResponseEntity<WebReturn<Integer>> deleteKey(@PathVariable String key, @RequestHeader(value="X-Connection-Id") String connectionId) {
-        return ResponseEntity.ok(service.deleteKey(key, connectionId));
+        try {
+            return ResponseEntity.ok(service.deleteKey(key, connectionId));
+        } catch (Exception e) {
+            connectionService.logout(connectionId);
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 
     /**
@@ -106,7 +123,12 @@ public class DatabaseController {
      */
     @GetMapping("/ping/{packageToSend}")
     public ResponseEntity<WebReturn<Integer>> ping(@PathVariable long packageToSend, @RequestHeader(value="X-Connection-Id") String connectionId) {
-        return ResponseEntity.ok(service.ping(packageToSend, connectionId));
+        try {
+            return ResponseEntity.ok(service.ping(packageToSend, connectionId));
+        } catch (Exception e) {
+            connectionService.logout(connectionId);
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 
     /**
@@ -118,7 +140,12 @@ public class DatabaseController {
      */
     @PostMapping("/updateScope")
     public ResponseEntity<WebReturn<Integer>> updateScope(@RequestParam String username, @RequestParam String key, @RequestParam byte options, @RequestHeader(value="X-Connection-Id") String connectionId) {
-        return ResponseEntity.ok(service.updateScope(username, key, options, connectionId));
+        try {
+            return ResponseEntity.ok(service.updateScope(username, key, options, connectionId));
+        } catch (Exception e) {
+            connectionService.logout(connectionId);
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 
     /**
@@ -131,7 +158,12 @@ public class DatabaseController {
      */
     @PostMapping("/createUser")
     public ResponseEntity<WebReturn<Integer>> createUser(@RequestParam String username, @RequestParam String password, @RequestParam byte options, @RequestHeader(value="X-Connection-Id") String connectionId) {
-        return ResponseEntity.ok(service.createUser(username, password, options, connectionId));
+        try {
+            return ResponseEntity.ok(service.createUser(username, password, options, connectionId));
+        } catch (Exception e) {
+            connectionService.logout(connectionId);
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 
     /**
@@ -144,6 +176,29 @@ public class DatabaseController {
      */
     @GetMapping("/follow")
     public ResponseEntity<WebReturn<TcpGeneral>> follow(@RequestParam String key, @RequestParam long maxJump, @RequestParam boolean isSafe, @RequestHeader(value="X-Connection-Id") String connectionId) {
-        return ResponseEntity.ok(service.follow(key, maxJump, isSafe, connectionId));
+        try {
+            return ResponseEntity.ok(service.follow(key, maxJump, isSafe, connectionId));
+        } catch (Exception e) {
+            connectionService.logout(connectionId);
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
+    }
+
+    /**
+     * Retrieves the permissions of a list of users.
+     *
+     * @param usernames Usernames to get permissions from.
+     * @return A {@link WebReturn} wrapping the {@link TcpGeneral} data if successful,
+     * or an error description if retrieval fails or is stopped.
+     */
+    @PostMapping("/getUserPermissions")
+    public ResponseEntity<WebReturn<TcpGeneral>> getUserPermissions(@RequestBody TcpGeneral usernames, @RequestHeader(value="X-Connection-Id") String connectionId) {
+        WebReturn<TcpGeneral> future = service.getUserPermissions(usernames, connectionId);
+        try {
+            return ResponseEntity.ok(future);
+        } catch (Exception e) {
+            connectionService.logout(connectionId);
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 }

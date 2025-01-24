@@ -682,10 +682,10 @@ public class DatabaseClient {
             }
 
             writer.writeByte(Utility.GET_USER_PERMISSIONS_COMMAND);
-            if (usernames.getArray().isEmpty()) {
+            if (usernames.getArray() == null || usernames.getArray().isEmpty()) {
                 writer.writeByte(0);
             } else {
-                dataWriter.writeGeneral(usernames);
+                dataWriter.writeArray(usernames);
             }
 
             byte response = reader.readByte();

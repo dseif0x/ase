@@ -1,18 +1,15 @@
 .acl-editor {
     max-width: 800px;
-    margin: 0 auto;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     font-family: Arial, sans-serif;
-    color: #333;
 }
 
 h2 {
-    margin-bottom: 20px;
-}
-
-.value-section {
-    display: flex;
-    align-items: center;
-    gap: 10px;
     margin-bottom: 20px;
 }
 
@@ -96,4 +93,53 @@ select {
 
 .update-btn:hover {
     background-color: #45a049;
+}
+
+.editor-title {
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 24px;
+    color: #333;
+}
+
+.editor-section,
+.pair-item {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.editor-section h3,
+.pair-item h3 {
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: #555;
+}
+
+.simple-row,
+.pair-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.simple-row label,
+.pair-row label {
+    flex: 0 0 120px;
+    font-weight: bold;
+    color: #333;
+}
+
+.simple-row select,
+.simple-row input,
+.pair-row select,
+.pair-row input {
+    flex: 1;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
 }

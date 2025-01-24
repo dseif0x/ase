@@ -9,6 +9,18 @@ public class LoginRequest {
     private final String password;
 
     /**
+     * Constructs a new empty LoginRequest.
+     */
+    public LoginRequest() {
+        this.host = null;
+        this.port = 0;
+        this.version = 0;
+        this.flags = 0;
+        this.username = null;
+        this.password = null;
+    }
+
+    /**
      * Constructs a new LoginRequest.
      */
     public LoginRequest(String host, int port, int version, byte flags, String username, String password) {

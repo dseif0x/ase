@@ -46,7 +46,7 @@ public class AuthController {
             );
 
             return ResponseEntity.ok(WebReturn.success(id));
-        } catch (IOException | TCPClientException e) {
+        } catch (Exception e) {
             return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
         }
     }
@@ -66,7 +66,11 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<WebReturn<String>> logout(@RequestHeader("X-Connection-Id") String connectionId) {
-        connectionService.logout(connectionId);
-        return ResponseEntity.ok(WebReturn.success("Logged out successfully"));
+        try {
+            connectionService.logout(connectionId);
+            return ResponseEntity.ok(WebReturn.success("Logged out successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(WebReturn.error(e.getMessage()));
+        }
     }
 }

@@ -109,6 +109,29 @@ std::optional<CopiedValue> ReadWriteClient::simple_get(const std::string &key) {
     return val;
 }
 
+bool ReadWriteClient::set_mode_normal() {
+    if (this->mode == 0) return true; // already in normal mode
+    this->mode = 0;
+    this->encoder->from_byte(0xB0);
+    this->send_buffer();
+    return this->decoder->to_acknak() == 1;
+}
+
+bool ReadWriteClient::set_mode_batching() {
+    if (this->mode == 1) return true; // already in batching mode
+    this->mode = 1;
+    this->encoder->from_byte(0xBA);
+    this->send_buffer();
+    return this->decoder->to_acknak() == 1;
+}
+
+bool ReadWriteClient::flush_batching() {
+    if (this->mode != 1) return false; // do not call flush if not in batching mode
+    this->encoder->from_byte(0xBF);
+    this->send_buffer();
+    return true;
+}
+
 void ReadWriteClient::clear_decoder() {
     this->decoder->clear_buffer();
 }
@@ -127,10 +150,15 @@ std::vector<bool> ReadWriteClient::buffered_set(std::vector<std::pair<std::strin
         this->encoder->from_string(key);
         this->encoder->from_general(val);
     }
+
+    bool flush_res = this->flush_batching();
     this->send_buffer();
+
     for (auto & elem : data) {
         res.push_back(this->decoder->to_acknak() == 1);
     }
+
+    if (flush_res && this->decoder->to_acknak() != 1) std::cout << "Error while trying to get ack for flush." << std::endl;
     return res;
 }
 
@@ -141,11 +169,16 @@ std::vector<std::optional<CopiedValue>> ReadWriteClient::buffered_get(std::vecto
         this->encoder->from_byte(0x01); // get command
         this->encoder->from_string(key);
     }
+
+    bool flush_res = this->flush_batching();
     this->send_buffer();
+
     for (auto &elem : data) {
         if (this->decoder->to_acknak() != 1) res.push_back(std::nullopt); // here we would have to read the error message if errors occured
         else res.push_back(this->decoder->to_general());
     }
+
+    if (flush_res && this->decoder->to_acknak() != 1) std::cout << "Error while trying to get ack for flush." << std::endl;
     return res;
 }
 

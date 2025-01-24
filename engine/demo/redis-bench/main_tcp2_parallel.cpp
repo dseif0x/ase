@@ -9,7 +9,10 @@
 #include <db.h>
 #include "read_write_client.h"
 
-int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client) {
+int do_run(const std::string& name, const std::unordered_map<std::string, std::string>& test_data, ReadWriteClient &client, std::optional<std::ofstream> &out, std::string bench_type) {
+    std::stringstream ss;
+    ss << "TCP2 par;" << bench_type << ";";
+
     stopwatch s;
     int ind = 0;
     for (const auto& [key, value] : test_data) {
@@ -20,23 +23,32 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
         client.simple_set(key, newval);
     }
 
-    print_stopwatch(s, "\tSet Time: ");
-    //client.clear_decoder();
-    //std::cout << "\tUsed Memory: " << db.get_used_memory() / 1024. / 1024. << " Mib" << std::endl;
+    auto duration = s.peek();
+    auto microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    //print_stopwatch(s, std::string("\t") + name + " Set Time: ", out);
+    std::string temp = std::string("\t") + name + " Set Time: ";
+    print_duration(microsduration, temp);
+    ss << microsduration << ";";
     s.reset();
     ind = 0;
     for (const auto& [key, _] : test_data) {
         //std::cout << ind++ << ": " << key << std::endl;
         auto val = client.simple_get(key);
     }
-    print_stopwatch(s, "\tGet Time: ");
+    duration = s.peek();
+    microsduration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    //print_stopwatch(s, std::string("\t") + name + " Set Time: ", out);
+    std::string temp2 = std::string("\t") + name + " Get Time: ";
+    print_duration(microsduration, temp2);
+    ss << microsduration << ";\n";
+    if (out && out->is_open()) *out << ss.str();
 
     client.disconnect();
     return 0;
 }
 
 template<typename T>
-int run_test(const char* name, T&& generate_test_data) {
+int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     constexpr int num_threads = 2;
     std::cout << "Running TCP2 Parallel - ASE Test: " << name << std::endl;
     auto test_data = generate_test_data();
@@ -53,7 +65,7 @@ int run_test(const char* name, T&& generate_test_data) {
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i])));
+        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i]), std::ref(out), name));
     }
 
     for (auto& thread : threads) {
