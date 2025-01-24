@@ -602,6 +602,7 @@ function App() {
                             </button>
 
                         )}
+                        {!node.noEdit && (
                         <button
                             className="edit-button red"
                             onClick={() => {
@@ -610,6 +611,7 @@ function App() {
                         >
                             <MdDelete title="Delete Item"/>
                         </button>
+                        )}
                         {(node.type === "KEY_MAP" || node.type === "ARRAY") && (
                             <button onClick={async () => handleAdd(node, connectionId)} className="add-key-button">
                                 <IoMdAddCircleOutline title="Add Item"/>
