@@ -289,7 +289,7 @@ function App() {
 
             return {
                 processedKey: key,
-                type: `SIMPLE (${data.simpleType || "Unknown"})`,
+                type: `${data.simpleType || "Unknown"}`,
                 value: valueToShow,
                 children: [],
             };
@@ -323,8 +323,8 @@ function App() {
 
         return {
             processedKey: key,
-            type: "ARRAY",
-            value: `Array (${data.array.length} items)`,
+            type: `ARRAY [${data.array.length}]`,
+            value: null,
             children,
             parentKey: null,
             path: null,
@@ -366,7 +366,7 @@ function App() {
                     let valueToShow = tempData.data.value?.toString() || "";
                     if (tempData.data.simpleType === "BOOLEAN") valueToShow = (tempData.data.value ? "True" : "False");
                     return {[key]: {
-                      type: `SIMPLE (${tempData.data.simpleType || "Unknown"})`,
+                      type: `${tempData.data.simpleType || "Unknown"}`,
                       value: valueToShow,
                       children: [],
                     }};
@@ -402,8 +402,8 @@ function App() {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
                         result[subKey] = {
-                            type: "ARRAY",
-                            value: `Array (${subKeyData.array?.length || 0} items)`,
+                            type: "ARRAY [${subKeyData.array?.length || 0}]",
+                            value: null,
                             children: [],
                         };
                     }
@@ -423,7 +423,7 @@ function App() {
                     if (subKeyData.simpleType === "BOOLEAN") valueToShow = (subKeyData.value ? "True" : "False");
 
                     result[subKey] = {
-                        type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
+                        type: `${subKeyData.simpleType || "Unknown"}`,
                         value: valueToShow,
                         children: [],
                     };
@@ -561,10 +561,10 @@ function App() {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
                 <tr>
-                    <td colspan="3" style={{paddingLeft: `${level * 20}px`}}><div class="inner">{printDisplayKey(node, parentNode)}</div></td>
-                    <td>{node.value !== null ? node.value : ""}</td>
-                    <td>{node.type}</td>
-                    <td colspan="2">
+                    <td colspan="4" style={{paddingLeft: `${level * 20}px`}}><div class="inner">{printDisplayKey(node, parentNode)}</div></td>
+                    <td colspan="2">{node.value !== null ? node.value : ""}</td>
+                    <td colspan="2">{node.type}</td>
+                    <td colspan="3">
                         {!node.noEdit && (
                             <button
                                 className="edit-button"
@@ -730,10 +730,10 @@ function App() {
                 <table>
                     <thead>
                     <tr>
-                        <th colspan="3">Key</th>
-                        <th>Value</th>
-                        <th>Type</th>
-                        <th colspan="2">
+                        <th colspan="4">Key</th>
+                        <th colspan="2">Value</th>
+                        <th colspan="2">Type</th>
+                        <th colspan="3">
                             <span>
                                 <button
                                     className="list-button list-all"
