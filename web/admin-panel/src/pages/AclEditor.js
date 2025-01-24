@@ -126,6 +126,7 @@ const AclEditor = () => {
             loadArrayElement(parentKey, arrayPath);
         } else if (keyData && !addKey) {
           queue(async() => {
+            if (keyData === ".") return;
             const val = await get(keyData, connectionId);
             if (val.ok) {
               const data = val.data || {};
@@ -292,15 +293,13 @@ const AclEditor = () => {
 
     const handleAclUpdate = async () => {
       const permDiff = evaluatePermissionDiff(initialPermissions.current, permissions);
+      let ok = permDiff.length;
       for (const permUpdate of permDiff) {
-        queue(async() => {
-            const response = await update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate))
-            if (!response.ok) {
-                toast.error(response.message);
-            } else {
-                toast.success("Permissions updated successfully.");
-            }
-        });
+        queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)).then(res => {
+          console.log(res);
+          if (res.ok) ok -= 1;
+          if (ok === 0) toast.success("Updated ACL!");
+        }));
       }
     }
 
@@ -448,6 +447,8 @@ const AclEditor = () => {
                     </div>
                 </div>
             )}
+      {
+        (keyData !== ".") && (
             <div className="editor-section">
                 <label>Type:</label>
                 <select value={type} onChange={handleTypeChange}>
@@ -457,9 +458,11 @@ const AclEditor = () => {
                     {type === "KEY_MAP" && <option value="KEY_MAP">Key Map</option>}
                 </select>
             </div>
+        )
+      }
 
             {/* SIMPLE Type */}
-            {type === "SIMPLE" && (
+            {keyData !== "." && type === "SIMPLE" && (
                 <div className="editor-section simple-section">
                     <h3>SIMPLE Type</h3>
                     <div className="simple-row">
@@ -610,9 +613,9 @@ const AclEditor = () => {
                 <tr>
                     <th>User/Group</th>
                     <th>Read</th>
-                    <th>Update</th>
-                    <th>Delete</th>
-                    <th>Remove</th>
+                    <th>Add</th>
+                    <th>Modify</th>
+                    {/*<th>Remove</th>*/}
                 </tr>
                 </thead>
                 <tbody>
@@ -628,7 +631,7 @@ const AclEditor = () => {
                                 />
                             </td>
                         ))}
-                        <td>
+                        {/*<td>
                             <button
                                 className="delete-btn"
                                 onClick={() => {
@@ -640,7 +643,7 @@ const AclEditor = () => {
                             >
                                 <span className="trash">&#128465;</span>
                             </button>
-                        </td>
+                        </td>*/}
                     </tr>
                 ))}
                 </tbody>
