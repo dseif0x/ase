@@ -561,10 +561,10 @@ function App() {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
                 <tr>
-                    <td style={{paddingLeft: `${level * 20}px`}}>{printDisplayKey(node, parentNode)}</td>
+                    <td colspan="3" style={{paddingLeft: `${level * 20}px`}}><div class="inner">{printDisplayKey(node, parentNode)}</div></td>
                     <td>{node.value !== null ? node.value : ""}</td>
                     <td>{node.type}</td>
-                    <td>
+                    <td colspan="2">
                         {!node.noEdit && (
                             <button
                                 className="edit-button"
@@ -730,10 +730,10 @@ function App() {
                 <table>
                     <thead>
                     <tr>
-                        <th>Key</th>
+                        <th colspan="3">Key</th>
                         <th>Value</th>
                         <th>Type</th>
-                        <th>
+                        <th colspan="2">
                             <span>
                                 <button
                                     className="list-button list-all"
