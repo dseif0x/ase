@@ -318,10 +318,10 @@ int main(int argc, char* argv[]) {
         }
 
 
-        //CopiedValue newvalAcl{};
-        //newvalAcl.type = ValueType::INT;
-        //newvalAcl.data.emplace<int>(42);
-        //db.set("aclTest", std::move(newvalAcl), true);
+        CopiedValue newvalAcl1{};
+        newvalAcl1.type = ValueType::INT;
+        newvalAcl1.data.emplace<int>(42);
+        db.set("aclTest", std::move(newvalAcl1), true);
 
         CopiedValue newvalAcl{};
         newvalAcl.type = ValueType::INT;
