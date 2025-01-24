@@ -60,7 +60,7 @@ td {
     height: 30px;
 }
 
-td div.inner {
+td div {
   display: flex;
   align-items: center;
   border: 1px solid #ccc;
@@ -71,7 +71,7 @@ td div.inner {
   padding-left: 8px;
 }
 
-td:has(> div.inner:first-child) {
+td:has(> div:first-child) {
   padding-top: 0px;
   padding-bottom: 0px;
   padding-right: 0px;
