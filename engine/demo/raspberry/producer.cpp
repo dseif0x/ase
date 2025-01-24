@@ -13,7 +13,7 @@ int main() {
     CopiedValue stopval{};
     stopval.type = ValueType::BOOLEAN;
     stopval.data = false;
-    db.set("producer_stop", std::move(stopval), true);
+    db.set("producer.stop", std::move(stopval), true);
 
     while (true) {
         auto time = std::chrono::system_clock::now().time_since_epoch();
@@ -22,9 +22,9 @@ int main() {
         CopiedValue newval{};
         newval.type = ValueType::DOUBLE;
         newval.data = static_cast<double>(producer_time);
-        db.set("producer_time", std::move(newval), true);
+        db.set("producer.time", std::move(newval), true);
 
-        auto shallstop = db.get("producer_stop");
+        auto shallstop = db.get("producer.stop");
         if (shallstop.has_value() && shallstop->type == ValueType::BOOLEAN && get<bool>(shallstop->data)) {
             break;
         }

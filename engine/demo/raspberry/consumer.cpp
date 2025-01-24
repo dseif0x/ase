@@ -13,15 +13,15 @@ int main() {
     CopiedValue stopval{};
     stopval.type = ValueType::BOOLEAN;
     stopval.data = false;
-    db.set("consumer_stop", std::move(stopval), true);
+    db.set("consumer.stop", std::move(stopval), true);
 
     while (true) {
-        auto prodtime = db.get("producer_time");
+        auto prodtime = db.get("producer.time");
         if (prodtime.has_value() && prodtime->type == ValueType::DOUBLE) {
             std::cout << "Producer time: " << static_cast<long long>(get<double>(prodtime->data)) << std::endl;
         }
 
-        auto shallstop = db.get("consumer_stop");
+        auto shallstop = db.get("consumer.stop");
         if (shallstop.has_value() && shallstop->type == ValueType::BOOLEAN && get<bool>(shallstop->data)) {
             break;
         }
