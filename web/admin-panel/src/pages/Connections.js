@@ -564,18 +564,18 @@ function App() {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
                 <tr>
-                    <td colspan="4" onClick={() => {
+                    <td colSpan="4" onClick={() => {
                       if (node.children.length > 0)
                         toggleCollapse(node)
-                    }} style={{paddingLeft: `${level * 20}px`}}><div class="inner">{node.children.length > 0 ? (node.collapsed ? (<GoTriangleRight />) : (<GoTriangleDown />)) : ""}{printDisplayKey(node, parentNode)}</div></td>
-                    <td colspan="2">{node.value !== null ? node.value : ""}</td>
-                    <td colspan="2">{node.type}</td>
-                    <td colspan="3">
+                    }} style={{paddingLeft: `${level * 20}px`}}><div>{node.children.length > 0 ? (node.collapsed ? (<GoTriangleRight />) : (<GoTriangleDown />)) : ""}{printDisplayKey(node, parentNode)}</div></td>
+                    <td colSpan="2">{node.value !== null ? node.value : ""}</td>
+                    <td colSpan="2">{node.type}</td>
+                    <td colSpan="3">
                         {!node.noEdit && (
                             <button
                                 className="edit-button"
                                 onClick={() => {
-                                    navigate(`/edit/${node.key}`, {
+                                    navigate(`/edit/${node.key === "." ? "-" : node.key}`, {
                                         state: {
                                             parentKey: node.parentKey,
                                             arrayPath: node.path,
@@ -728,10 +728,10 @@ function App() {
                 <table>
                     <thead>
                     <tr>
-                        <th colspan="4">Key</th>
-                        <th colspan="2">Value</th>
-                        <th colspan="2">Type</th>
-                        <th colspan="3">
+                        <th colSpan="4">Key</th>
+                        <th colSpan="2">Value</th>
+                        <th colSpan="2">Type</th>
+                        <th colSpan="3">
                             <span>
                                 <button
                                     className="list-button list-all"
