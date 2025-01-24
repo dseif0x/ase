@@ -60,11 +60,17 @@ public class AuthController {
      */
     @PostMapping("/isLoggedIn")
     public ResponseEntity<WebReturn<Boolean>> isLoggedIn(@RequestHeader(value="X-Connection-Id") String connectionId) {
-        boolean connectionClosed = databaseService.connectionClosed(connectionId);
-        if (connectionClosed) {
-            return ResponseEntity.ok(WebReturn.error("Connection to Server is closed. Please start it again."));
+        boolean loggedIn = connectionService.getClient(connectionId) != null;
+        if (loggedIn) {
+            boolean connectionClosed = databaseService.connectionClosed(connectionId);
+            if (connectionClosed) {
+                return ResponseEntity.ok(WebReturn.error("Connection to Server is closed. Please start it again."));
+            }
+            return ResponseEntity.ok(WebReturn.success(true));
+        } else {
+            return ResponseEntity.ok(WebReturn.error("Please login first"));
         }
-        return ResponseEntity.ok(WebReturn.success(connectionService.getClient(connectionId) != null));
+
     }
 
     /**
