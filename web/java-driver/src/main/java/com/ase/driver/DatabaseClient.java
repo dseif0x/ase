@@ -869,4 +869,22 @@ public class DatabaseClient {
     public void setDataWriter(DynamicDataWriter dataWriter) {
         this.dataWriter = dataWriter;
     }
+
+    /**
+     * Checks if the connection is synchronous.
+     *
+     * @return {@code true} if the connection is synchronous, {@code false} otherwise.
+     */
+    public boolean connectionClosed() {
+        Random random = new Random();
+        long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
+        if (socket == null || socket.isClosed()) return true;
+
+        try {
+            WebReturn<Integer> ret = this.ping(unsignedInt);
+            return !ret.isOk();
+        } catch (Exception e) {
+            return true;
+        }
+    }
 }

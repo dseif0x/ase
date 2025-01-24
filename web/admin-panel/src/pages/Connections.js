@@ -36,8 +36,10 @@ async function cleanupConnections() {
     for (const conn of savedConnections) {
         try {
             const response = await isLoggedIn(conn.connectionId);
-            if (response) {
+            if (response.ok) {
                 updatedConnections.push(conn);
+            } else {
+                toast.error(response.message)
             }
         } catch (error) {
             console.error(
@@ -462,7 +464,7 @@ function App() {
         (async () => {
             if (selectedConnection && selectedConnection.connectionId) {
                 const loggedIn = await checkLogin();
-                if (loggedIn) {
+                if (loggedIn.ok) {
                     queue(async() => {
                         const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
                         if (acl.ok) {
@@ -471,6 +473,9 @@ function App() {
                             setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
                         } else setHierarchicalDataRoots([]);
                     })
+                } else {
+                    toast.error(loggedIn.message);
+                    setHierarchicalDataRoots([]);
                 }
             }
         })();
@@ -493,7 +498,7 @@ function App() {
     async function refresh() {
       if (selectedConnection && selectedConnection.connectionId) {
         const loggedIn = await checkLogin();
-        if (loggedIn) {
+        if (loggedIn.ok) {
           queue(async() => {
             const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
             if (acl.ok) {
@@ -502,6 +507,9 @@ function App() {
               setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
             } else setHierarchicalDataRoots([]);
           })
+        } else {
+          toast.error(loggedIn.message);
+          setHierarchicalDataRoots([]);
         }
       }
     }
