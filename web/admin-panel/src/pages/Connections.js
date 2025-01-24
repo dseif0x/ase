@@ -495,7 +495,7 @@ function App() {
     async function refresh() {
       if (selectedConnection && selectedConnection.connectionId) {
         const loggedIn = await checkLogin();
-        if (loggedIn) {
+        if (loggedIn.ok) {
           queue(async() => {
             const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
             if (acl.ok) {

@@ -871,12 +871,20 @@ public class DatabaseClient {
     }
 
     /**
-     * Checks if the connection is closed.
+     * Checks if the connection is synchronous.
      *
-     * @return {@code true} if the connection is closed, {@code false} otherwise.
+     * @return {@code true} if the connection is synchronous, {@code false} otherwise.
      */
     public boolean connectionClosed() {
-        if (socket == null) return true;
-        else return socket.isClosed();
+        Random random = new Random();
+        long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
+        if (socket == null || socket.isClosed()) return true;
+
+        try {
+            WebReturn<Integer> ret = this.ping(unsignedInt);
+            return !ret.isOk();
+        } catch (Exception e) {
+            return true;
+        }
     }
 }
