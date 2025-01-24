@@ -713,7 +713,7 @@ function App() {
                         <TbPlugConnected /> Add Connection
                     </button>
 
-                    {selectedConnectionId !== 0 && (
+                    {selectedConnectionId !== 0 && isAdmin && (
                         <button disabled={!selectedConnection} onClick={handleCreateUser} className="add-connection-button">
                             <IoPersonAdd /> Create User
                         </button>
