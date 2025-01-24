@@ -286,13 +286,7 @@ export async function deleteKey(key, connectionId) {
         });
 
         if (!response.ok) {
-            let errorDetails = '';
-            try {
-                errorDetails = await response.json();
-            } catch {
-                errorDetails = await response.text();
-            }
-            throw new Error(`Error: ${response.status} - ${errorDetails}`);
+          return await handleError(response);
         }
 
         const contentType = response.headers.get("Content-Type");
