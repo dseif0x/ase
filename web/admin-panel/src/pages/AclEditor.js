@@ -104,6 +104,7 @@ const AclEditor = () => {
     const navigate = useNavigate();
 
     let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
+    if (keyData === "-") keyData = ".";
     const initialPermissions = useRef([]);
     const initialData = useRef({});
 
