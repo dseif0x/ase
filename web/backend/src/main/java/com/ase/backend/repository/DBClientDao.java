@@ -98,4 +98,12 @@ public interface DBClientDao {
      * or an error description if retrieval fails or is stopped.
      */
     WebReturn<TcpGeneral> getUserPermissions(TcpGeneral usernames, String connectionId);
+
+    /**
+     * Checks if the connection is closed.
+     *
+     * @param connectionId The connection ID.
+     * @return True if the connection is closed, false otherwise.
+     */
+    boolean connectionClosed(String connectionId);
 }

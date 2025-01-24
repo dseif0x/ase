@@ -869,4 +869,14 @@ public class DatabaseClient {
     public void setDataWriter(DynamicDataWriter dataWriter) {
         this.dataWriter = dataWriter;
     }
+
+    /**
+     * Checks if the connection is closed.
+     *
+     * @return {@code true} if the connection is closed, {@code false} otherwise.
+     */
+    public boolean connectionClosed() {
+        if (socket == null) return true;
+        else return socket.isClosed();
+    }
 }
