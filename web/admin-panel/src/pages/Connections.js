@@ -13,6 +13,7 @@ import {TbPlugConnected, TbPlugConnectedX} from "react-icons/tb";
 import {FiRefreshCw} from "react-icons/fi";
 import {IoMdAddCircleOutline} from "react-icons/io";
 import {MdDelete, MdEdit} from "react-icons/md";
+import { GoTriangleRight, GoTriangleDown } from "react-icons/go";
 
 
 const asyncSub = new Subject();
@@ -72,6 +73,8 @@ const buildHierarchy = (obj, prefix = "") => {
                 parentKey: parentKey,
                 path: path,
             };
+
+            if (elem.displayKey === ".") elem.displayKey = ". (DOT)";
 
             result.push(elem);
         }
@@ -293,7 +296,7 @@ function App() {
 
             return {
                 processedKey: key,
-                type: `SIMPLE (${data.simpleType || "Unknown"})`,
+                type: `${data.simpleType || "Unknown"}`,
                 value: valueToShow,
                 children: [],
             };
@@ -327,8 +330,8 @@ function App() {
 
         return {
             processedKey: key,
-            type: "ARRAY",
-            value: `Array (${data.array.length} items)`,
+            type: `ARRAY [${data.array.length}]`,
+            value: null,
             children,
             parentKey: null,
             path: null,
@@ -370,7 +373,7 @@ function App() {
                     let valueToShow = tempData.data.value?.toString() || "";
                     if (tempData.data.simpleType === "BOOLEAN") valueToShow = (tempData.data.value ? "True" : "False");
                     return {[key]: {
-                      type: `SIMPLE (${tempData.data.simpleType || "Unknown"})`,
+                      type: `${tempData.data.simpleType || "Unknown"}`,
                       value: valueToShow,
                       children: [],
                     }};
@@ -406,8 +409,8 @@ function App() {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
                         result[subKey] = {
-                            type: "ARRAY",
-                            value: `Array (${subKeyData.array?.length || 0} items)`,
+                            type: "ARRAY [${subKeyData.array?.length || 0}]",
+                            value: null,
                             children: [],
                         };
                     }
@@ -427,7 +430,7 @@ function App() {
                     if (subKeyData.simpleType === "BOOLEAN") valueToShow = (subKeyData.value ? "True" : "False");
 
                     result[subKey] = {
-                        type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
+                        type: `${subKeyData.simpleType || "Unknown"}`,
                         value: valueToShow,
                         children: [],
                     };
@@ -568,14 +571,17 @@ function App() {
         localStorage.setItem("toggleKeyList", JSON.stringify(toggleKeyList));
     }
 
-    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
+    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0, parentNode = null) => {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
                 <tr>
-                    <td style={{paddingLeft: `${level * 20}px`}}>{printDisplayKey(node, parentNode)}</td>
-                    <td>{node.value !== null ? node.value : ""}</td>
-                    <td>{node.type}</td>
-                    <td>
+                    <td colspan="4" onClick={() => {
+                      if (node.children.length > 0)
+                        toggleCollapse(node)
+                    }} style={{paddingLeft: `${level * 20}px`}}><div class="inner">{node.children.length > 0 ? (node.collapsed ? (<GoTriangleRight />) : (<GoTriangleDown />)) : ""}{printDisplayKey(node, parentNode)}</div></td>
+                    <td colspan="2">{node.value !== null ? node.value : ""}</td>
+                    <td colspan="2">{node.type}</td>
+                    <td colspan="3">
                         {!node.noEdit && (
                             <button
                                 className="edit-button"
@@ -603,14 +609,6 @@ function App() {
                         >
                             <MdDelete title="Delete Item"/>
                         </button>
-                        {node.children.length > 0 && (
-                            <button
-                                className="list-button"
-                                onClick={() => toggleCollapse(node)}
-                            >
-                                {node.collapsed ? "List" : "Close"}
-                            </button>
-                        )}
                         {(node.type === "KEY_MAP" || node.type === "ARRAY") && (
                             <button onClick={async () => handleAdd(node, connectionId)} className="add-key-button">
                                 <IoMdAddCircleOutline title="Add Item"/>
@@ -741,10 +739,10 @@ function App() {
                 <table>
                     <thead>
                     <tr>
-                        <th>Key</th>
-                        <th>Value</th>
-                        <th>Type</th>
-                        <th>
+                        <th colspan="4">Key</th>
+                        <th colspan="2">Value</th>
+                        <th colspan="2">Type</th>
+                        <th colspan="3">
                             <span>
                                 <button
                                     className="list-button list-all"
