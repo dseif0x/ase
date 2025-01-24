@@ -611,9 +611,9 @@ const AclEditor = () => {
                 <tr>
                     <th>User/Group</th>
                     <th>Read</th>
-                    <th>Update</th>
-                    <th>Delete</th>
-                    <th>Remove</th>
+                    <th>Add</th>
+                    <th>Modify</th>
+                    {/*<th>Remove</th>*/}
                 </tr>
                 </thead>
                 <tbody>
@@ -629,7 +629,7 @@ const AclEditor = () => {
                                 />
                             </td>
                         ))}
-                        <td>
+                        {/*<td>
                             <button
                                 className="delete-btn"
                                 onClick={() => {
@@ -641,7 +641,7 @@ const AclEditor = () => {
                             >
                                 <span className="trash">&#128465;</span>
                             </button>
-                        </td>
+                        </td>*/}
                     </tr>
                 ))}
                 </tbody>
