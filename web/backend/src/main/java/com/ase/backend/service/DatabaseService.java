@@ -133,4 +133,13 @@ public class DatabaseService {
     public WebReturn<TcpGeneral> getUserPermissions(TcpGeneral usernames, String connectionId) {
         return dao.getUserPermissions(usernames, connectionId);
     }
+
+    /** Checks if the connection is closed.
+     *  @param connectionId The connection ID to check.
+     * @return True if the connection is closed, false otherwise.
+     *
+     * */
+    public boolean connectionClosed(String connectionId) {
+        return dao.connectionClosed(connectionId);
+    }
 }

@@ -211,9 +211,6 @@ public class DynamicDataWriter {
             }
 
             int len = keyMap.size();
-            if (len == 0) {
-                throw new TCPClientWriteException("KeyMap length invalid.");
-            }
 
             byte[] lengthBytes = Utility.createTCPEUIByteArray(len);
             dataOutputStream.write(lengthBytes);
