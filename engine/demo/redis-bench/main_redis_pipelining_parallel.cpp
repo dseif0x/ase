@@ -23,7 +23,7 @@ int do_run(const std::string& name,
     }
 
     std::stringstream ss;
-    ss << "Redis par;" << bench_type << ";";
+    ss << "Redis pip par;" << bench_type << ";";
 
     // -------------------------------
     // 1. Pipeline all SET commands
