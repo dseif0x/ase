@@ -5,6 +5,7 @@
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
 
+//! @cond
 #pragma once
 
 #include <chrono>
@@ -34,3 +35,4 @@ public:
     duration stop(); //!< stops the timer and returns it's last value
     duration peek(); //!< return the timers current value
 };
+//! @endcond 

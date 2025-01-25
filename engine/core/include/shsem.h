@@ -19,15 +19,25 @@
  */
 class shsem {
 public:
+    /**
+    * initializes the semaphore
+    * @param the initial count
+    */
     shsem(uint32_t initial);
-    ~shsem() = default;
+    ~shsem() = default; //!< the destructor
+    //! @cond
     shsem(const shsem&) = delete;
     shsem& operator=(const shsem&) = delete;
     shsem(shsem&&) = delete;
     shsem& operator=(shsem&&) = delete;
+    //! @endcond
 
-    static void acquire(offset_ptr<shsem> sem, shmem& mem); //!< acquires an semaphore
-    void release(); //!< releases an semaphore
+    static void acquire(offset_ptr<shsem> sem, shmem& mem); //!< acquires a semaphore
+    void release(); //!< releases a semaphore
+    /**
+    * get the count of the semaphore
+    * @return the count of the semaphore
+    */
     int get();
 
 private:
