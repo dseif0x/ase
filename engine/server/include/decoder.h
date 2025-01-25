@@ -56,9 +56,9 @@ protected: // todo think about if there is an elegant way to encapsulate buffer 
     CopiedValue to_complex_general();
 
 public:
-    virtual ~GenericDecoder() = default;
+    virtual ~GenericDecoder() = default; //!< the destructor
 
-    GenericDecoder() = default;
+    GenericDecoder() = default; //!< the default constructor
 
     virtual void read_data() = 0;
 
@@ -163,9 +163,9 @@ protected:
 
 public:
 #ifdef UNIX
-    TCP2Decoder(int client_socket);
+    TCP2Decoder(int client_socket); //!< the UNIX constructor
 #elifdef WIN
-    TCP2Decoder(SOCKET client_socket);
+    TCP2Decoder(SOCKET client_socket); //!< the WIN constructor
 #endif
 
     void read_data() override;
