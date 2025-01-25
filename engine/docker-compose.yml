@@ -1,0 +1,8 @@
+services:
+    ase_demo:
+        ports:
+            - 42069:42069
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.demo
+        restart: always

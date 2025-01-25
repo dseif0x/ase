@@ -7,8 +7,8 @@ COPY . .
 
 WORKDIR /app/build
 RUN cmake -B . -G Ninja -DCMAKE_BUILD_TYPE=Release -DASE_BUILD_DEMO=ON -S .. && \
-    cmake --build . --target rbpi && \
-    cmake --build . --target ase_server
+    cmake --build . --target rbpi -j 1 && \
+    cmake --build . --target ase_server -j 1
 
 RUN cat <<EOF > ./start.sh
 #!/bin/bash
