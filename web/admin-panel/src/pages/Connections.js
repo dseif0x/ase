@@ -14,19 +14,7 @@ import {FiRefreshCw} from "react-icons/fi";
 import {IoMdAddCircleOutline} from "react-icons/io";
 import {MdDelete, MdEdit} from "react-icons/md";
 import { GoTriangleRight, GoTriangleDown } from "react-icons/go";
-
-
-const asyncSub = new Subject();
-const nextAsyncSub = new Subject();
-zip(asyncSub, nextAsyncSub).subscribe({
-  next: ([fn]) => {
-    fn().finally(() => nextAsyncSub.next())
-  }
-});
-nextAsyncSub.next();
-function queue(fn) {
-  asyncSub.next(fn);
-}
+import {queue} from "../utils/Queue";
 
 async function cleanupConnections() {
 
