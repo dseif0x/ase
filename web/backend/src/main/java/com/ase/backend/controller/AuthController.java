@@ -70,7 +70,7 @@ public class AuthController {
         if (loggedIn) {
             boolean connectionClosed = databaseService.connectionClosed(connectionId);
             if (connectionClosed) {
-                return ResponseEntity.ok(WebReturn.error("Connection to Server is closed. Please start it again."));
+                return ResponseEntity.ok(WebReturn.error("Connection to Server is closed. Try reconnecting."));
             }
             return ResponseEntity.ok(WebReturn.success(true));
         } else {

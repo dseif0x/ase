@@ -25,12 +25,8 @@ async function cleanupConnections() {
         for (const conn of savedConnections) {
             try {
                 const response = await isLoggedIn(conn.connectionId)
-                console.log(response)
-                if (response.ok) {
-                    updatedConnections.push(conn);
-                } else {
-                    toast.error(response.message)
-                }
+                conn.loggedIn = response.ok;
+                updatedConnections.push(conn);
             } catch (error) {
                 console.error(
                     `error with id ${conn.id}:`,
@@ -77,7 +73,11 @@ function App() {
     const [hierarchicalDataRoots, setHierarchicalDataRoots] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
     const [isAdmin, setIsAdmin] = useState(false);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [reconnectMode, setReconnectMode] = useState(false);
+    const [connectionToReconnect, setConnectionToReconnect] = useState(null);
+
     const [toggle, setToggle] = useState(false);
 
     const [host, setHost] = useState("");
@@ -101,7 +101,6 @@ function App() {
                 if (item.id === selectedConnectionId && !found) {
                     found = true;
                     setSelectedConnection(item);
-                    setSelectedConnectionId(item.id);
                 }
             });
 
@@ -119,6 +118,12 @@ function App() {
 
     async function checkLogin() {
         return await isLoggedIn(selectedConnection.connectionId);
+    }
+
+    const handleSelect = (connection) => {
+        setSelectedConnection(connection);
+        setSelectedConnectionId(connection.id);
+        localStorage.setItem("selectedConnectionId", connection.id);
     }
 
     const deleteConnection = async (id, connectionId) => {
@@ -224,6 +229,7 @@ function App() {
                     ip: config.host,
                     port: config.port,
                     username: config.username,
+                    loggedIn: true
                 };
 
                 const updatedConnections = [...connections, newConnection];
@@ -261,6 +267,16 @@ function App() {
         setUsername('');
         setPassword('');
     };
+
+    const handleReconnect = (connection) => {
+        setReconnectMode(true);
+        setConnectionToReconnect(connection);
+        setHost(connection.ip);
+        setPort(connection.port);
+        setUsername(connection.username);
+        setPassword(""); // do not store password
+        setIsModalOpen(true);
+    }
 
     function processTcpGeneral(data, key) {
         if (data.type === "KEY_MAP") {
@@ -467,6 +483,7 @@ function App() {
                     } else {
                         toast.error(loggedIn.message);
                         setHierarchicalDataRoots([]);
+                        selectedConnection.loggedIn = false;
                     }
                 });
             }
@@ -501,6 +518,7 @@ function App() {
                 } else {
                     toast.error(loggedIn.message);
                     setHierarchicalDataRoots([]);
+                    selectedConnection.loggedIn = false;
                 }
             })
         }
@@ -621,6 +639,9 @@ function App() {
 
     const onClose = () => {
         setIsModalOpen(false);
+        setReconnectMode(false);
+        setConnectionToReconnect(null);
+        setIsModalOpen(false);
         setHost('');
         setPort('');
         setUsername('');
@@ -633,19 +654,48 @@ function App() {
             return;
         }
 
-        if (connectionExists(host, port, username)) {
-            toast.error("this connection already exists!");
-            return;
-        }
-
         const config:ConnectionConfigDTO = new ConnectionConfigDTO();
         config.host = host;
         config.port = parseInt(port);
         config.username = username;
         config.password = password;
 
+        if (reconnectMode && connectionToReconnect) {
+            connect(config)
+                .then((response: WebReturnDto) => {
+                    if (response.ok) {
+                        connectionToReconnect.connectionId = response.data;
+                        connectionToReconnect.ip = host;
+                        connectionToReconnect.port = port;
+                        connectionToReconnect.username = username;
+                        connectionToReconnect.loggedIn = true;
 
-        if (host && port && username && password) {
+                        const updatedList = connections.map((conn) =>
+                            conn.id === connectionToReconnect.id ? connectionToReconnect : conn
+                        );
+                        localStorage.setItem("connections", JSON.stringify(updatedList));
+
+                        setSelectedConnectionId(connectionToReconnect.id);
+                        setSelectedConnection(connectionToReconnect);
+
+                        toast.success("Reconnected successfully!");
+                    } else {
+                        toast.error(response.data ? `${response.data} - ${response.message}` : response.message);
+                    }
+                })
+                .catch((error) => {
+                    toast.error("Failed to reconnect.");
+                    console.error("Failed to reconnect:", error);
+                })
+                .finally(() => {
+                    onClose();
+                });
+        } else {
+            if (connectionExists(host, port, username)) {
+                toast.error("this connection already exists!");
+                return;
+            }
+
             connect(config).then(async (response: WebReturnDto) => {
                 if (response.ok) {
                     const newConnection = {
@@ -654,6 +704,7 @@ function App() {
                         ip: host,
                         port: port,
                         username: username,
+                        loggedIn: true
                     };
 
                     const updatedConnections = [...connections, newConnection];
@@ -671,11 +722,10 @@ function App() {
             }).catch((error) => {
                 toast.error("Failed to add connection.");
                 console.error("Failed to add connection:", error);
+            }).finally(() => {
+                onClose();
             });
-        } else {
-            console.error("Invalid connection details.");
         }
-        onClose();
     };
 
     return (
@@ -687,8 +737,7 @@ function App() {
                         key={connection.id}
                         className={`connection ${selectedConnectionId === connection.id ? "selected" : ""}`}
                         onClick={() => {
-                            setSelectedConnection(connection);
-                            setSelectedConnectionId(connection.id);
+                            handleSelect(connection);
                         }}
                     >
                         <input
@@ -697,11 +746,21 @@ function App() {
                             value={connection.id}
                             checked={selectedConnectionId === connection.id}
                             onChange={() => {
-                                setSelectedConnection(connection);
-                                setSelectedConnectionId(connection.id);
+                                handleSelect(connection);
                             }}                        />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
-                        {connection.id !== 0 && (
+                        {!connection.loggedIn && (
+                            <button
+                                className="delete-button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReconnect(connection);
+                                }}
+                            >
+                                <TbPlugConnected /> Reconnect
+                            </button>
+                        )}
+                        {connection.id !== 0 && connection.loggedIn && (
                             <button
                                 className="delete-button"
                                 onClick={() => deleteConnection(connection.id, connection.connectionId)}
@@ -762,7 +821,8 @@ function App() {
                 {isModalOpen &&
                     <div className="modal-backdrop">
                         <div className="modal">
-                            <h2>Enter Configuration</h2>
+                            {reconnectMode && (<h2>Reconnect Configuration</h2>)}
+                            {!reconnectMode && (<h2>Enter Configuration</h2>)}
                             <div className="modal-content">
                                 <label>
                                     Host:
@@ -823,7 +883,8 @@ function App() {
                             </div>
                             <div className="modal-actions">
                                 <button onClick={onClose} className="cancel-button">Cancel</button>
-                                <button onClick={handleSave} className="save-button">Save</button>
+                                {reconnectMode && (<button onClick={handleSave} className="save-button">Reconnect</button>)}
+                                {!reconnectMode && (<button onClick={handleSave} className="save-button">Add</button>)}
                             </div>
                         </div>
                     </div>
