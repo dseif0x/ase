@@ -458,7 +458,7 @@ const AclEditor = () => {
       }
 
             {/* SIMPLE Type */}
-            {keyData !== "." && type === "SIMPLE" && (
+            {(keyData !== "." || addKey) && type === "SIMPLE" && (
                 <div className="editor-section simple-section">
                     <h3>SIMPLE Type</h3>
                     <div className="simple-row">
