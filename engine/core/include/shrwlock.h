@@ -24,12 +24,14 @@
  */
 class shrwlock {
 public:
-    shrwlock();
-    ~shrwlock();
+    shrwlock(); //!< the default constructor
+    ~shrwlock(); //!< the destructor
+    //! @cond
     shrwlock(const shrwlock&) = delete;
     shrwlock& operator=(const shrwlock&) = delete;
     shrwlock(shrwlock&&) = delete;
     shrwlock& operator=(shrwlock&&) = delete;
+    //! @endcond
 
     void lock(); //!< acquires an unique lock
     void unlock(); //!< releases an unique lock

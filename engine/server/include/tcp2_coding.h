@@ -154,7 +154,7 @@ namespace info_block {
     }
 
     /**
-     * @brief Retrieves the byte representation of the given ValueType.
+     * @brief Retrieves the byte representation of the given *simple* ValueType.
      * @param type The ValueType to encode.
      * @return The corresponding byte.
      */
@@ -176,7 +176,11 @@ namespace info_block {
                 return 0;
         }
     }
-
+    /**
+     * @brief Retrieves the byte representation of the given *complex* ValueType.
+     * @param type The ValueType to encode.
+     * @return The corresponding byte.
+     */
     constexpr unsigned char get_complex_byte(const ValueType type) {
         switch (type) {
             case ValueType::ARRAY:

@@ -13,18 +13,29 @@ int main() {
     CopiedValue stopval{};
     stopval.type = ValueType::BOOLEAN;
     stopval.data = false;
-    db.set("producer_stop", std::move(stopval), true);
+    db.set("producer.stop", std::move(stopval), true);
+
+    CopiedValue pauseval{};
+    pauseval.type = ValueType::BOOLEAN;
+    pauseval.data = false;
+    db.set("producer.pause", std::move(pauseval), true);
 
     while (true) {
+        auto shallpause = db.get("producer.pause");
+        if (shallpause.has_value() && shallpause->type == ValueType::BOOLEAN && get<bool>(shallpause->data)) {
+            std::cout << "Paused producer" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
         auto time = std::chrono::system_clock::now().time_since_epoch();
         auto producer_time = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
 
         CopiedValue newval{};
         newval.type = ValueType::DOUBLE;
         newval.data = static_cast<double>(producer_time);
-        db.set("producer_time", std::move(newval), true);
+        db.set("producer.time", std::move(newval), true);
 
-        auto shallstop = db.get("producer_stop");
+        auto shallstop = db.get("producer.stop");
         if (shallstop.has_value() && shallstop->type == ValueType::BOOLEAN && get<bool>(shallstop->data)) {
             break;
         }
