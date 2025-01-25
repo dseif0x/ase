@@ -30,18 +30,68 @@ class offset_ptr {
 private:
     offset_t offset;
 public:
+    /**
+     * @brief Constructs an offset_ptr by copying the offset from another offset_ptr.
+     *
+     * @tparam U The type of the other offset_ptr.
+     * @param other The other offset_ptr to copy the offset from.
+     */
     template <typename U>
     offset_ptr(const offset_ptr<U>& other): offset{other.offset} {}
+    /**
+     * @brief Constructs an offset_ptr with a specific offset value.
+     *
+     * @param offset The offset value to initialize the offset_ptr.
+     */
     offset_ptr(offset_t offset) : offset{offset} {};
+    /**
+     * @brief Default constructor for offset_ptr.
+     *
+     * Initializes the offset_ptr with a default invalid offset value (-1).
+     */
     offset_ptr() : offset{-1} {};
 
+    /**
+    * Returns the offset
+    * @return the offset
+    */
     offset_t get_offset() const {
         return offset;
     }
-    T* get(shmem& mem) const; //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-    relative_offset_ptr<T> get_relative(shmem& mem) const; //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    /**
+     * @onlyInAtomicAccess
+     *
+     * Resolves the Pointer
+     * @param mem a reference to the shared memory.
+     * @return A pointer to the contained object.
+     */
+    T* get(shmem& mem) const;
+    /**
+     * @onlyInAtomicAccess
+     *
+     * Transform to relative offset pointer
+     * @param mem a reference to the shared memory.
+     * @return A relative offset pointer pointing to the same object.
+     */
+    relative_offset_ptr<T> get_relative(shmem& mem) const;
+    /**
+     * @onlyInAtomicAccess
+     *
+     * Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
+     * @param mem a reference to the shared memory.
+     * @param lambda a function that take the contained pointer as an argument
+     * @param locks_held indicates if locks are already held or need to be acquired (default false)
+     */
     template <typename Lambda>
-    void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false); //!< Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
+    void atomic_access(shmem& mem, Lambda&& lambda, bool locks_held = false);
+    /**
+     * @onlyInAtomicAccess
+     *
+     * Will ensure that the passed lambda expression is executed atomically (no concurrent resizing of the shared memory)
+     * @param mem a reference to the shared memory.
+     * @param lambda a function that take the contained pointer as an argument
+     * @param locks_held indicates if locks are already held or need to be acquired (default false)
+     */
     explicit operator bool() const {
         return offset >= 0;
     }
