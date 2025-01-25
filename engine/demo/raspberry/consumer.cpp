@@ -15,7 +15,19 @@ int main() {
     stopval.data = false;
     db.set("consumer.stop", std::move(stopval), true);
 
+    CopiedValue pauseval{};
+    pauseval.type = ValueType::BOOLEAN;
+    pauseval.data = false;
+    db.set("consumer.pause", std::move(pauseval), true);
+
     while (true) {
+        auto shallpause = db.get("consumer.pause");
+        if (shallpause.has_value() && shallpause->type == ValueType::BOOLEAN && get<bool>(shallpause->data)) {
+            std::cout << "Paused consumer" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
+
         auto prodtime = db.get("producer.time");
         if (prodtime.has_value() && prodtime->type == ValueType::DOUBLE) {
             std::cout << "Producer time: " << static_cast<long long>(get<double>(prodtime->data)) << std::endl;
