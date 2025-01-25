@@ -67,12 +67,11 @@ public:
 class db_map {
 public:
     using map_entry_type = std::tuple<offset_ptr<char>, offset_ptr<Value>, offset_t>;
+    static inline std::hash<std::string> hash_fn; //!< the hash function
 
-    static inline std::hash<std::string> hash_fn;
+    db_map(); //!< the constructor
 
-    db_map();
-
-    ~db_map();
+    ~db_map(); //!< the destructor
 
     shrwlock& get_lock() {
         return lock;
@@ -172,18 +171,6 @@ public:
             data_p[used_size++] = std::make_tuple(new_key, value, next);
             map_p->used_size = used_size;
         }, true);
-    }
-
-    void print_data(shmem& mem) {
-        map_entry_type* data = this->data.get(mem);
-        for (size_t i = 0; i < used_size; i++) {
-
-            auto key = std::get<0>(data[i]).get(mem);
-            auto value = std::get<1>(data[i]).get(mem);
-            auto next = std::get<2>(data[i]);
-
-            std::cout << key << " : " << value << " : " << (int)value->type << " : " << next << std::endl;
-        }
     }
 
     /**
