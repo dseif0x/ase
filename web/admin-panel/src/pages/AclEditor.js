@@ -109,6 +109,14 @@ const AclEditor = () => {
     const [parentArrayData, setParentArrayData] = useState(null);
 
     useEffect(() => {
+        if (simpleType === "BOOLEAN") {
+            setValue("True");
+        } else {
+            setValue("");
+        }
+    }, [simpleType]);
+
+    useEffect(() => {
         if (arrayPath && parentKey && !addKey) {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
