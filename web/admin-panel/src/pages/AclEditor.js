@@ -1,22 +1,10 @@
 import React, {useEffect, useState, useRef} from "react";
-import {Subject, zip} from "rxjs";
 import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/AclEditor.css";
 import {get, set, get_acl, update_acl} from "../api/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-const asyncSub = new Subject();
-const nextAsyncSub = new Subject();
-zip(asyncSub, nextAsyncSub).subscribe({
-  next: ([fn]) => {
-    fn().finally(() => nextAsyncSub.next())
-  }
-});
-nextAsyncSub.next();
-function queue(fn) {
-  asyncSub.next(fn);
-}
+import {queue} from "../utils/Queue";
 
 function evaluatePermissionDiff(initial, current) {
   const res = [];

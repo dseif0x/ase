@@ -27,9 +27,15 @@ template <typename Mutex>
 class shared_wrapped_mutex {
     Mutex& mtx;
 public:
+    /**
+    * Constructor
+    * @param mtx A Mutex& used for the lock.
+    */
     shared_wrapped_mutex(Mutex& mtx) : mtx{mtx} {}
+    /// @cond
     shared_wrapped_mutex(const shared_wrapped_mutex&) = delete;
     shared_wrapped_mutex(shared_wrapped_mutex&&) = delete;
+    /// @endcond
 
     /**
      * acquires a shared lock

@@ -29,10 +29,10 @@ namespace ASE {
         std::mutex general_lock; // todo think about locking individual users
 
     public:
-        ACL(); // create default with one admin
+        ACL(); //!< create default with one admin
 
-        bool load_from_disk(std::string path); // load acl from disk
-        bool save_to_disk(std::string path);
+        bool load_from_disk(std::string path); //!< load acl from disk
+        bool save_to_disk(std::string path); //!< save acl to disk
 
         /**
          * @brief Attempts to log in a user.
@@ -60,10 +60,30 @@ namespace ASE {
          */
         void disconnect(const std::string &user);
 
+        /**
+        * Checks if a user exists
+        *
+        * @param username the username to check for
+        * @return whether a user with the given name exists or not
+        */
         bool has_user(std::string &username);
 
+        /**
+        * Checks if a user is connected
+        *
+        * @param username the username to check for
+        * @return whether the user is connected or not
+        */
         bool user_is_connected(std::string &username);
 
+        /**
+        * Updates the permissions of a given user
+        *
+        * @param user the username to check for
+        * @param key the split key
+        * @param permissions the new permission value
+        * @return whether the operation was successful
+        */
         bool update_key_permission(std::string user, std::vector<std::string> key, unsigned char permissions);
 
 
@@ -87,6 +107,12 @@ namespace ASE {
         */
         std::vector<std::string> get_all_usernames();
 
+        /**
+        * gets the permission and an indication if the user is admin
+        * @param name the username
+        * @return If value where found, a @ref CopiedValue of type PAIR is returned where the first value
+        * indicates that the user is admin and the second contains the ACL tree
+        */
         std::optional<CopiedValue> get_user_permissions_pair(std::string &name);
     };
 }
@@ -105,8 +131,13 @@ class ACLUser {
     CopiedValue permissions;
 
 public:
+    /**
+    * constructs a new user
+    * @param password the password of the user
+    * @param isAdmin indicates if the user should be an admin
+    */
     ACLUser(const std::string& password, bool isAdmin);
-    ACLUser() = default;
+    ACLUser() = default; //!< the default constructor
 
     /**
      * @brief Checks if a user has the required permissions for a given key.
@@ -129,11 +160,11 @@ public:
     * @brief Update the password of the user.
     */
     void update_pwd(const std::string& pwd);
-    bool is_admin();
+    bool is_admin(); //!< checks if the user is admin
 
-    void set_permissions(CopiedValue &value);
-    void serialize_user(std::vector<CopiedValue> &value);
-    CopiedValue get_user_permissions_pair();
+    void set_permissions(CopiedValue &value); //!< override ALL permissions of the user
+    void serialize_user(std::vector<CopiedValue> &value); //!< serializes the data of the user
+    CopiedValue get_user_permissions_pair(); //!< gets the user permissions as well as an indicator if the user is admin. see @ref ASE::ACL::get_user_permissions_pair
 
     /**
      * @brief Generates a string representation of the user's data.
@@ -142,7 +173,7 @@ public:
      */
     std::string print_user_data();
 
-    void update_key_permission(std::vector<std::string> key, unsigned char permissions);
+    void update_key_permission(std::vector<std::string> key, unsigned char permissions); //!< set the permission of the user. see @ref ASE::ACL::update_key_permission
 };
 
 
