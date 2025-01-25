@@ -607,7 +607,7 @@ function App() {
                             </button>
 
                         )}
-                        {!node.noEdit && (
+                        {!node.noEdit && node.key !== '.' && (
                         <button
                             className="edit-button red"
                             onClick={() => {
