@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include <thread>
 #include "shmem.h"
+#include "shsem.h"
 
 class Core : public ::testing::Test {
 public:
@@ -115,4 +116,28 @@ TEST_F(Core, MultiProcessAllocDeallocMultiple) {
 
     auto ptr = mem->construct<alloc_type>();
     EXPECT_EQ(ptr.get_offset(), mem->get_management_offset());
+}
+
+TEST(Data, DumpData) {
+    shmem::destroy_data();
+    auto* mem = new shmem([](shmem& mem) {
+        mem.construct<int>(42);
+    });
+    auto x = mem->dump_data();
+    mem->destroy();
+    delete mem;
+    auto* mem2 = new shmem();
+    mem2->load_data(x);
+    offset_ptr<int> tmp = mem2->get_management_offset();
+    EXPECT_EQ(*tmp.get(*mem2), 42);
+}
+
+TEST_F(Core, SemaphoreAcquireRelease) {
+    auto sem = mem->construct<shsem>(1);
+    shsem::acquire(sem, *mem);
+    EXPECT_EQ(sem.get(*mem)->get(), 0);
+    sem.atomic_access(*mem, [](shsem* sem) {
+        sem->release();
+    });
+    EXPECT_EQ(sem.get(*mem)->get(), 1);
 }
