@@ -109,6 +109,14 @@ const AclEditor = () => {
     const [parentArrayData, setParentArrayData] = useState(null);
 
     useEffect(() => {
+        if (simpleType === "BOOLEAN") {
+            setValue("True");
+        } else {
+            setValue("");
+        }
+    }, [simpleType]);
+
+    useEffect(() => {
         if (arrayPath && parentKey && !addKey) {
             setIsEditingArrayElement(true);
             loadArrayElement(parentKey, arrayPath);
@@ -450,7 +458,7 @@ const AclEditor = () => {
       }
 
             {/* SIMPLE Type */}
-            {keyData !== "." && type === "SIMPLE" && (
+            {(keyData !== "." || addKey) && type === "SIMPLE" && (
                 <div className="editor-section simple-section">
                     <h3>SIMPLE Type</h3>
                     <div className="simple-row">
