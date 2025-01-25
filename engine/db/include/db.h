@@ -13,6 +13,7 @@
 #include "shmem.h"
 
 using db_key_map = db_map;
+//! The different types of Aggregations provided by @ref DB::aggregate
 enum class Aggregation{
     SUM,
     MIN,
@@ -30,15 +31,25 @@ enum class Aggregation{
 class DB {
 public:
     using list_t = std::optional<std::unordered_map<std::string, std::pair<ValueType, std::variant<std::monostate, bool, int, std::string, double>>>>;
-    DB();
-    ~DB();
+    DB(); //!< the constructor
+    ~DB(); //!< the destructor
 
+    /**
+    * Writes the data to a file
+    * @param file the path to the file
+    * @return rather or not the operation was successful
+    */
     bool dump_data(const std::string& file);
+    /**
+    * Loads the data from a file
+    * @param filename the path to the file
+    * @return rather or not the operation was successful
+    */
     bool load_data(const std::string& filename);
 
-    static void destroy();
+    static void destroy(); //!< Destroys the data @ref shmem::destroy_data
 
-    std::size_t get_used_memory();
+    std::size_t get_used_memory(); //!< Returns the used memory @ref shmem::get_used_memory
 
     // Core Commands
 
@@ -101,8 +112,6 @@ public:
     void acquire_lock(const char* key /*, uint16 timeout*/); //!< ACQUIRE_LOCK command of the database, will acquire a lock on a key
     void release_lock(const char* key); //!< RELEASE_LOCK command of the database, will release a lock on a key
 
-    // Graph Commands
-    // TODO void graph_query(const char* query_type, const char* start_key); // GRAPH_QUERY command of the database, will execute a graph query
 private:
     offset_ptr<db_key_map> get_entrypoint();
 
