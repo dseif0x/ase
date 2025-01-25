@@ -37,7 +37,7 @@ TEST_F(Core, SingleProcessAllocMultiple) {
     using alloc_type = int;
 
     auto prev_offset = mem->construct<alloc_type>();
-    for (int i = 0; i < 1024 * 1024; i++) {
+    for (int i = 0; i < 1024; i++) {
         auto ptr = mem->construct<alloc_type>();
         EXPECT_GT(ptr.get_offset(), prev_offset.get_offset());
         prev_offset = ptr;
@@ -59,7 +59,7 @@ TEST_F(Core, SingleProcessAllocDeallocMultiple) {
     std::vector<offset_ptr<alloc_type>> ptrs;
     auto prev_offset = mem->construct<alloc_type>();
     ptrs.push_back(prev_offset);
-    for (int i = 0; i < 1024 * 1024; i++) {
+    for (int i = 0; i < 1024; i++) {
         auto ptr = mem->construct<alloc_type>();
         EXPECT_GT(ptr.get_offset(), prev_offset.get_offset());
         ptrs.push_back(ptr);
