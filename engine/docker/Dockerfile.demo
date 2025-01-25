@@ -1,0 +1,25 @@
+FROM ubuntu:24.10
+WORKDIR /app
+
+RUN apt update && apt install -y build-essential cmake ninja-build git
+
+COPY . .
+
+WORKDIR /app/build
+RUN cmake -B . -G Ninja -DCMAKE_BUILD_TYPE=Release -DASE_BUILD_DEMO=ON -S .. && \
+    cmake --build . --target rbpi -j 1 && \
+    cmake --build . --target ase_server -j 1
+
+RUN cat <<EOF > ./start.sh
+#!/bin/bash
+./server/ase_server --port 42069 --destroy &
+sleep 1
+./demo/raspberry/rbpi_consumer &
+./demo/raspberry/rbpi_producer &
+echo "All processes started"
+sleep infinity
+EOF
+
+RUN chmod +x ./start.sh
+
+CMD ["./start.sh"]
