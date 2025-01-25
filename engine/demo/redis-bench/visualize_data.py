@@ -97,11 +97,70 @@ def plot_boxplots_with_custom_labels(df):
     for test_type in test_types:
         test_data = plot_data[plot_data["TestType"] == test_type]
 
-        averages = (
-            test_data.groupby(["Execution", "TimeType"])["TimeInSeconds"]
-            .mean()
-            .reset_index()
+        # Create the boxplot for this test type
+        fig = px.box(
+            test_data,
+            x="Execution",               # Group by execution type
+            y="TimeInSeconds",           # Time in seconds
+            color="TimeType",            # Distinguish SetTime and GetTime
+            title=f"Benchmark: {test_type} (2 Threads on parallel benchmarks)",
+            labels={"TimeInSeconds": "Time", "Execution": "Execution Type"},
+            boxmode="group"              # Group SetTime and GetTime in one chart
         )
+
+        # Get tick values dynamically
+        y_min = test_data["TimeInSeconds"].min()
+        y_max = test_data["TimeInSeconds"].max()
+        tickvals = generate_custom_ticks(y_min, y_max)
+
+        # Apply the formatting function to the ticks
+        ticktext = [format_y_axis_labels(val) for val in tickvals]
+
+        # Update layout with custom tick labels
+        fig.update_layout(
+            yaxis=dict(
+                tickvals=tickvals,  # Tick positions
+                ticktext=ticktext,  # Custom labels with units
+                title="Time",
+                type="log"
+            ),
+            xaxis_title="Executable",
+            legend_title="Time Type",
+            boxmode="group",
+        )
+
+        # Show the figure
+        fig.show()
+
+def plot_boxplots_with_custom_labels2(df):
+    """
+    Create boxplots for SetTime and GetTime using Plotly.
+    Dynamically format y-axis tick labels to include units (s, ms, µs),
+    and add vertical lines between grouped boxplots.
+    """
+    # Convert Timedelta to total seconds for Plotly
+    df["SetTimeSeconds"] = df["SetTime"].dt.total_seconds()
+    df["GetTimeSeconds"] = df["GetTime"].dt.total_seconds()
+
+    # Prepare data in long format for Plotly
+    plot_data = pd.melt(
+        df,
+        id_vars=["Execution", "TestType"],
+        value_vars=["SetTimeSeconds", "GetTimeSeconds"],
+        var_name="TimeType",
+        value_name="TimeInSeconds"
+    )
+
+    # Update the TimeType column to make labels clearer
+    plot_data["TimeType"] = plot_data["TimeType"].replace({
+        "SetTimeSeconds": "Set Time",
+        "GetTimeSeconds": "Get Time"
+    })
+
+    # Generate a separate figure for each test type
+    test_types = plot_data["TestType"].unique()
+    for test_type in test_types:
+        test_data = plot_data[plot_data["TestType"] == test_type]
 
         # Create the boxplot for this test type
         fig = px.box(
@@ -122,21 +181,6 @@ def plot_boxplots_with_custom_labels(df):
         # Apply the formatting function to the ticks
         ticktext = [format_y_axis_labels(val) for val in tickvals]
 
-        '''
-        # Add average markers
-        for _, row in averages.iterrows():
-            fig.add_scatter(
-                x=[row["Execution"]],                # Execution type
-                y=[row["TimeInSeconds"]],           # Average time
-                mode="text",
-                marker=dict(size=10, symbol="diamond", color="black"),
-                text=[f"Avg: {format_y_axis_labels(row['TimeInSeconds'])}"],
-                textposition="top center",
-                name=f"Avg {row['TimeType']}",       # Legend entry for the average
-                showlegend=False                    # Don't show legend for averages
-            )
-        '''
-
         # Update layout with custom tick labels
         fig.update_layout(
             yaxis=dict(
@@ -149,6 +193,26 @@ def plot_boxplots_with_custom_labels(df):
             legend_title="Time Type",
             boxmode="group",
         )
+
+        # Add vertical lines between grouped boxplots
+        x_categories = test_data["Execution"].unique()
+        for i in range(len(x_categories) - 1):
+            # Calculate the x-coordinate for the vertical line
+            x0 = i + 0.5
+            fig.add_shape(
+                type="line",
+                x0=x0,
+                x1=x0,
+                y0=y_min,
+                y1=y_max,
+                line=dict(
+                    color="white",
+                    width=1,  # Same as y-axis line width
+                    dash="dash"
+                ),
+                xref="x",
+                yref="y"
+            )
 
         # Show the figure
         fig.show()
@@ -226,7 +290,7 @@ if __name__ == "__main__":
     input_path = args.input
     print(f"Output file specified: {input_path}")
     data = load_data(input_path)
-    plot_boxplots_with_custom_labels(data)
+    plot_boxplots_with_custom_labels2(data)
     tables = generate_tables(data)
     print("START PRINTING MARKDOWN:\n\n")
     for x in tables[0]:
