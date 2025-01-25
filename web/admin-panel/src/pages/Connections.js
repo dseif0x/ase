@@ -4,7 +4,7 @@ import {useNavigate} from "react-router-dom";
 import ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 import {connect, deleteKey, disconnect, isLoggedIn, list, set, get_acl} from "../api/Api";
 import type WebReturnDto from "../dto/WebReturnDto";
-import {Subject, zip} from "rxjs";
+import {async, Subject, zip} from "rxjs";
 import {get} from "../api/Api";
 import {toast, ToastContainer} from "react-toastify";
 import "../styles/modals/ConfigModal.css";
@@ -13,6 +13,7 @@ import {TbPlugConnected, TbPlugConnectedX} from "react-icons/tb";
 import {FiRefreshCw} from "react-icons/fi";
 import {IoMdAddCircleOutline} from "react-icons/io";
 import {MdDelete, MdEdit} from "react-icons/md";
+import { GoTriangleRight, GoTriangleDown } from "react-icons/go";
 
 
 const asyncSub = new Subject();
@@ -28,25 +29,29 @@ function queue(fn) {
 }
 
 async function cleanupConnections() {
-    const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
 
-    const updatedConnections = [];
+    queue(async () => {
+        const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
+        const updatedConnections = [];
 
-    for (const conn of savedConnections) {
-        try {
-            const response = await isLoggedIn(conn.connectionId);
-            if (response) {
-                updatedConnections.push(conn);
+        for (const conn of savedConnections) {
+            try {
+                const response = await isLoggedIn(conn.connectionId)
+                console.log(response)
+                if (response.ok) {
+                    updatedConnections.push(conn);
+                } else {
+                    toast.error(response.message)
+                }
+            } catch (error) {
+                console.error(
+                    `error with id ${conn.id}:`,
+                    error
+                );
             }
-        } catch (error) {
-            console.error(
-                `error with id ${conn.id}:`,
-                error
-            );
         }
-    }
-
-    localStorage.setItem("connections", JSON.stringify(updatedConnections));
+        localStorage.setItem("connections", JSON.stringify(updatedConnections));
+    });
 }
 
 const buildHierarchy = (obj, prefix = "") => {
@@ -68,6 +73,8 @@ const buildHierarchy = (obj, prefix = "") => {
                 parentKey: parentKey,
                 path: path,
             };
+
+            if (elem.displayKey === ".") elem.displayKey = ". (DOT)";
 
             result.push(elem);
         }
@@ -289,7 +296,7 @@ function App() {
 
             return {
                 processedKey: key,
-                type: `SIMPLE (${data.simpleType || "Unknown"})`,
+                type: `${data.simpleType || "Unknown"}`,
                 value: valueToShow,
                 children: [],
             };
@@ -323,8 +330,8 @@ function App() {
 
         return {
             processedKey: key,
-            type: "ARRAY",
-            value: `Array (${data.array.length} items)`,
+            type: `ARRAY [${data.array.length}]`,
+            value: null,
             children,
             parentKey: null,
             path: null,
@@ -356,6 +363,7 @@ function App() {
         try {
             if (key !== ".") {
               const tempData = await get(key, selectedConnection.connectionId);
+              console.log("get: ", key, tempData);
               if (tempData?.ok && tempData.data?.type) {
                 if (tempData.data.type !== "KEY_MAP") {
                   if (tempData.data.type === "ARRAY") {
@@ -366,7 +374,7 @@ function App() {
                     let valueToShow = tempData.data.value?.toString() || "";
                     if (tempData.data.simpleType === "BOOLEAN") valueToShow = (tempData.data.value ? "True" : "False");
                     return {[key]: {
-                      type: `SIMPLE (${tempData.data.simpleType || "Unknown"})`,
+                      type: `${tempData.data.simpleType || "Unknown"}`,
                       value: valueToShow,
                       children: [],
                     }};
@@ -402,8 +410,8 @@ function App() {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
                         result[subKey] = {
-                            type: "ARRAY",
-                            value: `Array (${subKeyData.array?.length || 0} items)`,
+                            type: "ARRAY [${subKeyData.array?.length || 0}]",
+                            value: null,
                             children: [],
                         };
                     }
@@ -423,7 +431,7 @@ function App() {
                     if (subKeyData.simpleType === "BOOLEAN") valueToShow = (subKeyData.value ? "True" : "False");
 
                     result[subKey] = {
-                        type: `SIMPLE (${subKeyData.simpleType || "Unknown"})`,
+                        type: `${subKeyData.simpleType || "Unknown"}`,
                         value: valueToShow,
                         children: [],
                     };
@@ -448,7 +456,7 @@ function App() {
       else {
         for (const nextKey in curr.value.keyMap) {
           if (nextKey === "$") continue;
-          candidates.push({"key": nextKey, "value": curr.value.keyMap[nextKey]});
+          candidates.push({"key": (curr["key"] !== "." ? curr["key"]+".": "")+nextKey, "value": curr.value.keyMap[nextKey]});
         }
       }
     }
@@ -458,17 +466,21 @@ function App() {
     useEffect(() => {
         (async () => {
             if (selectedConnection && selectedConnection.connectionId) {
-                const loggedIn = await checkLogin();
-                if (loggedIn) {
-                    queue(async() => {
+                queue(async () => {
+                    const loggedIn = await checkLogin();
+                    if (loggedIn.ok) {
+
                         const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
                         if (acl.ok) {
                             const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
                             setHierarchicalDataRoots(dataRoots);
                             setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
                         } else setHierarchicalDataRoots([]);
-                    })
-                }
+                    } else {
+                        toast.error(loggedIn.message);
+                        setHierarchicalDataRoots([]);
+                    }
+                });
             }
         })();
     }, [selectedConnection]);
@@ -488,19 +500,22 @@ function App() {
     }, [hierarchicalDataRoots]);
 
     async function refresh() {
-      if (selectedConnection && selectedConnection.connectionId) {
-        const loggedIn = await checkLogin();
-        if (loggedIn) {
-          queue(async() => {
-            const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
-            if (acl.ok) {
-              const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
-              setHierarchicalDataRoots(dataRoots);
-              setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
-            } else setHierarchicalDataRoots([]);
-          })
+        if (selectedConnection && selectedConnection.connectionId) {
+            queue(async () => {
+                const loggedIn = await checkLogin();
+                if (loggedIn.ok) {
+                    const acl = await get_acl(selectedConnection.connectionId, [selectedConnection.username]);
+                    if (acl.ok) {
+                        const dataRoots = getRoots(acl.data?.keyMap?.[selectedConnection.username]?.pair?.right);
+                        setHierarchicalDataRoots(dataRoots);
+                        setIsAdmin(acl.data?.keyMap?.[selectedConnection.username]?.pair?.left?.value);
+                    } else setHierarchicalDataRoots([]);
+                } else {
+                    toast.error(loggedIn.message);
+                    setHierarchicalDataRoots([]);
+                }
+            })
         }
-      }
     }
 
     async function handleAdd(node, connectionId) {
@@ -548,7 +563,12 @@ function App() {
                 refresh();
             }));
         } else {
-            await deleteKey(node.key, connectionId);
+            const response = await deleteKey(node.key, connectionId);
+            if (!response.ok) {
+                toast.error(response.message);
+            } else {
+                toast.success("Key deleted successfully.");
+            }
             await refresh();
         }
 
@@ -557,19 +577,22 @@ function App() {
         localStorage.setItem("toggleKeyList", JSON.stringify(toggleKeyList));
     }
 
-    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0.5, parentNode = null) => {
+    const renderHierarchy = (nodes, toggleCollapse, navigate, connectionId, level = 0, parentNode = null) => {
         return nodes.map((node, index) => (
             <React.Fragment key={node.key + index}>
                 <tr>
-                    <td style={{paddingLeft: `${level * 20}px`}}>{printDisplayKey(node, parentNode)}</td>
-                    <td>{node.value !== null ? node.value : ""}</td>
-                    <td>{node.type}</td>
-                    <td>
+                    <td colSpan="4" onClick={() => {
+                      if (node.children.length > 0)
+                        toggleCollapse(node)
+                    }} style={{paddingLeft: `${level * 20}px`}}><div>{node.children.length > 0 ? (node.collapsed ? (<GoTriangleRight />) : (<GoTriangleDown />)) : ""}{printDisplayKey(node, parentNode)}</div></td>
+                    <td colSpan="2">{node.value !== null ? node.value : ""}</td>
+                    <td colSpan="2">{node.type}</td>
+                    <td colSpan="3">
                         {!node.noEdit && (
                             <button
                                 className="edit-button"
                                 onClick={() => {
-                                    navigate(`/edit/${node.key}`, {
+                                    navigate(`/edit/${node.key === "." ? "-" : node.key}`, {
                                         state: {
                                             parentKey: node.parentKey,
                                             arrayPath: node.path,
@@ -584,6 +607,7 @@ function App() {
                             </button>
 
                         )}
+                        {!node.noEdit && (
                         <button
                             className="edit-button red"
                             onClick={() => {
@@ -592,13 +616,6 @@ function App() {
                         >
                             <MdDelete title="Delete Item"/>
                         </button>
-                        {node.children.length > 0 && (
-                            <button
-                                className="list-button"
-                                onClick={() => toggleCollapse(node)}
-                            >
-                                {node.collapsed ? "List" : "Close"}
-                            </button>
                         )}
                         {(node.type === "KEY_MAP" || node.type === "ARRAY") && (
                             <button onClick={async () => handleAdd(node, connectionId)} className="add-key-button">
@@ -659,8 +676,12 @@ function App() {
 
                     setSelectedConnectionId(newConnection.id);
                     setSelectedConnection(newConnection);
-                } else console.error("Failed to add connection:", response);
+                } else {
+                    if (response.data) toast.error(response.data + " - " + response.message);
+                    else toast.error(response.message);
+                }
             }).catch((error) => {
+                toast.error("Failed to add connection.");
                 console.error("Failed to add connection:", error);
             });
         } else {
@@ -707,7 +728,7 @@ function App() {
                         <TbPlugConnected /> Add Connection
                     </button>
 
-                    {selectedConnectionId !== 0 && (
+                    {selectedConnectionId !== 0 && isAdmin && (
                         <button disabled={!selectedConnection} onClick={handleCreateUser} className="add-connection-button">
                             <IoPersonAdd /> Create User
                         </button>
@@ -730,10 +751,10 @@ function App() {
                 <table>
                     <thead>
                     <tr>
-                        <th>Key</th>
-                        <th>Value</th>
-                        <th>Type</th>
-                        <th>
+                        <th colSpan="4">Key</th>
+                        <th colSpan="2">Value</th>
+                        <th colSpan="2">Type</th>
+                        <th colSpan="3">
                             <span>
                                 <button
                                     className="list-button list-all"

@@ -50,14 +50,42 @@ table {
     border-collapse: collapse;
 }
 
-th, td {
-    border: 1px solid #ccc;
+td {
+    display: table-cell;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    border-right: 1px solid #ccc;
     text-align: left;
     padding: 8px;
+    height: 30px;
+}
+
+td div {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-top: 1px solid #ccc;
+  border-right: none;
+  height: 100%;
+  box-sizing: border-box;
+  padding-left: 8px;
+}
+
+td:has(> div:first-child) {
+  padding-top: 0px;
+  padding-bottom: 0px;
+  padding-right: 0px;
+}
+
+td:first-child {
+  border-bottom: none;
 }
 
 th {
+    text-align: left;
+    padding: 8px;
     background-color: #f2f2f2;
+    border: 1px solid #ccc;
 }
 
 .edit-button {

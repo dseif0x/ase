@@ -97,4 +97,9 @@ public class DBClientRepository implements DBClientDao {
     public WebReturn<TcpGeneral> getUserPermissions(TcpGeneral usernames, String connectionId) {
         return connectionService.getClient(connectionId).getUserPermissions(usernames);
     }
+
+    @Override
+    public boolean connectionClosed(String connectionId) {
+        return connectionService.getClient(connectionId).connectionClosed();
+    }
 }

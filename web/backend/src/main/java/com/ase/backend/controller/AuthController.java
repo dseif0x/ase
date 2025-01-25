@@ -2,6 +2,7 @@ package com.ase.backend.controller;
 
 import com.ase.backend.controller.dto.LoginRequest;
 import com.ase.backend.service.ConnectionService;
+import com.ase.backend.service.DatabaseService;
 import com.ase.exception.TCPClientException;
 import com.ase.utility.WebReturn;
 import org.springframework.http.ResponseEntity;
@@ -17,14 +18,15 @@ import java.io.IOException;
 public class AuthController {
 
     private final ConnectionService connectionService;
-
+    private final DatabaseService databaseService;
     /**
      * Constructs a new AuthController.
      *
      * @param connectionService The service for managing the DB connection.
      */
-    public AuthController(ConnectionService connectionService) {
+    public AuthController(ConnectionService connectionService, DatabaseService databaseService) {
         this.connectionService = connectionService;
+        this.databaseService = databaseService;
     }
 
     /**
@@ -57,8 +59,18 @@ public class AuthController {
      * @return A response indicating if logged in or not.
      */
     @PostMapping("/isLoggedIn")
-    public ResponseEntity<Boolean> isLoggedIn(@RequestHeader(value="X-Connection-Id") String connectionId) {
-        return ResponseEntity.ok(connectionService.getClient(connectionId) != null);
+    public ResponseEntity<WebReturn<Boolean>> isLoggedIn(@RequestHeader(value="X-Connection-Id") String connectionId) {
+        boolean loggedIn = connectionService.getClient(connectionId) != null;
+        if (loggedIn) {
+            boolean connectionClosed = databaseService.connectionClosed(connectionId);
+            if (connectionClosed) {
+                return ResponseEntity.ok(WebReturn.error("Connection to Server is closed. Please start it again."));
+            }
+            return ResponseEntity.ok(WebReturn.success(true));
+        } else {
+            return ResponseEntity.ok(WebReturn.error("Please login first"));
+        }
+
     }
 
     /**
