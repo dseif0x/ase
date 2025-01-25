@@ -190,7 +190,7 @@ def plot_boxplots_with_custom_labels2(df):
                 type="log"
             ),
             xaxis_title="Executable",
-            legend_title="Time Type",
+            legend_title="",
             boxmode="group",
         )
 
@@ -213,6 +213,13 @@ def plot_boxplots_with_custom_labels2(df):
                 xref="x",
                 yref="y"
             )
+
+        fig.update_layout(legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        ))
 
         # Show the figure
         fig.show()
