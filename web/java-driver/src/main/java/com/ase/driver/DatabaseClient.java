@@ -881,13 +881,11 @@ public class DatabaseClient {
      *
      * @return {@code true} if the connection is synchronous, {@code false} otherwise.
      */
-    public boolean connectionClosed() {
-        Random random = new Random();
-        long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
+    public boolean connectionClosed(long packageToSend) {
         if (socket == null || socket.isClosed()) return true;
 
         try {
-            WebReturn<Integer> ret = this.ping(unsignedInt);
+            WebReturn<Integer> ret = this.ping(packageToSend);
             return !ret.isOk();
         } catch (Exception e) {
             return true;

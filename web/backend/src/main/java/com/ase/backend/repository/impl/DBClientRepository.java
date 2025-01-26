@@ -106,6 +106,8 @@ public class DBClientRepository implements DBClientDao {
 
     @Override
     public boolean connectionClosed(String connectionId) {
-        return connectionService.getClient(connectionId).connectionClosed();
+        Random random = new Random();
+        long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
+        return connectionService.getClient(connectionId).connectionClosed(unsignedInt);
     }
 }
