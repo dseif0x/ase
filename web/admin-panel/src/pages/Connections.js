@@ -43,7 +43,7 @@ const buildHierarchy = (obj, prefix = "") => {
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = (prefix && prefix !== ".") ? `${prefix}.${key}` : key;
-            const { type, value, children, processedKey, noEdit } = obj[key];
+            const { type, value, children, processedKey, noEdit, displayType } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
             const elem = {
@@ -51,6 +51,7 @@ const buildHierarchy = (obj, prefix = "") => {
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
+                displayType: displayType ?? type,
                 children: buildHierarchy(children || {}, currentKey),
                 collapsed: true,
                 noEdit: noEdit,
@@ -334,7 +335,8 @@ function App() {
 
         return {
             processedKey: key,
-            type: `ARRAY [${data.array.length}]`,
+            type: `ARRAY`,
+            displayType: `ARRAY [${data.array.length}]`,
             value: null,
             children,
             parentKey: null,
@@ -362,12 +364,20 @@ function App() {
         };
     }
 
+    function getLastElementAfterDot(key) {
+        if (key === ".")
+            return key;
+        if (key.includes(".")) {
+            const parts = key.split(".");
+            return parts[parts.length - 1];
+        }
+        return key;
+    }
 
     async function buildKeyDataStructure(key = ".") {
         try {
             if (key !== ".") {
               const tempData = await get(key, selectedConnection.connectionId);
-              console.log("get: ", key, tempData);
               if (tempData?.ok && tempData.data?.type) {
                 if (tempData.data.type !== "KEY_MAP") {
                   if (tempData.data.type === "ARRAY") {
@@ -414,7 +424,8 @@ function App() {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
                         result[subKey] = {
-                            type: "ARRAY [${subKeyData.array?.length || 0}]",
+                            type: "ARRAY",
+                            displayType: `ARRAY [${subKeyData.array?.length || 0}]"`,
                             value: null,
                             children: [],
                         };
@@ -442,7 +453,8 @@ function App() {
                 } else {
                 }
             }
-            return {[key]: {type: "KEY_MAP", children: result}};
+
+            return {[getLastElementAfterDot(key)]: {type: "KEY_MAP", children: result}};
         } catch (error) {
             console.error("Error in buildKeyDataStructure:", error);
             return {};
@@ -590,7 +602,7 @@ function App() {
                         toggleCollapse(node)
                     }} style={{paddingLeft: `${level * 20}px`}}><div>{node.children.length > 0 ? (node.collapsed ? (<GoTriangleRight />) : (<GoTriangleDown />)) : ""}{printDisplayKey(node, parentNode)}</div></td>
                     <td colSpan="2">{node.value !== null ? node.value : ""}</td>
-                    <td colSpan="2">{node.type}</td>
+                    <td colSpan="2">{node.displayType}</td>
                     <td colSpan="3">
                         {!node.noEdit && (
                             <button

@@ -115,11 +115,10 @@ th {
     background-color: #214bf3;
     color: white;
     border: none;
-    width: 65px;
+    width: 50px;
     height: 25px;
     border-radius: 4px;
     cursor: pointer;
-    margin-left: 5px;
 }
 
 .add-key-button:hover {
