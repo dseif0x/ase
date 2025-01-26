@@ -31,9 +31,9 @@
 #endif
 
 struct FreeBlock {
-#ifdef MEM_DEBUG
+//#ifdef MEM_DEBUG
     char magic[4] = {'F', 'R', 'E', 'E'};
-#endif
+//#endif
     size_t size;
     size_t next_offset;
 };

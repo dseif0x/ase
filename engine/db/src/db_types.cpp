@@ -220,8 +220,8 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value, bool
         } else {
             shmem_string = mem.construct_array<char>(local_string.size() + 1);
         }
-        std::strcpy(shmem_string.get(mem), local_string.c_str());
         res.atomic_access(mem, [&](Value* new_value) {
+            std::strcpy(shmem_string.get(mem), local_string.c_str());
             new_value->data.emplace<Value::shmem_string_t>(shmem_string.get_relative(mem));
         }, locks_held);
     } else if (value.type == ValueType::SEMAPHORE) {
