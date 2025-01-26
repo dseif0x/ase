@@ -197,9 +197,6 @@ void shmem::ensure_enough_space(std::size_t required_memory, std::size_t require
 }
 
 void shmem::ensure_mounted() {
-#ifdef MEM_DEBUG
-    validate_all();
-#endif
     if (metadata->version > local_version) { // If the version has changed, remap the data segment
         munmap(base, local_size);
         int data_fd = shm_open("shmem_data", O_RDWR, S_IRUSR | S_IWUSR);
@@ -214,6 +211,9 @@ void shmem::ensure_mounted() {
     } else if (metadata->version < local_version) {
         throw std::runtime_error("Version mismatch");
     }
+#ifdef MEM_DEBUG
+    validate_all();
+#endif
 }
 
 void shmem::load_data(const shmem::dump_t& data) {

@@ -84,7 +84,7 @@ inline std::unordered_map<std::string, std::string> get_unique_keys(int process,
     std::unordered_map<std::string, std::string> result;
     std::uniform_int_distribution<> subkey_count_dist(1, max_depth);    // For number of subkeys
     std::uniform_int_distribution<> subkey_length_dist(1, 10);         // For subkey length
-    std::uniform_int_distribution<> value_length_dist(1, 16);          // For value length
+    std::uniform_int_distribution<> value_length_dist(1, 128);          // For value length
     std::vector<std::unordered_set<std::string>> used;
     for (int x = 0; x < max_depth; x++) {
         used.push_back(std::unordered_set<std::string>());
