@@ -96,9 +96,7 @@ inline size_t get_offset_from_ptr(void* base, void* ptr) {
 
 inline void free_block_insert(shmem_meta& metadata, void* base, size_t prev_node, FreeBlock *new_node) {
     if (prev_node == -1) { // This is the first element in the list
-        if (metadata.first_free != -1) { // There are other elements in the list
-            new_node->next_offset = metadata.first_free;
-        }
+        new_node->next_offset = metadata.first_free;
         metadata.first_free = get_offset_from_ptr(base, new_node); // Update the first free block
     } else {
         FreeBlock* prev_block = get_free_block(base, prev_node);

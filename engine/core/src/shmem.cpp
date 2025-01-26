@@ -29,7 +29,6 @@ shmem::~shmem() {
 }
 
 offset_t shmem::allocate(std::size_t size, std::size_t alignment, bool lock_held) {
-    //size += sizeof(AllocationHeader); // We also need an allocation header to store the size of the block
     if (size < sizeof(FreeBlock)) { // We need to ensure that the block is at least the size of a FreeBlock
         size = sizeof(FreeBlock);
     }
@@ -59,6 +58,8 @@ offset_t shmem::allocate(std::size_t size, std::size_t alignment, bool lock_held
     size_t alignment_padding = padding - sizeof(AllocationHeader);
     size_t required_space = size + padding;
     size_t remaining = newblockptr->size - required_space;
+
+    free_block_remove(*metadata, base, prev, newblockptr);
     if (remaining > sizeof(FreeBlock)) {
         // Split the block
         auto* nextblock = get_free_block(base, newblock + required_space);
@@ -66,27 +67,30 @@ offset_t shmem::allocate(std::size_t size, std::size_t alignment, bool lock_held
         new (nextblock) FreeBlock();
 #endif
         nextblock->size = remaining;
-        free_block_insert(*metadata, base, newblock, nextblock);
+        free_block_insert(*metadata, base, prev, nextblock);
         VALIDATE_FREE_BLOCK(nextblock);
     } else {
         // If the remaining space is not enough for a FreeBlock, just use the entire block
         required_space = newblockptr->size;
     }
 
-    free_block_remove(*metadata, base, prev, newblockptr);
+
     if (prev != -1) {
         VALIDATE_FREE_BLOCK(get_free_block(base, prev));
     }
     VALIDATE_FREE_BLOCK(newblockptr);
 
-    auto* header_ptr = reinterpret_cast<AllocationHeader*>(newblockptr + alignment_padding);
+    auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<uint8_t*>(newblockptr) + alignment_padding);
 #ifdef MEM_DEBUG
     new (header_ptr) AllocationHeader();
 #endif
     header_ptr->size = required_space;
     header_ptr->padding = alignment_padding;
     VALIDATE_ALLOC_HEADER(header_ptr);
-    return newblock + sizeof(AllocationHeader);
+#ifdef MEM_DEBUG
+    validate_all();
+#endif
+    return newblock + alignment_padding + sizeof(AllocationHeader);;
 }
 
 void shmem::deallocate(offset_t ptr, bool lock_held) {
@@ -174,6 +178,15 @@ offset_t shmem::get_used_memory() {
 
 shrwlock &shmem::get_meta_mutex() {
     return metadata->meta_mutex;
+}
+
+void shmem::validate_all() {
+    size_t current = metadata->first_free;
+    while (current != -1) {
+        auto* currentblock = get_free_block(base, current);
+        VALIDATE_FREE_BLOCK(currentblock);
+        current = currentblock->next_offset;
+    }
 }
 
 bool shmem::can_fit(std::size_t required_memory, std::size_t required_alignment) {
