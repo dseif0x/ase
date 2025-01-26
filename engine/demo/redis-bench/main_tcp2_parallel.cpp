@@ -51,7 +51,7 @@ template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     constexpr int num_threads = 2;
     std::cout << "Running TCP2 Parallel - ASE Test: " << name << std::endl;
-    auto test_data = generate_test_data();
+    auto test_data = generate_test_data(0);
 
     std::vector<std::unique_ptr<ReadWriteClient>> clients;
 

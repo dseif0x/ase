@@ -15,7 +15,7 @@ int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstre
     }
 
     std::cout << "Running Redis Test (Pipelined): " << name << std::endl;
-    auto test_data = generate_test_data();
+    auto test_data = generate_test_data(0);
 
     // Connect to Redis
     redisContext* c = redisConnect("127.0.0.1", 6379);

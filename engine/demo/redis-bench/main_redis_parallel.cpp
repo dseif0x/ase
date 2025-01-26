@@ -65,7 +65,7 @@ int do_run(const std::string& name, const std::unordered_map<std::string, std::s
 template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     std::cout << "Running Redis Parallel Test: " << name << std::endl;
-    auto test_data = generate_test_data();
+    auto test_data = generate_test_data(0);
 
     constexpr int num_threads = 2;
     std::vector<std::unique_ptr<std::thread>> threads;

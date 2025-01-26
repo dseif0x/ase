@@ -20,7 +20,7 @@ int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstre
     stopwatch s;
     int ind = 0;
     for (const auto& [key, value] : test_data) {
-        //std::cout << ind++ << ": " << key << " - " << value << std::endl;
+        std::cout << ind++ << ": " << key << " - " << value << std::endl;
         CopiedValue newval{};
         newval.type = ValueType::STRING;
         newval.data.emplace<std::string>(value);

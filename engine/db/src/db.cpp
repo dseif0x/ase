@@ -465,6 +465,7 @@ void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys,
         set_key_(ptr, mem, keys, std::move(new_value), force);
     } else {
         auto subdomain = generate_subdomain(keys, std::move(new_value));
+        subdomain.type = ValueType::MAP;
         auto tmp = Value::create_value(mem, subdomain, true);
         db_key_map::set(map, mem, key.c_str(), tmp);
     }
