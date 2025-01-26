@@ -35,6 +35,7 @@ function evaluatePermissions(permission, key) {
   const splitKey = key.split(".");
   let perm = 0;
   let itObj = permission;
+  if (key !== ".")
   for (let i = 0; i < splitKey.length; i++) {
     if (!itObj[splitKey[i]]) return perm;
     itObj = itObj[splitKey[i]].keyMap;
