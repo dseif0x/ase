@@ -51,7 +51,9 @@ template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     constexpr int num_threads = 2;
     std::cout << "Running TCP2 Parallel - ASE Test: " << name << std::endl;
-    auto test_data = generate_test_data(0);
+    //auto test_data = generate_test_data(0);
+    std::vector<std::unordered_map<std::string, std::string>> test_data;
+    for (int x = 0; x < num_threads; x++) test_data.push_back(generate_test_data(x));
 
     std::vector<std::unique_ptr<ReadWriteClient>> clients;
 
@@ -65,7 +67,7 @@ int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstre
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data, std::ref(*clients[i]), std::ref(out), name));
+        threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data[i], std::ref(*clients[i]), std::ref(out), name));
     }
 
     for (auto& thread : threads) {
