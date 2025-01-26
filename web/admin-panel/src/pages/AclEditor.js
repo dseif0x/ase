@@ -91,7 +91,7 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray } = location.state || {};
     if (keyData === "-") keyData = ".";
     const initialPermissions = useRef([]);
     const initialData = useRef({});
@@ -444,14 +444,14 @@ const AclEditor = () => {
                 </div>
             )}
       {
-        (keyData !== ".") && (
+        (keyData !== "." || addKey) && (
             <div className="editor-section">
                 <label>Type:</label>
                 <select value={type} onChange={handleTypeChange}>
                     <option value="SIMPLE">Simple</option>
                     <option value="ARRAY">Array</option>
                     <option value="PAIR">Pair</option>
-                    {type === "KEY_MAP" && <option value="KEY_MAP">Key Map</option>}
+                    {(type === "KEY_MAP" || (!isArray && addKey)) && <option value="KEY_MAP">Key Map</option>}
                 </select>
             </div>
         )
