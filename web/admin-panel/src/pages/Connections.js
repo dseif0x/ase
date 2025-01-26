@@ -492,7 +492,6 @@ function App() {
 
     useEffect(() => {
       queue(async() => {
-        if (hierarchicalDataRoots.length > 0) {
           let newHierarchicalData = []
           for (const key of hierarchicalDataRoots) {
             const data = await buildKeyDataStructure(key);
@@ -500,7 +499,6 @@ function App() {
             newHierarchicalData = newHierarchicalData.concat(hierarchy);
           }
           toggleFromStorage(newHierarchicalData);
-        }
       });
     }, [hierarchicalDataRoots]);
 
@@ -760,7 +758,7 @@ function App() {
                                 <TbPlugConnected /> Reconnect
                             </button>
                         )}
-                        {connection.id !== 0 && connection.loggedIn && (
+                        {connection.id !== 0 && (
                             <button
                                 className="delete-button"
                                 onClick={() => deleteConnection(connection.id, connection.connectionId)}
