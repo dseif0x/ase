@@ -11,11 +11,11 @@ template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     if (out && out->is_open()) {
         // Label this as a pipelined test in your CSV output, for clarity
-        *out << "Redis Pipelined;" << name << ";";
+        *out << "Redis pip;" << name << ";";
     }
 
     std::cout << "Running Redis Test (Pipelined): " << name << std::endl;
-    auto test_data = generate_test_data();
+    auto test_data = generate_test_data(0);
 
     // Connect to Redis
     redisContext* c = redisConnect("127.0.0.1", 6379);

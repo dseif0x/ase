@@ -240,6 +240,8 @@ public:
     dump_t dump_data();
     //! Deserializes the data
     void load_data(const dump_t& data);
+
+    void validate_all();
 };
 
 template <typename T>

@@ -23,7 +23,7 @@ int do_run(const std::string& name,
     }
 
     std::stringstream ss;
-    ss << "Redis par;" << bench_type << ";";
+    ss << "Redis pip par;" << bench_type << ";";
 
     // -------------------------------
     // 1. Pipeline all SET commands
@@ -113,17 +113,19 @@ int do_run(const std::string& name,
 
 template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
-    std::cout << "Running Redis Parallel Test (Pipelined): " << name << std::endl;
-    auto test_data = generate_test_data();
-
     constexpr int num_threads = 2;
+    std::cout << "Running Redis Parallel Test (Pipelined): " << name << std::endl;
+    //auto test_data = generate_test_data(0);
+    std::vector<std::unordered_map<std::string, std::string>> test_data;
+    for (int x = 0; x < num_threads; x++) test_data.push_back(generate_test_data(x));
+
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
         threads.emplace_back(std::make_unique<std::thread>(
                 do_run,
                 std::string("Thread ") + std::to_string(i),
-                test_data,
+                test_data[i],
                 std::ref(out),
                 name
         ));

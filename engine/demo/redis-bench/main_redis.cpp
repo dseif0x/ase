@@ -12,7 +12,7 @@ template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     if (out && out->is_open()) *out << "Redis;" << name << ";";
     std::cout << "Running Redis Test: " << name << std::endl;
-    auto test_data = generate_test_data();
+    auto test_data = generate_test_data(0);
     redisContext* c = redisConnect("127.0.0.1", 6379);
     if (c->err) {
         std::cerr << "error: " << c->errstr << std::endl;

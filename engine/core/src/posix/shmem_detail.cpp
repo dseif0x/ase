@@ -211,6 +211,9 @@ void shmem::ensure_mounted() {
     } else if (metadata->version < local_version) {
         throw std::runtime_error("Version mismatch");
     }
+#ifdef MEM_DEBUG
+    validate_all();
+#endif
 }
 
 void shmem::load_data(const shmem::dump_t& data) {

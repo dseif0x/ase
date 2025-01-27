@@ -13,7 +13,8 @@ template<typename T>
 int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstream> &out) {
     if (out && out->is_open()) *out << "TCP2;" << name << ";";
     std::cout << "Running TCP2 - ASE Test: " << name << std::endl;
-    auto test_data = generate_test_data();
+    auto test_data = generate_test_data(0);
+    //for (auto [x,y] : test_data) std::cout << x << " : " << y << std::endl;
     ReadWriteClient client{"127.0.0.1", 42069, "admin", "rootpwd"};
     std::this_thread::sleep_for(std::chrono::microseconds(100)); // time for old connections to clear
     stopwatch s;
