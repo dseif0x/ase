@@ -5,7 +5,6 @@ This repository contains all files for the Associative Storage Engine project.
 The purpose of this Project was to create an in-memory database similiar to redis, that also supports DMA.
 
 ## Structure
-TODO Explain the file structure of this project
 - `engine/`
 - `web/`
   - `java-driver/`
