@@ -28,6 +28,8 @@ class ReadWriteClient {
 
     static void read_data(TCP2Decoder &decoder);
 
+    void read_error();
+
 public:
     ReadWriteClient(const std::string &ip, int port, const std::string &name, const std::string &pwd);
     ~ReadWriteClient();

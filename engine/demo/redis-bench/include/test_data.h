@@ -109,7 +109,7 @@ inline std::unordered_map<std::string, std::string> get_unique_keys(int process,
         std::string key = key_stream.str();
         int value_length = value_length_dist(rng);
         std::string value = generate_random_string(rng, value_length);
-        if (value.size() >= 28) std::cout << "long val: " << value << std::endl;
+        //if (value.size() >= 28) std::cout << "long val: " << value << std::endl;
 
         result[key] = value;
     }
