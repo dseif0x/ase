@@ -496,6 +496,7 @@ function App() {
     async function handleAdd(node, connectionId) {
         navigate(`/edit/key`, {
             state: {
+                isAdmin: isAdmin,
                 keyData: node.key,
                 connectionId: connectionId,
                 addKey: true,
