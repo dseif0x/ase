@@ -57,6 +57,8 @@ int run_test(const char* name, T&& generate_test_data, std::optional<std::ofstre
     std::vector<std::unique_ptr<std::thread>> threads;
     threads.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
+        // THIS MIGHT SOLVE A RARE SEGV THAT CAN OCCUR IF TWO CLIENTS MOUNT DB AT THE SAME TIME
+        //std::this_thread::sleep_for(std::chrono::milliseconds(i * 10));
         threads.emplace_back(std::make_unique<std::thread>(do_run, std::string("Thread ") + std::to_string(i), test_data[i], std::ref(out), name));
     }
 

@@ -481,6 +481,7 @@ void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys,
 
 void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value, const bool force) {
     std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
+    map.atomic_access(mem, [](db_key_map* entrypoint){}, true);
     set_key_(map, mem, keys, std::move(new_value), force);
 }
 
