@@ -570,6 +570,7 @@ function App() {
                                 onClick={() => {
                                     navigate(`/edit/${node.key === "." ? "-" : node.key}`, {
                                         state: {
+                                            isAdmin: isAdmin,
                                             parentKey: node.parentKey,
                                             arrayPath: node.path,
                                             keyData: node.key,
