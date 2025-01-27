@@ -24,7 +24,7 @@ CopiedValue::CopiedValue(const Value &value, shmem& mem) {
         auto& array = get<ArrayType>(value.data);
         auto& local_array = data.emplace<copied_array_t>();
         for (size_t i = 0; i < array.size; i++) {
-            local_array.emplace_back(array.array_value.get()[i], mem);
+            local_array.emplace_back(*array.array_value.get()[i].get(mem), mem);
         }
     } else if (type == ValueType::PAIR) {
         auto& pair = get<Value::shmem_pair_t>(value.data);
@@ -164,11 +164,11 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value, bool
         }, locks_held);
     } else if (value.type == ValueType::ARRAY) {
         auto& local_array = get<CopiedValue::copied_array_t>(value.data);
-        offset_ptr<Value> shmem_array_data;
+        offset_ptr<offset_ptr<Value>> shmem_array_data;
         if (locks_held) {
-            shmem_array_data = mem.construct_array_unsafe<Value>(local_array.size());
+            shmem_array_data = mem.construct_array_unsafe<offset_ptr<Value>>(local_array.size());
         } else {
-            shmem_array_data = mem.construct_array<Value>(local_array.size());
+            shmem_array_data = mem.construct_array<offset_ptr<Value>>(local_array.size());
         }
 
         std::vector<offset_ptr<Value>> shmem_array_data_ptrs;
@@ -182,14 +182,11 @@ offset_ptr<Value> Value::create_value(shmem &mem, const CopiedValue &value, bool
             array.size = local_array.size();
             array.array_value = shmem_array_data.get_relative(mem);
 
-            Value* shmem_array_data_ptr = shmem_array_data.get(mem);
+            offset_ptr<Value>* shmem_array_data_ptr = shmem_array_data.get(mem);
             for (size_t i = 0; i < array.size; i++) {
-                shmem_array_data_ptr[i] = *shmem_array_data_ptrs[i].get(mem);
+                shmem_array_data_ptr[i] = shmem_array_data_ptrs[i];
             }
         }, locks_held);
-        for (auto& ptr : shmem_array_data_ptrs) {
-            mem.destroy(ptr, locks_held);
-        }
     } else if (value.type == ValueType::PAIR) {
         auto& local_pair = get<CopiedValue::copied_pair_t>(value.data);
         auto pair_v1 = create_value(mem, *local_pair.first, locks_held);
@@ -261,6 +258,10 @@ void Value::destroy_value(shmem &mem, offset_ptr<Value> value, bool locks_held) 
         mem.destroy(mem.relative_to_offset(data), locks_held);
     } else if (value.get(mem)->type == ValueType::ARRAY) {
         auto& data = std::get<ArrayType>(value.get(mem)->data);
+        offset_ptr<Value>* data_p = data.array_value.get();
+        for (size_t i = 0; i < data.size; i++) {
+            destroy_value(mem, data_p[i], locks_held);
+        }
         mem.destroy_array(mem.relative_to_offset(data.array_value), data.size, locks_held);
     } else if (value.get(mem)->type == ValueType::PAIR) {
         auto& data = std::get<shmem_pair_t>(value.get(mem)->data);

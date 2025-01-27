@@ -47,7 +47,7 @@ enum class ValueType {
  * and the size of the array.
  */
 struct ArrayType {
-    relative_offset_ptr<Value> array_value;
+    relative_offset_ptr<offset_ptr<Value>> array_value;
     size_t size;
 };
 
