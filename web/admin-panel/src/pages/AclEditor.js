@@ -410,7 +410,7 @@ const AclEditor = () => {
             }
         }
 
-      queue(async() => set(keyData, toUpdate, true, connectionId).then((response) => {
+      queue(async() => set(keyData, toUpdate, !addKey, connectionId).then((response) => {
         if (!response.ok) {
             toast.error(response.message);
         } else toast.success("Value updated successfully.");
