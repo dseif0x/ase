@@ -137,11 +137,13 @@ function App() {
                 if (updatedConnections.length > 0) {
                     setSelectedConnectionId(updatedConnections[0].id);
                     setSelectedConnection(updatedConnections[0]);
+                    localStorage.setItem("selectedConnectionId", updatedConnections[0].id);
                 } else {
                     setSelectedConnectionId(0);
                     setSelectedConnection([]);
                     setHierarchicalDataRoots([]);
                     setHierarchicalData([]);
+                    localStorage.setItem("selectedConnectionId", 0);
                 }
             }
         });
@@ -649,6 +651,8 @@ function App() {
                         setSelectedConnectionId(connectionToReconnect.id);
                         setSelectedConnection(connectionToReconnect);
 
+
+                        refresh();
                         toast.success("Reconnected successfully!");
                     } else {
                         toast.error(response.data ? `${response.data} - ${response.message}` : response.message);
@@ -670,7 +674,8 @@ function App() {
             connect(config).then(async (response: WebReturnDto) => {
                 if (response.ok) {
                     const newConnection = {
-                        id: connections.length + 1,
+                        id: connections.reduce((a, b) => {
+                                return Math.max(a, b.id)}, 0) + 1,
                         connectionId: response.data,
                         ip: host,
                         port: port,
