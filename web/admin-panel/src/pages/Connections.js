@@ -335,7 +335,7 @@ function App() {
         return key;
     }
 
-    async function buildKeyDataStructure(key = ".") {
+    async function buildKeyDataStructure(key = ".", isTopLevel = false) {
         try {
             if (key !== ".") {
               const tempData = await get(key, selectedConnection.connectionId);
@@ -415,7 +415,7 @@ function App() {
                 }
             }
 
-            return {[getLastElementAfterDot(key)]: {type: "KEY_MAP", children: result}};
+            return {[(isTopLevel ? key : getLastElementAfterDot(key))]: {type: "KEY_MAP", children: result}};
         } catch (error) {
             console.error("Error in buildKeyDataStructure:", error);
             return {};
@@ -437,6 +437,7 @@ function App() {
         }
       }
     }
+    console.log("roots", res);
     return res;
   }
 
@@ -467,7 +468,7 @@ function App() {
       queue(async() => {
           let newHierarchicalData = []
           for (const key of hierarchicalDataRoots) {
-            const data = await buildKeyDataStructure(key);
+            const data = await buildKeyDataStructure(key, true);
             const hierarchy = await buildHierarchy(data);
             newHierarchicalData = newHierarchicalData.concat(hierarchy);
           }
