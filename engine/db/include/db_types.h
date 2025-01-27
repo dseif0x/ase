@@ -47,7 +47,7 @@ enum class ValueType {
  * and the size of the array.
  */
 struct ArrayType {
-    relative_offset_ptr<Value> array_value;
+    relative_offset_ptr<offset_ptr<Value>> array_value;
     size_t size;
 };
 
@@ -60,7 +60,7 @@ struct ArrayType {
  * See @brief CopiedValue
  */
 struct Value {
-    Value() = default;
+    Value() = default; //!< the default constructor
 
     /**
      * @brief Construct a new Value object
@@ -99,15 +99,21 @@ struct Value {
  * See @ref Value
  */
 struct CopiedValue {
-    CopiedValue() = default;
-    CopiedValue(CopiedValue&&) = default;
+    CopiedValue() = default; //!< the default constructor
+    CopiedValue(CopiedValue&&) = default; //!< the move constructor
     //CopiedValue(const CopiedValue&) = default;
-    ~CopiedValue() = default;
+    ~CopiedValue() = default;  //!< the destructor
 
-    CopiedValue& operator=(CopiedValue&&) = default;
+    CopiedValue& operator=(CopiedValue&&) = default;  //!< the move assign operator
 
 
-    //! @onlyInAtomicAccess
+    /**
+     * @onlyInAtomicAccess
+     *
+     * Used to copy a @ref Value
+     * @param value the value to create a copy of
+     * @param mem the shared memory
+     */
     CopiedValue(const Value& value, shmem& mem);
 
     /**
@@ -136,6 +142,5 @@ struct CopiedValue {
     using copied_array_t = std::vector<CopiedValue>;
 
     ValueType type = ValueType::UNKNOWN;
-    // TODO possibly semaphore sem_value but since we cannot copy this we will need to handle it differently
     std::variant<bool, int, std::string, double, copied_array_t, copied_map_t, copied_pair_t> data;
 };

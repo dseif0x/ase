@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT License found in the LICENSE file in the root directory
  * of this source tree or at https://opensource.org/licenses/MIT.
  */
-
+//! @cond
 #pragma once
 
 #include <cassert>
@@ -164,3 +164,4 @@ inline size_t find_free_block(shmem_meta& metadata, void* base, size_t size, siz
     }
     return -1;
 }
+//! @endcond

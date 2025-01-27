@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Project Contributors
+ *
+ * This source code is licensed under the MIT License found in the LICENSE file in the root directory
+ * of this source tree or at https://opensource.org/licenses/MIT.
+ */
 package com.ase.driver;
 
 import com.ase.utility.*;
@@ -633,7 +639,7 @@ public class DatabaseClientCommandTest {
         serverResponseOut.write(Utility.ACK);
         setServerResponse(serverResponseOut.toByteArray());
 
-        WebReturn<Integer> result = databaseClient.set(key, value, force);
+        WebReturn<Integer> result = databaseClient.setAsync(key, value, force).get();
 
         assertTrue(result.isOk(), "Expected set to succeed with ACK.");
         assertNull(result.getMessage(), "Expected no message on success.");
@@ -793,7 +799,7 @@ public class DatabaseClientCommandTest {
 
         setServerResponse(serverResponseOut.toByteArray());
 
-        WebReturn<TcpGeneral> result = databaseClient.get(key);
+        WebReturn<TcpGeneral> result = databaseClient.getAsync(key).get();
 
         assertTrue(result.isOk(), "Expected get to succeed with ACK.");
         assertNull(result.getMessage(), "Expected no message on success.");
@@ -931,7 +937,7 @@ public class DatabaseClientCommandTest {
         serverResponseOut.write(listResponse);
 
         setServerResponse(serverResponseOut.toByteArray());
-        WebReturn<TcpGeneral> listResult = databaseClient.list(listKey);
+        WebReturn<TcpGeneral> listResult = databaseClient.listAsync(listKey).get();
 
         assertTrue(listResult.isOk(), "LIST command should succeed.");
         Map<String, TcpGeneral> keyMap = listResult.getData().getKeyMap();
@@ -1433,5 +1439,53 @@ public class DatabaseClientCommandTest {
         assertTrue(result.getMessage().contains("unknown response"), "Expected the error message to indicate an unknown response.");
         assertNotNull(result.getData(), "Expected data to contain the response byte.");
         assertEquals(0x12, result.getData().getValue(), "Expected the response byte to match.");
+    }
+
+    /**
+     * If the socket is closed, the method should return {@code true}.
+     */
+    @Test
+    void testConnectionClosed_socketIsClosed() throws Exception {
+        Socket mockSocket = mock(Socket.class);
+        when(mockSocket.isClosed()).thenReturn(true);
+        databaseClient = new DatabaseClient(mockSocket);
+        boolean result = databaseClient.connectionClosed(1L);
+        assertTrue(result, "Expected true if the socket is already closed.");
+    }
+
+    /**
+     * If the socket is open and the {@code ping()} call returns OK,
+     * then connectionClosed() should return {@code false}.
+     */
+    @Test
+    void testConnectionClosed_pingSuccess() throws Exception {
+        long packageToSend = 123456789L;
+
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+        DynamicDataWriter serverDataWriter = new DynamicDataWriter(serverInfo, serverResponseOut);
+
+        serverResponseOut.write(Utility.ACK);
+        serverDataWriter.writeUnsignedInt(packageToSend);
+
+        setServerResponse(serverResponseOut.toByteArray());
+
+        boolean result = databaseClient.connectionClosed(packageToSend);
+
+        assertFalse(result, "Expected false if ping(...) is OK and the socket is not closed.");
+    }
+
+    /**
+     * If the socket is open but the {@code ping()} call returns a failure,
+     * then connectionClosed() should return {@code true}.
+     */
+    @Test
+    void testConnectionClosed_pingFailure() throws Exception {
+        ByteArrayOutputStream serverResponseOut = new ByteArrayOutputStream();
+
+        serverResponseOut.write(Utility.NAK);
+
+        setServerResponse(serverResponseOut.toByteArray());
+        boolean result = databaseClient.connectionClosed(1L);
+        assertTrue(result, "Expected false if ping(...) is OK and the socket is not closed.");
     }
 }

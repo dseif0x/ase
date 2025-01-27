@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Project Contributors
+ *
+ * This source code is licensed under the MIT License found in the LICENSE file in the root directory
+ * of this source tree or at https://opensource.org/licenses/MIT.
+ */
 package com.ase.backend.repository.impl;
 
 import com.ase.backend.repository.DBClientDao;
@@ -100,6 +106,8 @@ public class DBClientRepository implements DBClientDao {
 
     @Override
     public boolean connectionClosed(String connectionId) {
-        return connectionService.getClient(connectionId).connectionClosed();
+        Random random = new Random();
+        long unsignedInt = Integer.toUnsignedLong(random.nextInt()) & 0xFFFFFFFFL;
+        return connectionService.getClient(connectionId).connectionClosed(unsignedInt);
     }
 }

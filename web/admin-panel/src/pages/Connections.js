@@ -14,19 +14,7 @@ import {FiRefreshCw} from "react-icons/fi";
 import {IoMdAddCircleOutline} from "react-icons/io";
 import {MdDelete, MdEdit} from "react-icons/md";
 import { GoTriangleRight, GoTriangleDown } from "react-icons/go";
-
-
-const asyncSub = new Subject();
-const nextAsyncSub = new Subject();
-zip(asyncSub, nextAsyncSub).subscribe({
-  next: ([fn]) => {
-    fn().finally(() => nextAsyncSub.next())
-  }
-});
-nextAsyncSub.next();
-function queue(fn) {
-  asyncSub.next(fn);
-}
+import {queue} from "../utils/Queue";
 
 async function cleanupConnections() {
 
@@ -37,12 +25,8 @@ async function cleanupConnections() {
         for (const conn of savedConnections) {
             try {
                 const response = await isLoggedIn(conn.connectionId)
-                console.log(response)
-                if (response.ok) {
-                    updatedConnections.push(conn);
-                } else {
-                    toast.error(response.message)
-                }
+                conn.loggedIn = response.ok;
+                updatedConnections.push(conn);
             } catch (error) {
                 console.error(
                     `error with id ${conn.id}:`,
@@ -59,7 +43,7 @@ const buildHierarchy = (obj, prefix = "") => {
     for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
             const currentKey = (prefix && prefix !== ".") ? `${prefix}.${key}` : key;
-            const { type, value, children, processedKey, noEdit } = obj[key];
+            const { type, value, children, processedKey, noEdit, displayType } = obj[key];
             const { parentKey, path } = obj[key] || {};
 
             const elem = {
@@ -67,6 +51,7 @@ const buildHierarchy = (obj, prefix = "") => {
                 key: processedKey || currentKey,
                 value: value || "",
                 type: type,
+                displayType: displayType ?? type,
                 children: buildHierarchy(children || {}, currentKey),
                 collapsed: true,
                 noEdit: noEdit,
@@ -89,7 +74,11 @@ function App() {
     const [hierarchicalDataRoots, setHierarchicalDataRoots] = useState([]);
     const [hierarchicalData, setHierarchicalData] = useState([]);
     const [isAdmin, setIsAdmin] = useState(false);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [reconnectMode, setReconnectMode] = useState(false);
+    const [connectionToReconnect, setConnectionToReconnect] = useState(null);
+
     const [toggle, setToggle] = useState(false);
 
     const [host, setHost] = useState("");
@@ -113,7 +102,6 @@ function App() {
                 if (item.id === selectedConnectionId && !found) {
                     found = true;
                     setSelectedConnection(item);
-                    setSelectedConnectionId(item.id);
                 }
             });
 
@@ -133,6 +121,12 @@ function App() {
         return await isLoggedIn(selectedConnection.connectionId);
     }
 
+    const handleSelect = (connection) => {
+        setSelectedConnection(connection);
+        setSelectedConnectionId(connection.id);
+        localStorage.setItem("selectedConnectionId", connection.id);
+    }
+
     const deleteConnection = async (id, connectionId) => {
         await disconnect(connectionId).then((r: WebReturnDto) => {
             const updatedConnections = connections.filter((connection) => connection.id !== id);
@@ -143,11 +137,13 @@ function App() {
                 if (updatedConnections.length > 0) {
                     setSelectedConnectionId(updatedConnections[0].id);
                     setSelectedConnection(updatedConnections[0]);
+                    localStorage.setItem("selectedConnectionId", updatedConnections[0].id);
                 } else {
                     setSelectedConnectionId(0);
                     setSelectedConnection([]);
                     setHierarchicalDataRoots([]);
                     setHierarchicalData([]);
+                    localStorage.setItem("selectedConnectionId", 0);
                 }
             }
         });
@@ -215,46 +211,6 @@ function App() {
         });
     };
 
-    // just for development purposes
-    const addDevConnetion = () => {
-        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
-        config.host = "localhost"
-        config.port = 42069;
-        config.username = "admin";
-        config.password = "rootpwd";
-
-        if (connectionExists(config.host, config.port, config.username)) {
-            toast.error("this connection already exists!");
-            return;
-        }
-
-        connect(config).then(async (response: WebReturnDto) => {
-            if (response.ok) {
-                const newConnection = {
-                    id: connections.length + 1,
-                    connectionId: response.data,
-                    ip: config.host,
-                    port: config.port,
-                    username: config.username,
-                };
-
-                const updatedConnections = [...connections, newConnection];
-                setConnections(updatedConnections);
-
-                localStorage.setItem("connections", JSON.stringify(updatedConnections));
-                localStorage.setItem("selectedConnectionId", newConnection.id);
-
-                setSelectedConnectionId(newConnection.id);
-                setSelectedConnection(newConnection);
-            } else {
-                if (response.data) toast.error(response.data + " - " + response.message);
-                else toast.error(response.message);
-            }
-        }).catch((error) => {
-            console.error("Failed to add connection:", error);
-        });
-    }
-
     function connectionExists(host, port, username) {
         const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
 
@@ -273,6 +229,16 @@ function App() {
         setUsername('');
         setPassword('');
     };
+
+    const handleReconnect = (connection) => {
+        setReconnectMode(true);
+        setConnectionToReconnect(connection);
+        setHost(connection.ip);
+        setPort(connection.port);
+        setUsername(connection.username);
+        setPassword(""); // do not store password
+        setIsModalOpen(true);
+    }
 
     function processTcpGeneral(data, key) {
         if (data.type === "KEY_MAP") {
@@ -330,7 +296,8 @@ function App() {
 
         return {
             processedKey: key,
-            type: `ARRAY [${data.array.length}]`,
+            type: `ARRAY`,
+            displayType: `ARRAY [${data.array.length}]`,
             value: null,
             children,
             parentKey: null,
@@ -358,12 +325,20 @@ function App() {
         };
     }
 
+    function getLastElementAfterDot(key) {
+        if (key === ".")
+            return key;
+        if (key.includes(".")) {
+            const parts = key.split(".");
+            return parts[parts.length - 1];
+        }
+        return key;
+    }
 
     async function buildKeyDataStructure(key = ".") {
         try {
             if (key !== ".") {
               const tempData = await get(key, selectedConnection.connectionId);
-              console.log("get: ", key, tempData);
               if (tempData?.ok && tempData.data?.type) {
                 if (tempData.data.type !== "KEY_MAP") {
                   if (tempData.data.type === "ARRAY") {
@@ -410,7 +385,8 @@ function App() {
                         result[subKey] = processArray(fetchedData.data, newKey);
                     } else {
                         result[subKey] = {
-                            type: "ARRAY [${subKeyData.array?.length || 0}]",
+                            type: "ARRAY",
+                            displayType: `ARRAY [${subKeyData.array?.length || 0}]"`,
                             value: null,
                             children: [],
                         };
@@ -438,7 +414,8 @@ function App() {
                 } else {
                 }
             }
-            return {[key]: {type: "KEY_MAP", children: result}};
+
+            return {[getLastElementAfterDot(key)]: {type: "KEY_MAP", children: result}};
         } catch (error) {
             console.error("Error in buildKeyDataStructure:", error);
             return {};
@@ -479,6 +456,7 @@ function App() {
                     } else {
                         toast.error(loggedIn.message);
                         setHierarchicalDataRoots([]);
+                        selectedConnection.loggedIn = false;
                     }
                 });
             }
@@ -487,7 +465,6 @@ function App() {
 
     useEffect(() => {
       queue(async() => {
-        if (hierarchicalDataRoots.length > 0) {
           let newHierarchicalData = []
           for (const key of hierarchicalDataRoots) {
             const data = await buildKeyDataStructure(key);
@@ -495,7 +472,6 @@ function App() {
             newHierarchicalData = newHierarchicalData.concat(hierarchy);
           }
           toggleFromStorage(newHierarchicalData);
-        }
       });
     }, [hierarchicalDataRoots]);
 
@@ -513,6 +489,7 @@ function App() {
                 } else {
                     toast.error(loggedIn.message);
                     setHierarchicalDataRoots([]);
+                    selectedConnection.loggedIn = false;
                 }
             })
         }
@@ -521,6 +498,7 @@ function App() {
     async function handleAdd(node, connectionId) {
         navigate(`/edit/key`, {
             state: {
+                isAdmin: isAdmin,
                 keyData: node.key,
                 connectionId: connectionId,
                 addKey: true,
@@ -586,7 +564,7 @@ function App() {
                         toggleCollapse(node)
                     }} style={{paddingLeft: `${level * 20}px`}}><div>{node.children.length > 0 ? (node.collapsed ? (<GoTriangleRight />) : (<GoTriangleDown />)) : ""}{printDisplayKey(node, parentNode)}</div></td>
                     <td colSpan="2">{node.value !== null ? node.value : ""}</td>
-                    <td colSpan="2">{node.type}</td>
+                    <td colSpan="2">{node.displayType}</td>
                     <td colSpan="3">
                         {!node.noEdit && (
                             <button
@@ -594,6 +572,7 @@ function App() {
                                 onClick={() => {
                                     navigate(`/edit/${node.key === "." ? "-" : node.key}`, {
                                         state: {
+                                            isAdmin: isAdmin,
                                             parentKey: node.parentKey,
                                             arrayPath: node.path,
                                             keyData: node.key,
@@ -633,6 +612,9 @@ function App() {
 
     const onClose = () => {
         setIsModalOpen(false);
+        setReconnectMode(false);
+        setConnectionToReconnect(null);
+        setIsModalOpen(false);
         setHost('');
         setPort('');
         setUsername('');
@@ -645,27 +627,60 @@ function App() {
             return;
         }
 
-        if (connectionExists(host, port, username)) {
-            toast.error("this connection already exists!");
-            return;
-        }
-
         const config:ConnectionConfigDTO = new ConnectionConfigDTO();
         config.host = host;
         config.port = parseInt(port);
         config.username = username;
         config.password = password;
 
+        if (reconnectMode && connectionToReconnect) {
+            connect(config)
+                .then((response: WebReturnDto) => {
+                    if (response.ok) {
+                        connectionToReconnect.connectionId = response.data;
+                        connectionToReconnect.ip = host;
+                        connectionToReconnect.port = port;
+                        connectionToReconnect.username = username;
+                        connectionToReconnect.loggedIn = true;
 
-        if (host && port && username && password) {
+                        const updatedList = connections.map((conn) =>
+                            conn.id === connectionToReconnect.id ? connectionToReconnect : conn
+                        );
+                        localStorage.setItem("connections", JSON.stringify(updatedList));
+
+                        setSelectedConnectionId(connectionToReconnect.id);
+                        setSelectedConnection(connectionToReconnect);
+
+
+                        refresh();
+                        toast.success("Reconnected successfully!");
+                    } else {
+                        toast.error(response.data ? `${response.data} - ${response.message}` : response.message);
+                    }
+                })
+                .catch((error) => {
+                    toast.error("Failed to reconnect.");
+                    console.error("Failed to reconnect:", error);
+                })
+                .finally(() => {
+                    onClose();
+                });
+        } else {
+            if (connectionExists(host, port, username)) {
+                toast.error("this connection already exists!");
+                return;
+            }
+
             connect(config).then(async (response: WebReturnDto) => {
                 if (response.ok) {
                     const newConnection = {
-                        id: connections.length + 1,
+                        id: connections.reduce((a, b) => {
+                                return Math.max(a, b.id)}, 0) + 1,
                         connectionId: response.data,
                         ip: host,
                         port: port,
                         username: username,
+                        loggedIn: true
                     };
 
                     const updatedConnections = [...connections, newConnection];
@@ -683,11 +698,10 @@ function App() {
             }).catch((error) => {
                 toast.error("Failed to add connection.");
                 console.error("Failed to add connection:", error);
+            }).finally(() => {
+                onClose();
             });
-        } else {
-            console.error("Invalid connection details.");
         }
-        onClose();
     };
 
     return (
@@ -699,8 +713,7 @@ function App() {
                         key={connection.id}
                         className={`connection ${selectedConnectionId === connection.id ? "selected" : ""}`}
                         onClick={() => {
-                            setSelectedConnection(connection);
-                            setSelectedConnectionId(connection.id);
+                            handleSelect(connection);
                         }}
                     >
                         <input
@@ -709,10 +722,20 @@ function App() {
                             value={connection.id}
                             checked={selectedConnectionId === connection.id}
                             onChange={() => {
-                                setSelectedConnection(connection);
-                                setSelectedConnectionId(connection.id);
+                                handleSelect(connection);
                             }}                        />
                         {`${connection.ip}:${connection.port}:${connection.username}`}
+                        {!connection.loggedIn && (
+                            <button
+                                className="delete-button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReconnect(connection);
+                                }}
+                            >
+                                <TbPlugConnected /> Reconnect
+                            </button>
+                        )}
                         {connection.id !== 0 && (
                             <button
                                 className="delete-button"
@@ -734,9 +757,6 @@ function App() {
                         </button>
                     )}
 
-                    <button className="add-connection-button blue-button" onClick={addDevConnetion}>
-                        Dev Login
-                    </button>
                 </div>
             </div>
             <div className="data-panel">
@@ -759,7 +779,7 @@ function App() {
                                 <button
                                     className="list-button list-all"
                                     onClick={toggleBtn}>
-                                    {!toggle ? 'Open All' : 'Close All'}
+                                    Toggle all
                                 </button>
                             </span>
                         </th>
@@ -774,7 +794,8 @@ function App() {
                 {isModalOpen &&
                     <div className="modal-backdrop">
                         <div className="modal">
-                            <h2>Enter Configuration</h2>
+                            {reconnectMode && (<h2>Reconnect Configuration</h2>)}
+                            {!reconnectMode && (<h2>Enter Configuration</h2>)}
                             <div className="modal-content">
                                 <label>
                                     Host:
@@ -835,7 +856,8 @@ function App() {
                             </div>
                             <div className="modal-actions">
                                 <button onClick={onClose} className="cancel-button">Cancel</button>
-                                <button onClick={handleSave} className="save-button">Save</button>
+                                {reconnectMode && (<button onClick={handleSave} className="save-button">Reconnect</button>)}
+                                {!reconnectMode && (<button onClick={handleSave} className="save-button">Add</button>)}
                             </div>
                         </div>
                     </div>

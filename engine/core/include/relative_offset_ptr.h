@@ -34,29 +34,87 @@ private:
         offset = reinterpret_cast<std::uintptr_t>(ptr) - reinterpret_cast<std::uintptr_t>(this);
     }
 public:
+    /**
+     * @brief Constructs a relative_offset_ptr by copying another relative_offset_ptr.
+     *
+     * @param other The other relative_offset_ptr.
+     */
     relative_offset_ptr(const relative_offset_ptr<T>& other): relative_offset_ptr{other.get()} {}
+    /**
+     * @brief Constructs an offset_ptr with a specific offset value.
+     *
+     * @param offset The offset value to initialize the offset_ptr.
+     */
     relative_offset_ptr(T* other) { set(other); };
+    /**
+     * @brief Default constructor for offset_ptr.
+     *
+     * Initializes the offset_ptr with a default invalid offset value (0).
+     */
     relative_offset_ptr() : offset{0} {};
 
+    /**
+     * @brief Assigns the value of another relative_offset_ptr to this one.
+     *
+     * Copies the value of the pointer stored in another relative_offset_ptr and assigns it to this object.
+     *
+     * @param other The relative_offset_ptr to copy the value from.
+     * @return A reference to this relative_offset_ptr.
+     */
     relative_offset_ptr& operator=(const relative_offset_ptr<T>& other) {
         set(other.get());
         return *this;
     }
 
+    /**
+     * @brief Assigns a raw pointer to this relative_offset_ptr.
+     *
+     * Sets the value of the relative_offset_ptr to the address of the given raw pointer.
+     *
+     * @param ptr The raw pointer to assign.
+     * @return A reference to this relative_offset_ptr.
+     */
+    relative_offset_ptr& operator=(T* ptr) {
+        set(ptr);
+        return *this;
+    }
+
+    /**
+     * @brief Move-assigns the value of another relative_offset_ptr to this one.
+     *
+     * Transfers the value of the pointer stored in another relative_offset_ptr to this object.
+     *
+     * @param other The relative_offset_ptr to move the value from.
+     * @return A reference to this relative_offset_ptr.
+     */
     relative_offset_ptr& operator=(relative_offset_ptr<T>&& other) {
         set(other.get());
         return *this;
     }
 
-    T& operator*() const { return *get(); } //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
-    T* operator->() const { return get(); } //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    /**
+     * Resolve to a reference to contained Object.
+     *
+     * @onlyInAtomicAccess
+     * @return A reference to the contained Object
+     */
+    T& operator*() const { return *get(); }
+    /**
+     * Resolve to a pointer to contained Object.
+     *
+     * @onlyInAtomicAccess
+     * @return A pointer to the contained Object
+     */
+    T* operator->() const { return get(); }
 
-    T* get() const { //!< ONLY CALL THIS FROM WITHIN AN ATOMIC_ACCESS BLOCK
+    /**
+     * Resolve to a pointer to contained Object.
+     *
+     * @onlyInAtomicAccess
+     * @return A pointer to the contained Object
+     */
+    T* get() const {
         return reinterpret_cast<T*>(reinterpret_cast<std::uintptr_t>(this) + offset);
     }
 
-    relative_offset_ptr& operator=(T* ptr) {
-        set(ptr);
-        return *this;
-    }
 };

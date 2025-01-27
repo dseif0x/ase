@@ -116,16 +116,16 @@ int main(int argc, char* argv[]) {
     get_and_print(db, "test1");
     get_and_print(db, "test2");
 
-    bool doInteger = false;
-    bool doString = false;
-    bool doBoolean = false;
-    bool doDouble = false;
+    bool doInteger = true;
+    bool doString = true;
+    bool doBoolean = true;
+    bool doDouble = true;
     bool doArray = true;
     bool doPair = true;
-    bool doMap = false;
-    bool doReference = false;
-    bool doDelete = false;
-    bool doSum = false;
+    bool doMap = true;
+    bool doReference = true;
+    bool doDelete = true;
+    bool doSum = true;
 
     for (int i: std::views::iota(0, 1024 * 1024)) {
         if (doInteger) {
@@ -330,7 +330,6 @@ int main(int argc, char* argv[]) {
 
         list_and_print(db, "nested");
         list_and_print(db, ".");
-        return 0;
 
 
         get_and_print(db, "test");

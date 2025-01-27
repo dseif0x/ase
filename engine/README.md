@@ -21,3 +21,13 @@ cd cmake-build-mingw
 cmake -DCMAKE_TOOLCHAIN_FILE=toolchains/mingw-toolchain.cmake ..
 cmake --build ./ -j 8 --target db_test
 ```
+
+# Docker Demo
+This will run a simple demo setup with:
+- A server listening on port 42069
+- A producer that writes the current time in milliseconds into producer.time every second
+- A consumer that reads the time from producer.time and prints it to the console ever second
+```bash
+docker build -t ase_demo . -f docker/Dockerfile.demo
+docker run --rm -p 42069:42069 ase_demo
+```

@@ -1,22 +1,10 @@
 import React, {useEffect, useState, useRef} from "react";
-import {Subject, zip} from "rxjs";
 import {useLocation, useNavigate} from "react-router-dom";
 import "../styles/pages/AclEditor.css";
 import {get, set, get_acl, update_acl} from "../api/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-const asyncSub = new Subject();
-const nextAsyncSub = new Subject();
-zip(asyncSub, nextAsyncSub).subscribe({
-  next: ([fn]) => {
-    fn().finally(() => nextAsyncSub.next())
-  }
-});
-nextAsyncSub.next();
-function queue(fn) {
-  asyncSub.next(fn);
-}
+import {queue} from "../utils/Queue";
 
 function evaluatePermissionDiff(initial, current) {
   const res = [];
@@ -47,6 +35,7 @@ function evaluatePermissions(permission, key) {
   const splitKey = key.split(".");
   let perm = 0;
   let itObj = permission;
+  if (key !== ".")
   for (let i = 0; i < splitKey.length; i++) {
     if (!itObj[splitKey[i]]) return perm;
     itObj = itObj[splitKey[i]].keyMap;
@@ -103,7 +92,7 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, addArrayKeyPath } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, isAdmin } = location.state || {};
     if (keyData === "-") keyData = ".";
     const initialPermissions = useRef([]);
     const initialData = useRef({});
@@ -119,6 +108,14 @@ const AclEditor = () => {
     });
     const [isEditingArrayElement, setIsEditingArrayElement] = useState(false);
     const [parentArrayData, setParentArrayData] = useState(null);
+
+    useEffect(() => {
+        if (simpleType === "BOOLEAN") {
+            setValue("True");
+        } else {
+            setValue("");
+        }
+    }, [simpleType]);
 
     useEffect(() => {
         if (arrayPath && parentKey && !addKey) {
@@ -160,7 +157,6 @@ const AclEditor = () => {
             }
           })
           queue(async () => {
-            console.log("getting acl");
             const val = await get_acl(connectionId);
             if (val.ok) {
               const data = val.data.keyMap;
@@ -296,7 +292,6 @@ const AclEditor = () => {
       let ok = permDiff.length;
       for (const permUpdate of permDiff) {
         queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)).then(res => {
-          console.log(res);
           if (res.ok) ok -= 1;
           if (ok === 0) toast.success("Updated ACL!");
         }));
@@ -448,21 +443,21 @@ const AclEditor = () => {
                 </div>
             )}
       {
-        (keyData !== ".") && (
+        (keyData !== "." || addKey) && (
             <div className="editor-section">
                 <label>Type:</label>
                 <select value={type} onChange={handleTypeChange}>
                     <option value="SIMPLE">Simple</option>
                     <option value="ARRAY">Array</option>
                     <option value="PAIR">Pair</option>
-                    {type === "KEY_MAP" && <option value="KEY_MAP">Key Map</option>}
+                    {(type === "KEY_MAP" || (!isArray && addKey)) && <option value="KEY_MAP">Key Map</option>}
                 </select>
             </div>
         )
       }
 
             {/* SIMPLE Type */}
-            {keyData !== "." && type === "SIMPLE" && (
+            {(keyData !== "." || addKey) && type === "SIMPLE" && (
                 <div className="editor-section simple-section">
                     <h3>SIMPLE Type</h3>
                     <div className="simple-row">
@@ -528,9 +523,11 @@ const AclEditor = () => {
                                     <label>Simple Type:</label>
                                     <select
                                         value={pair.left.simpleType}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                            const newValue = e.target.value === "BOOLEAN" ? "True" : "";
+                                            if (e.target.value === "BOOLEAN") handlePairChange("left", "value", newValue);
                                             handlePairChange("left", "simpleType", e.target.value)
-                                        }
+                                        }}
                                     >
                                         {SimpleTypes.map((simpleType) => (
                                             <option key={simpleType} value={simpleType}>
@@ -541,14 +538,25 @@ const AclEditor = () => {
                                 </div>
                                 <div className="pair-row">
                                     <label>Value:</label>
-                                    <input
-                                        type="text"
-                                        value={pair.left.value}
-                                        onChange={(e) =>
-                                            handlePairChange("left", "value", e.target.value)
-                                        }
-                                        placeholder={`Enter ${pair.left.simpleType}`}
-                                    />
+                                    {pair.left.simpleType === "BOOLEAN" ? (
+                                        <select
+                                            value={pair.left.value}
+                                            onChange={(e) => handlePairChange("left", "value", e.target.value)
+                                            }
+                                        >
+                                            <option value="True">True</option>
+                                            <option value="False">False</option>
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={pair.left.value}
+                                            onChange={(e) =>
+                                                handlePairChange("left", "value", e.target.value)
+                                            }
+                                            placeholder={`Enter a ${SIMPLE_TYPE_MAP[pair.left.simpleType]}`}
+                                        />
+                                    )}
                                 </div>
                             </>
                         )}
@@ -579,9 +587,11 @@ const AclEditor = () => {
                                     <label>Simple Type:</label>
                                     <select
                                         value={pair.right.simpleType}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                            const newValue = e.target.value === "BOOLEAN" ? "True" : "";
+                                            handlePairChange("right", "value", newValue);
                                             handlePairChange("right", "simpleType", e.target.value)
-                                        }
+                                        }}
                                     >
                                         {SimpleTypes.map((simpleType) => (
                                             <option key={simpleType} value={simpleType}>
@@ -592,21 +602,34 @@ const AclEditor = () => {
                                 </div>
                                 <div className="pair-row">
                                     <label>Value:</label>
-                                    <input
-                                        type="text"
-                                        value={pair.right.value}
-                                        onChange={(e) =>
-                                            handlePairChange("right", "value", e.target.value)
-                                        }
-                                        placeholder={`Enter ${pair.right.simpleType}`}
-                                    />
+                                    {pair.right.simpleType === "BOOLEAN" ? (
+                                        <select
+                                            value={pair.right.value}
+                                            onChange={(e) =>
+                                                handlePairChange("right", "value", e.target.value)
+                                            }
+                                        >
+                                            <option value="True">True</option>
+                                            <option value="False">False</option>
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={pair.right.value}
+                                            onChange={(e) =>
+                                                handlePairChange("right", "value", e.target.value)
+                                            }
+                                            placeholder={`Enter a ${SIMPLE_TYPE_MAP[pair.right.simpleType]}`}
+                                        />
+                                    )}
                                 </div>
                             </>
                         )}
                     </div>
                 </div>
             )}
-
+            {!addKey && !(arrayPath?.length > 0) && (
+            <>
             <h3>Current ACL Permissions</h3>
             <table className="permissions-table">
                 <thead>
@@ -614,7 +637,7 @@ const AclEditor = () => {
                     <th>User/Group</th>
                     <th>Read</th>
                     <th>Add</th>
-                    <th>Modify</th>
+                    <th>Delete</th>
                     {/*<th>Remove</th>*/}
                 </tr>
                 </thead>
@@ -625,6 +648,7 @@ const AclEditor = () => {
                         {["read", "update", "delete"].map((perm) => (
                             <td key={perm}>
                                 <input
+                                    disabled={!isAdmin}
                                     type="checkbox"
                                     checked={permission[perm]}
                                     onChange={() => togglePermission(index, perm)}
@@ -654,6 +678,8 @@ const AclEditor = () => {
                 onClick={handleAclUpdate}>
                 Save ACL
             </button>
+            </>
+            )}
             <div className="action-buttons">
                 <button className="cancel-btn" onClick={handleCancel}>
                     Cancel

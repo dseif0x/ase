@@ -230,6 +230,7 @@ void shmem::load_data(const shmem::dump_t& data) {
     metadata->version = meta.version;
     metadata->alloc_size = meta.alloc_size;
     metadata->first_free = meta.first_free;
+    local_version = metadata->version;
 
     // Re-Create the shared memory
     int data_fd = shm_open("shmem_data", O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);

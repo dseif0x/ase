@@ -228,7 +228,6 @@ export async function handleError(response) {
 }
 export async function isLoggedIn(connectionId) {
     try {
-        console.log("check login with conn id: " + connectionId);
         const response = await fetch(`${API_BASE_URL}/auth/isLoggedIn`, {
             method: "POST",
             headers: {
