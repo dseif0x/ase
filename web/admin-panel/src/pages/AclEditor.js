@@ -158,7 +158,6 @@ const AclEditor = () => {
           })
           queue(async () => {
             const val = await get_acl(connectionId);
-            console.log("getting acl", val);
             if (val.ok) {
               const data = val.data.keyMap;
               const perms = []
@@ -293,7 +292,6 @@ const AclEditor = () => {
       let ok = permDiff.length;
       for (const permUpdate of permDiff) {
         queue(async() => update_acl(connectionId, permUpdate.user, keyData, permToNumber(permUpdate)).then(res => {
-          console.log(res);
           if (res.ok) ok -= 1;
           if (ok === 0) toast.success("Updated ACL!");
         }));
