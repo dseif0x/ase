@@ -523,9 +523,11 @@ const AclEditor = () => {
                                     <label>Simple Type:</label>
                                     <select
                                         value={pair.left.simpleType}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                            const newValue = e.target.value === "BOOLEAN" ? "True" : "";
+                                            if (e.target.value === "BOOLEAN") handlePairChange("left", "value", newValue);
                                             handlePairChange("left", "simpleType", e.target.value)
-                                        }
+                                        }}
                                     >
                                         {SimpleTypes.map((simpleType) => (
                                             <option key={simpleType} value={simpleType}>
@@ -536,14 +538,25 @@ const AclEditor = () => {
                                 </div>
                                 <div className="pair-row">
                                     <label>Value:</label>
-                                    <input
-                                        type="text"
-                                        value={pair.left.value}
-                                        onChange={(e) =>
-                                            handlePairChange("left", "value", e.target.value)
-                                        }
-                                        placeholder={`Enter ${pair.left.simpleType}`}
-                                    />
+                                    {pair.left.simpleType === "BOOLEAN" ? (
+                                        <select
+                                            value={pair.left.value}
+                                            onChange={(e) => handlePairChange("left", "value", e.target.value)
+                                            }
+                                        >
+                                            <option value="True">True</option>
+                                            <option value="False">False</option>
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={pair.left.value}
+                                            onChange={(e) =>
+                                                handlePairChange("left", "value", e.target.value)
+                                            }
+                                            placeholder={`Enter a ${SIMPLE_TYPE_MAP[pair.left.simpleType]}`}
+                                        />
+                                    )}
                                 </div>
                             </>
                         )}
@@ -574,9 +587,11 @@ const AclEditor = () => {
                                     <label>Simple Type:</label>
                                     <select
                                         value={pair.right.simpleType}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                            const newValue = e.target.value === "BOOLEAN" ? "True" : "";
+                                            handlePairChange("right", "value", newValue);
                                             handlePairChange("right", "simpleType", e.target.value)
-                                        }
+                                        }}
                                     >
                                         {SimpleTypes.map((simpleType) => (
                                             <option key={simpleType} value={simpleType}>
@@ -587,14 +602,26 @@ const AclEditor = () => {
                                 </div>
                                 <div className="pair-row">
                                     <label>Value:</label>
-                                    <input
-                                        type="text"
-                                        value={pair.right.value}
-                                        onChange={(e) =>
-                                            handlePairChange("right", "value", e.target.value)
-                                        }
-                                        placeholder={`Enter ${pair.right.simpleType}`}
-                                    />
+                                    {pair.right.simpleType === "BOOLEAN" ? (
+                                        <select
+                                            value={pair.right.value}
+                                            onChange={(e) =>
+                                                handlePairChange("right", "value", e.target.value)
+                                            }
+                                        >
+                                            <option value="True">True</option>
+                                            <option value="False">False</option>
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={pair.right.value}
+                                            onChange={(e) =>
+                                                handlePairChange("right", "value", e.target.value)
+                                            }
+                                            placeholder={`Enter a ${SIMPLE_TYPE_MAP[pair.right.simpleType]}`}
+                                        />
+                                    )}
                                 </div>
                             </>
                         )}
