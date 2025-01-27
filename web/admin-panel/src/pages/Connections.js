@@ -209,47 +209,6 @@ function App() {
         });
     };
 
-    // just for development purposes
-    const addDevConnetion = () => {
-        const config:ConnectionConfigDTO = new ConnectionConfigDTO();
-        config.host = "localhost"
-        config.port = 42069;
-        config.username = "admin";
-        config.password = "rootpwd";
-
-        if (connectionExists(config.host, config.port, config.username)) {
-            toast.error("this connection already exists!");
-            return;
-        }
-
-        connect(config).then(async (response: WebReturnDto) => {
-            if (response.ok) {
-                const newConnection = {
-                    id: connections.length + 1,
-                    connectionId: response.data,
-                    ip: config.host,
-                    port: config.port,
-                    username: config.username,
-                    loggedIn: true
-                };
-
-                const updatedConnections = [...connections, newConnection];
-                setConnections(updatedConnections);
-
-                localStorage.setItem("connections", JSON.stringify(updatedConnections));
-                localStorage.setItem("selectedConnectionId", newConnection.id);
-
-                setSelectedConnectionId(newConnection.id);
-                setSelectedConnection(newConnection);
-            } else {
-                if (response.data) toast.error(response.data + " - " + response.message);
-                else toast.error(response.message);
-            }
-        }).catch((error) => {
-            console.error("Failed to add connection:", error);
-        });
-    }
-
     function connectionExists(host, port, username) {
         const savedConnections = JSON.parse(localStorage.getItem("connections")) || [];
 
@@ -791,9 +750,6 @@ function App() {
                         </button>
                     )}
 
-                    <button className="add-connection-button blue-button" onClick={addDevConnetion}>
-                        Dev Login
-                    </button>
                 </div>
             </div>
             <div className="data-panel">
