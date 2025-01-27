@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import pandas as pd
+import plotly.io as pio
 
 
 def load_data(file_path):
@@ -132,6 +133,15 @@ def plot_boxplots_with_custom_labels(df):
         # Show the figure
         fig.show()
 
+def replace_non_alphanumeric(input_string, replacement_char='_'):
+    result = ''
+    for char in input_string:
+        if char.isalnum():  # Check if the character is alphanumeric
+            result += char
+        else:
+            result += replacement_char
+    return result
+
 def plot_boxplots_with_custom_labels2(df):
     """
     Create boxplots for SetTime and GetTime using Plotly.
@@ -222,7 +232,8 @@ def plot_boxplots_with_custom_labels2(df):
         ))
 
         # Show the figure
-        fig.show()
+        #fig.show()
+        fig.write_image(f"bench_{replace_non_alphanumeric(test_type)}.png", width=1750, height=984, scale=3)
 
 def generate_tables(df):
     df["SetTimeSeconds"] = df["SetTime"].dt.total_seconds()
