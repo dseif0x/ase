@@ -157,8 +157,8 @@ const AclEditor = () => {
             }
           })
           queue(async () => {
-            console.log("getting acl");
             const val = await get_acl(connectionId);
+            console.log("getting acl", val);
             if (val.ok) {
               const data = val.data.keyMap;
               const perms = []
@@ -603,7 +603,8 @@ const AclEditor = () => {
                     </div>
                 </div>
             )}
-
+            {!addKey && (
+            <>
             <h3>Current ACL Permissions</h3>
             <table className="permissions-table">
                 <thead>
@@ -611,7 +612,7 @@ const AclEditor = () => {
                     <th>User/Group</th>
                     <th>Read</th>
                     <th>Add</th>
-                    <th>Modify</th>
+                    <th>Delete</th>
                     {/*<th>Remove</th>*/}
                 </tr>
                 </thead>
@@ -651,6 +652,8 @@ const AclEditor = () => {
                 onClick={handleAclUpdate}>
                 Save ACL
             </button>
+            </>
+            )}
             <div className="action-buttons">
                 <button className="cancel-btn" onClick={handleCancel}>
                     Cancel
