@@ -16,6 +16,11 @@ void ReadWriteClient::read_data(TCP2Decoder &decoder) {
     while (decoder.is_healthy()) decoder.read_data();
 }
 
+void ReadWriteClient::read_error() {
+    this->decoder->to_unsigned(2);
+    this->decoder->to_string();
+}
+
 ReadWriteClient::ReadWriteClient(const std::string &ip, int port, const std::string &name, const std::string &pwd):
     server_ip(ip), server_port(port), client_socket(-1) {
     // Create socket
@@ -155,7 +160,11 @@ std::vector<bool> ReadWriteClient::buffered_set(std::vector<std::pair<std::strin
     this->send_buffer();
 
     for (auto & elem : data) {
-        res.push_back(this->decoder->to_acknak() == 1);
+        auto an = this->decoder->to_acknak();
+        res.push_back(an == 1);
+        if (an == 0) {
+            this->read_error(); // removes the error message from the buffer
+        }
     }
 
     if (flush_res && this->decoder->to_acknak() != 1) std::cout << "Error while trying to get ack for flush." << std::endl;

@@ -138,7 +138,8 @@ void get_key(db_map& map, shmem& mem, std::deque<std::string>& keys, Lambda&& cb
     }
     keys.pop_front();
     if (res->type != ValueType::MAP) {
-        throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
+        cb(std::nullopt);
+        return;
     }
     auto& newMap = std::get<Value::shmem_map_t>(res->data);
     get_key(*newMap, mem, keys, cb);
@@ -458,11 +459,15 @@ void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys,
     if (entrypoint->has(mem, key.c_str())) {
         auto newMap = *entrypoint->get(mem, key.c_str());
         if (newMap.type != ValueType::MAP) {
-            //lock.unlock();
-            throw std::runtime_error("Unexpected Leaf encountered when resolving tree");
+            if (force) { // if its not a map we can overwrite it with one
+                auto subdomain = generate_subdomain(keys, std::move(new_value));
+                auto tmp = Value::create_value(mem, subdomain, true);
+                db_key_map::set(map, mem, key.c_str(), tmp);
+            }
+        } else {
+            offset_ptr<db_map> ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.data));
+            set_key_(ptr, mem, keys, std::move(new_value), force);
         }
-        offset_ptr<db_map> ptr = mem.relative_to_offset(std::get<Value::shmem_map_t>(newMap.data));
-        set_key_(ptr, mem, keys, std::move(new_value), force);
     } else {
         auto subdomain = generate_subdomain(keys, std::move(new_value));
         auto tmp = Value::create_value(mem, subdomain, true);
@@ -476,6 +481,7 @@ void set_key_(offset_ptr<db_map> map, shmem& mem, std::deque<std::string>& keys,
 
 void set_key(offset_ptr<db_map>& map, shmem& mem, std::deque<std::string>& keys, CopiedValue&& new_value, const bool force) {
     std::unique_lock<shrwlock> lock_guard(mem.get_meta_mutex());
+    map.atomic_access(mem, [](db_key_map* entrypoint){}, true);
     set_key_(map, mem, keys, std::move(new_value), force);
 }
 

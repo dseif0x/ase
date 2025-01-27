@@ -11,14 +11,14 @@ benchmark_path = os.environ["ASE_BENCH_PATH"]
 output_path = "test.txt"
 
 benches = [
-    "bench_dma", "bench_redis", "bench_tcp2", "bench_tcp2_buff", "bench_tcp2_bat",
-    "bench_dma_parallel", "bench_redis_parallel", "bench_tcp2_parallel", "bench_tcp2_buff_parallel", "bench_tcp2_bat_parallel"]
+    "bench_dma", "bench_redis_pipelining", "bench_tcp2_bat", "bench_tcp2_buff", "bench_redis", "bench_tcp2",
+    "bench_dma_parallel", "bench_redis_pipelining_parallel", "bench_tcp2_bat_parallel", "bench_tcp2_buff_parallel", "bench_redis_parallel", "bench_tcp2_parallel"]
 start_ase_server_f = [
-    False, False, True, True, True,
-    False, False, True, True, True]
+    False, False, True, True, False, True,
+    False, False, True, True, False, True]
 start_redis_server_f = [
-    False, True, False, False, False,
-    False, True, False, False, False]
+    False, True, False, False, True, False,
+    False, True, False, False, True, False]
 
 ase_server_process = None
 redis_server_process = None
