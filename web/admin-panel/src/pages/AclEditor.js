@@ -603,7 +603,7 @@ const AclEditor = () => {
                     </div>
                 </div>
             )}
-            {!addKey && (
+            {!addKey && !(arrayPath?.length > 0) && (
             <>
             <h3>Current ACL Permissions</h3>
             <table className="permissions-table">

@@ -774,7 +774,7 @@ function App() {
                                 <button
                                     className="list-button list-all"
                                     onClick={toggleBtn}>
-                                    {!toggle ? 'Open All' : 'Close All'}
+                                    Toggle all
                                 </button>
                             </span>
                         </th>
