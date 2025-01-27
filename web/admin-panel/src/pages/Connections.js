@@ -496,6 +496,7 @@ function App() {
     async function handleAdd(node, connectionId) {
         navigate(`/edit/key`, {
             state: {
+                isAdmin: isAdmin,
                 keyData: node.key,
                 connectionId: connectionId,
                 addKey: true,
@@ -569,6 +570,7 @@ function App() {
                                 onClick={() => {
                                     navigate(`/edit/${node.key === "." ? "-" : node.key}`, {
                                         state: {
+                                            isAdmin: isAdmin,
                                             parentKey: node.parentKey,
                                             arrayPath: node.path,
                                             keyData: node.key,
@@ -772,7 +774,7 @@ function App() {
                                 <button
                                     className="list-button list-all"
                                     onClick={toggleBtn}>
-                                    {!toggle ? 'Open All' : 'Close All'}
+                                    Toggle all
                                 </button>
                             </span>
                         </th>

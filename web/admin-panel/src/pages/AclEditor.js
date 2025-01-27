@@ -92,7 +92,7 @@ const AclEditor = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray } = location.state || {};
+    let { keyData, connectionId, addKey, parentKey, arrayPath, isArray, isAdmin } = location.state || {};
     if (keyData === "-") keyData = ".";
     const initialPermissions = useRef([]);
     const initialData = useRef({});
@@ -603,7 +603,7 @@ const AclEditor = () => {
                     </div>
                 </div>
             )}
-            {!addKey && (
+            {!addKey && !(arrayPath?.length > 0) && (
             <>
             <h3>Current ACL Permissions</h3>
             <table className="permissions-table">
@@ -623,6 +623,7 @@ const AclEditor = () => {
                         {["read", "update", "delete"].map((perm) => (
                             <td key={perm}>
                                 <input
+                                    disabled={!isAdmin}
                                     type="checkbox"
                                     checked={permission[perm]}
                                     onChange={() => togglePermission(index, perm)}
