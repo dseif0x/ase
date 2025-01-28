@@ -1,6 +1,6 @@
 import type ConnectionConfigDTO from "../dto/ConnectionConfigDTO";
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "http://" + window.location.hostname + ":8080/api";
 
 export async function update_acl(connectionId, username, key, permission) {
   try {
