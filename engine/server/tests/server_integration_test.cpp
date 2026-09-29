@@ -20,6 +20,8 @@
 #include "TestCoding.h"
 #include "acl.h"
 
+#include <algorithm>
+#include <chrono>
 #include <string>
 #include <unistd.h>
 #include <utils.h>
@@ -148,6 +150,10 @@ private:
 };
 
 
+// once the first bytes of a reply arrived, wait at most this long for further chunks
+// (pass grace_ms = timeout_ms to always wait for the full timeout)
+constexpr int receive_grace_ms = 10;
+
 class DumbTCPClient {
 public:
     DumbTCPClient(std::string host, int port) : host_(std::move(host)), port_(port), sock_fd_(-1) {}
@@ -187,7 +193,7 @@ public:
 
     bool send_message(const std::vector<unsigned char>& message) const;
 
-    std::vector<unsigned char> receive_message(int timeout_ms) const;
+    std::vector<unsigned char> receive_message(int timeout_ms, int grace_ms = receive_grace_ms) const;
 
     void close_connection() {
         if (sock_fd_ != -1) {
@@ -230,15 +236,15 @@ bool DumbTCPClient::send_message(const std::vector<unsigned char>& message) cons
     return true;
 }
 
-std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms) const {
+std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms, int grace_ms) const {
     std::vector<unsigned char> buffer;
     const int chunk_size = 1024; // Size of each read
     auto start_time = std::chrono::steady_clock::now();
+    auto deadline = start_time + std::chrono::milliseconds(timeout_ms);
 
     while (true) {
         // Calculate remaining time
-        auto elapsed_time = std::chrono::steady_clock::now() - start_time;
-        int remaining_time_ms = timeout_ms - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
+        int remaining_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count();
         if (remaining_time_ms <= 0) {
             break; // Timeout expired
         }
@@ -274,6 +280,9 @@ std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms) const 
 
         // Append received data to the main buffer
         buffer.insert(buffer.end(), temp_buffer.begin(), temp_buffer.begin() + bytes_received);
+
+        // Data arrived: only wait a short while for further chunks instead of the full timeout
+        deadline = std::min(deadline, std::chrono::steady_clock::now() + std::chrono::milliseconds(grace_ms));
     }
 
     return buffer;
@@ -313,7 +322,7 @@ bool DumbTCPClient::send_message(const std::vector<unsigned char>& message) cons
     return true;
 }
 
-std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms) const {
+std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms, int grace_ms) const {
     std::vector<unsigned char> buffer;
     const int chunk_size = 1024; // Size of each read
     auto start_time = std::chrono::steady_clock::now();
@@ -365,7 +374,8 @@ std::vector<unsigned char> DumbTCPClient::receive_message(int timeout_ms) const 
 }
 #endif
 
-constexpr int wait_time_success = 10;
+// upper bound for a reply to arrive; receive_message returns early once data was received
+constexpr int wait_time_success = 250;
 constexpr int wait_time_fail = wait_time_success;
 constexpr int wait_time_error = wait_time_fail + 300; // the server will wait for 250 seconds, therefore we have to also wait 250 more
 
@@ -1375,7 +1385,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // requesting data of wrong user
     ASSERT_TRUE(client.send_message(make_hex_vector("84 02 05 7461737465 05 7465737431")));
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_error, wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x02); // user not found
 
@@ -1411,7 +1421,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // request data of admin -> permission denied
     ASSERT_TRUE(user.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
-    res = user.receive_message(wait_time_error);
+    res = user.receive_message(wait_time_error, wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0x00);
 
@@ -1434,7 +1444,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_get_perms) {
 
     // request data of admin -> SELF permission denied
     ASSERT_TRUE(user3.send_message(make_hex_vector("84 02 05 61646D696E 05 7465737431")));
-    res = user3.receive_message(wait_time_error);
+    res = user3.receive_message(wait_time_error, wait_time_error);
     ASSERT_TRUE(res.size() >= 3);
     ASSERT_TRUE(res[0] == 0x00 && res[1] == 0xFF && res[2] == 0xF0);
 }
@@ -1459,7 +1469,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_stop) {
     // send a forced set [1] followed by a stop command followed by a ping
     // answer should be an ack (for the stop) and ack + ping data
     ASSERT_TRUE(client.send_message(make_hex_vector("03 05 2E74657374 82 01 00000001 FE FD 01 02 03 04"))); // 00000002 is missing
-    auto res = client.receive_message(wait_time_error);
+    auto res = client.receive_message(wait_time_error, wait_time_error);
     ASSERT_EQ(res.size(), 6);
     ASSERT_TRUE(vec_equ(res, {0xFF, 0xFF, 0x01, 0x02, 0x03, 0x04}));
 
@@ -1506,7 +1516,7 @@ TEST_F(IntegrationTests_TCPServer, login_admin_batching) {
     // flush batching buffer
     ASSERT_TRUE(client.send_message((make_hex_vector("BF"))));
     auto correct_res = make_hex_vector("FF FF 02 00000001 FF");
-    res = client.receive_message(wait_time_error);
+    res = client.receive_message(wait_time_error, wait_time_error);
     print_vec(correct_res);
     print_vec(res);
     ASSERT_EQ(res.size(), correct_res.size());
